@@ -352,6 +352,18 @@ func (r *DocumentRepo) UpdateProcessingResult(ctx context.Context, id, contentTe
 	return nil
 }
 
+// GetDocumentCategoryID returns the category ID for a document
+func (r *DocumentRepo) GetDocumentCategoryID(ctx context.Context, tenantID uint32, documentID string) (*string, error) {
+	doc, err := r.GetByID(ctx, documentID)
+	if err != nil {
+		return nil, err
+	}
+	if doc == nil {
+		return nil, nil
+	}
+	return doc.CategoryID, nil
+}
+
 // ToProto converts an ent.Document to paperlessV1.Document
 func (r *DocumentRepo) ToProto(entity *ent.Document) *paperlessV1.Document {
 	if entity == nil {

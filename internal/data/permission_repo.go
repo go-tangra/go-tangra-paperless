@@ -10,6 +10,7 @@ import (
 
 	entCrud "github.com/tx7do/go-crud/entgo"
 
+	"github.com/go-tangra/go-tangra-paperless/internal/authz"
 	"github.com/go-tangra/go-tangra-paperless/internal/data/ent"
 	"github.com/go-tangra/go-tangra-paperless/internal/data/ent/documentpermission"
 
@@ -308,6 +309,138 @@ func (r *PermissionRepo) ListAccessibleResources(ctx context.Context, tenantID u
 	}
 
 	return resourceIDs, total, nil
+}
+
+// --- authz.PermissionStore interface implementation ---
+
+// GetDirectPermissions returns permissions directly on a resource
+func (r *PermissionRepo) GetDirectPermissions(ctx context.Context, tenantID uint32, resourceType authz.ResourceType, resourceID string) ([]authz.PermissionTuple, error) {
+	entities, err := r.entClient.Client().DocumentPermission.Query().
+		Where(
+			documentpermission.TenantIDEQ(tenantID),
+			documentpermission.ResourceTypeEQ(documentpermission.ResourceType(resourceType)),
+			documentpermission.ResourceIDEQ(resourceID),
+		).
+		All(ctx)
+	if err != nil {
+		r.log.Errorf("get direct permissions failed: %s", err.Error())
+		return nil, paperlessV1.ErrorInternalServerError("get permissions failed")
+	}
+
+	tuples := make([]authz.PermissionTuple, 0, len(entities))
+	for _, e := range entities {
+		tuples = append(tuples, r.toAuthzTuple(e))
+	}
+
+	return tuples, nil
+}
+
+// GetSubjectPermissions returns all permissions for a subject
+func (r *PermissionRepo) GetSubjectPermissions(ctx context.Context, tenantID uint32, subjectType authz.SubjectType, subjectID string) ([]authz.PermissionTuple, error) {
+	entities, err := r.entClient.Client().DocumentPermission.Query().
+		Where(
+			documentpermission.TenantIDEQ(tenantID),
+			documentpermission.SubjectTypeEQ(documentpermission.SubjectType(subjectType)),
+			documentpermission.SubjectIDEQ(subjectID),
+		).
+		All(ctx)
+	if err != nil {
+		r.log.Errorf("get subject permissions failed: %s", err.Error())
+		return nil, paperlessV1.ErrorInternalServerError("get permissions failed")
+	}
+
+	tuples := make([]authz.PermissionTuple, 0, len(entities))
+	for _, e := range entities {
+		tuples = append(tuples, r.toAuthzTuple(e))
+	}
+
+	return tuples, nil
+}
+
+// HasAuthzPermission checks if a specific permission exists (implements authz.PermissionStore)
+func (r *PermissionRepo) HasAuthzPermission(ctx context.Context, tenantID uint32, resourceType authz.ResourceType, resourceID string, subjectType authz.SubjectType, subjectID string) (*authz.PermissionTuple, error) {
+	entity, err := r.entClient.Client().DocumentPermission.Query().
+		Where(
+			documentpermission.TenantIDEQ(tenantID),
+			documentpermission.ResourceTypeEQ(documentpermission.ResourceType(resourceType)),
+			documentpermission.ResourceIDEQ(resourceID),
+			documentpermission.SubjectTypeEQ(documentpermission.SubjectType(subjectType)),
+			documentpermission.SubjectIDEQ(subjectID),
+		).
+		First(ctx)
+	if err != nil {
+		if ent.IsNotFound(err) {
+			return nil, nil
+		}
+		r.log.Errorf("check permission failed: %s", err.Error())
+		return nil, paperlessV1.ErrorInternalServerError("check permission failed")
+	}
+
+	tuple := r.toAuthzTuple(entity)
+	return &tuple, nil
+}
+
+// CreateAuthzPermission creates a new permission (implements authz.PermissionStore)
+func (r *PermissionRepo) CreateAuthzPermission(ctx context.Context, tuple authz.PermissionTuple) (*authz.PermissionTuple, error) {
+	entity, err := r.Create(ctx, tuple.TenantID, string(tuple.ResourceType), tuple.ResourceID, string(tuple.Relation), string(tuple.SubjectType), tuple.SubjectID, tuple.GrantedBy, tuple.ExpiresAt)
+	if err != nil {
+		return nil, err
+	}
+
+	result := r.toAuthzTuple(entity)
+	return &result, nil
+}
+
+// DeleteAuthzPermission deletes a permission (implements authz.PermissionStore)
+func (r *PermissionRepo) DeleteAuthzPermission(ctx context.Context, tenantID uint32, resourceType authz.ResourceType, resourceID string, relation *authz.Relation, subjectType authz.SubjectType, subjectID string) error {
+	var relationStr *string
+	if relation != nil {
+		s := string(*relation)
+		relationStr = &s
+	}
+	return r.Delete(ctx, tenantID, string(resourceType), resourceID, relationStr, string(subjectType), subjectID)
+}
+
+// ListResourcesBySubject lists resources accessible by a subject (implements authz.PermissionStore)
+func (r *PermissionRepo) ListResourcesBySubject(ctx context.Context, tenantID uint32, subjectType authz.SubjectType, subjectID string, resourceType authz.ResourceType) ([]string, error) {
+	entities, err := r.entClient.Client().DocumentPermission.Query().
+		Where(
+			documentpermission.TenantIDEQ(tenantID),
+			documentpermission.SubjectTypeEQ(documentpermission.SubjectType(subjectType)),
+			documentpermission.SubjectIDEQ(subjectID),
+			documentpermission.ResourceTypeEQ(documentpermission.ResourceType(resourceType)),
+		).
+		All(ctx)
+	if err != nil {
+		r.log.Errorf("list resources by subject failed: %s", err.Error())
+		return nil, paperlessV1.ErrorInternalServerError("list resources failed")
+	}
+
+	ids := make([]string, 0, len(entities))
+	for _, e := range entities {
+		ids = append(ids, e.ResourceID)
+	}
+
+	return ids, nil
+}
+
+// toAuthzTuple converts an ent.DocumentPermission to authz.PermissionTuple
+func (r *PermissionRepo) toAuthzTuple(entity *ent.DocumentPermission) authz.PermissionTuple {
+	tuple := authz.PermissionTuple{
+		ID:           uint32(entity.ID),
+		TenantID:     derefUint32(entity.TenantID),
+		ResourceType: authz.ResourceType(entity.ResourceType),
+		ResourceID:   entity.ResourceID,
+		Relation:     authz.Relation(entity.Relation),
+		SubjectType:  authz.SubjectType(entity.SubjectType),
+		SubjectID:    entity.SubjectID,
+		GrantedBy:    entity.GrantedBy,
+		ExpiresAt:    entity.ExpiresAt,
+	}
+	if entity.CreateTime != nil {
+		tuple.CreateTime = *entity.CreateTime
+	}
+	return tuple
 }
 
 // ToProto converts an ent.DocumentPermission to paperlessV1.PermissionTuple

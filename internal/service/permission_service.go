@@ -7,6 +7,7 @@ import (
 	"github.com/tx7do/kratos-bootstrap/bootstrap"
 	"google.golang.org/protobuf/types/known/emptypb"
 
+	"github.com/go-tangra/go-tangra-paperless/internal/authz"
 	"github.com/go-tangra/go-tangra-paperless/internal/data"
 
 	paperlessV1 "github.com/go-tangra/go-tangra-paperless/gen/go/paperless/service/v1"
@@ -17,15 +18,18 @@ type PermissionService struct {
 
 	log      *log.Helper
 	permRepo *data.PermissionRepo
+	engine   *authz.Engine
 }
 
 func NewPermissionService(
 	ctx *bootstrap.Context,
 	permRepo *data.PermissionRepo,
+	engine *authz.Engine,
 ) *PermissionService {
 	return &PermissionService{
 		log:      ctx.NewLoggerHelper("paperless/service/permission"),
 		permRepo: permRepo,
+		engine:   engine,
 	}
 }
 
@@ -33,31 +37,6 @@ func NewPermissionService(
 func (s *PermissionService) GrantAccess(ctx context.Context, req *paperlessV1.GrantAccessRequest) (*paperlessV1.GrantAccessResponse, error) {
 	tenantID := getTenantIDFromContext(ctx)
 	grantedBy := getUserIDAsUint32(ctx)
-
-	var expiresAt *interface{}
-	if req.ExpiresAt != nil {
-		t := req.ExpiresAt.AsTime()
-		expiresAt = new(interface{})
-		*expiresAt = t
-	}
-
-	var expTime *interface{}
-	if req.ExpiresAt != nil {
-		t := req.ExpiresAt.AsTime()
-		expTime = new(interface{})
-		_ = t
-		_ = expTime
-	}
-
-	// Convert expiration time
-	var expiresAtTime *interface{}
-	if req.ExpiresAt != nil {
-		t := req.ExpiresAt.AsTime()
-		_ = t
-		expiresAtTime = nil
-	}
-	_ = expiresAtTime
-	_ = expiresAt
 
 	permission, err := s.permRepo.Create(ctx, tenantID,
 		req.ResourceType.String(),
@@ -140,48 +119,41 @@ func (s *PermissionService) ListPermissions(ctx context.Context, req *paperlessV
 	}, nil
 }
 
-// CheckAccess checks if a subject has access to a resource
+// CheckAccess checks if a subject has access to a resource using the authz engine
 func (s *PermissionService) CheckAccess(ctx context.Context, req *paperlessV1.CheckAccessRequest) (*paperlessV1.CheckAccessResponse, error) {
 	tenantID := getTenantIDFromContext(ctx)
 
-	// Get permission to relation mapping
-	permissionRelations := getPermissionRelations(req.Permission)
-
-	// Check if user has any of the required relations
-	allowed := false
-	for _, relation := range permissionRelations {
-		has, err := s.permRepo.HasPermission(ctx, tenantID,
-			req.ResourceType.String(),
-			req.ResourceId,
-			relation,
-			"SUBJECT_TYPE_USER",
-			req.UserId,
-		)
-		if err != nil {
-			return nil, err
-		}
-		if has {
-			allowed = true
-			break
-		}
-	}
+	result := s.engine.Check(ctx, authz.CheckContext{
+		TenantID:     tenantID,
+		UserID:       req.UserId,
+		ResourceType: authz.ResourceType(req.ResourceType.String()),
+		ResourceID:   req.ResourceId,
+		Permission:   authz.Permission(req.Permission.String()),
+	})
 
 	var reason *string
-	if !allowed {
-		r := "user does not have the required permission"
-		reason = &r
+	if !result.Allowed {
+		reason = &result.Reason
 	}
 
 	return &paperlessV1.CheckAccessResponse{
-		Allowed: allowed,
+		Allowed: result.Allowed,
 		Reason:  reason,
 	}, nil
 }
 
-// ListAccessibleResources lists resources accessible by a subject
+// ListAccessibleResources lists resources accessible by a user using the authz engine
 func (s *PermissionService) ListAccessibleResources(ctx context.Context, req *paperlessV1.ListAccessibleResourcesRequest) (*paperlessV1.ListAccessibleResourcesResponse, error) {
 	tenantID := getTenantIDFromContext(ctx)
 
+	resourceIDs, err := s.engine.ListAccessibleResources(ctx, tenantID, req.UserId, authz.ResourceType(req.ResourceType.String()), authz.PermissionRead)
+	if err != nil {
+		return nil, err
+	}
+
+	total := uint32(len(resourceIDs))
+
+	// Apply pagination
 	page := uint32(1)
 	if req.Page != nil {
 		page = *req.Page
@@ -191,91 +163,45 @@ func (s *PermissionService) ListAccessibleResources(ctx context.Context, req *pa
 		pageSize = *req.PageSize
 	}
 
-	resourceIDs, total, err := s.permRepo.ListAccessibleResources(ctx, tenantID,
-		"SUBJECT_TYPE_USER",
-		req.UserId,
-		req.ResourceType.String(),
-		page, pageSize,
-	)
-	if err != nil {
-		return nil, err
+	if page > 0 && pageSize > 0 {
+		start := int((page - 1) * pageSize)
+		end := start + int(pageSize)
+		if start >= len(resourceIDs) {
+			resourceIDs = []string{}
+		} else if end > len(resourceIDs) {
+			resourceIDs = resourceIDs[start:]
+		} else {
+			resourceIDs = resourceIDs[start:end]
+		}
 	}
 
 	return &paperlessV1.ListAccessibleResourcesResponse{
 		ResourceIds: resourceIDs,
-		Total:       uint32(total),
+		Total:       total,
 	}, nil
 }
 
-// GetEffectivePermissions gets effective permissions for a subject on a resource
+// GetEffectivePermissions gets effective permissions for a user on a resource using the authz engine
 func (s *PermissionService) GetEffectivePermissions(ctx context.Context, req *paperlessV1.GetEffectivePermissionsRequest) (*paperlessV1.GetEffectivePermissionsResponse, error) {
 	tenantID := getTenantIDFromContext(ctx)
 
-	highestRelation, err := s.permRepo.GetHighestRelation(ctx, tenantID,
-		req.ResourceType.String(),
-		req.ResourceId,
-		"SUBJECT_TYPE_USER",
-		req.UserId,
-	)
-	if err != nil {
-		return nil, err
-	}
+	permissions, highestRelation := s.engine.GetEffectivePermissions(ctx, authz.CheckContext{
+		TenantID:     tenantID,
+		UserID:       req.UserId,
+		ResourceType: authz.ResourceType(req.ResourceType.String()),
+		ResourceID:   req.ResourceId,
+	})
 
-	// Get all permissions based on highest relation
-	permissions := getRelationPermissions(highestRelation)
+	// Convert authz permissions to proto permissions
+	protoPermissions := make([]paperlessV1.Permission, 0, len(permissions))
+	for _, p := range permissions {
+		if pv, ok := paperlessV1.Permission_value[string(p)]; ok {
+			protoPermissions = append(protoPermissions, paperlessV1.Permission(pv))
+		}
+	}
 
 	return &paperlessV1.GetEffectivePermissionsResponse{
-		Permissions:     permissions,
-		HighestRelation: paperlessV1.Relation(paperlessV1.Relation_value[highestRelation]),
+		Permissions:     protoPermissions,
+		HighestRelation: paperlessV1.Relation(paperlessV1.Relation_value[string(highestRelation)]),
 	}, nil
-}
-
-// getPermissionRelations returns the relations that grant a permission
-func getPermissionRelations(permission paperlessV1.Permission) []string {
-	switch permission {
-	case paperlessV1.Permission_PERMISSION_READ, paperlessV1.Permission_PERMISSION_DOWNLOAD:
-		return []string{"RELATION_OWNER", "RELATION_EDITOR", "RELATION_VIEWER", "RELATION_SHARER"}
-	case paperlessV1.Permission_PERMISSION_WRITE:
-		return []string{"RELATION_OWNER", "RELATION_EDITOR"}
-	case paperlessV1.Permission_PERMISSION_DELETE:
-		return []string{"RELATION_OWNER", "RELATION_EDITOR"}
-	case paperlessV1.Permission_PERMISSION_SHARE:
-		return []string{"RELATION_OWNER", "RELATION_SHARER"}
-	default:
-		return []string{}
-	}
-}
-
-// getRelationPermissions returns the permissions granted by a relation
-func getRelationPermissions(relation string) []paperlessV1.Permission {
-	switch relation {
-	case "RELATION_OWNER":
-		return []paperlessV1.Permission{
-			paperlessV1.Permission_PERMISSION_READ,
-			paperlessV1.Permission_PERMISSION_WRITE,
-			paperlessV1.Permission_PERMISSION_DELETE,
-			paperlessV1.Permission_PERMISSION_SHARE,
-			paperlessV1.Permission_PERMISSION_DOWNLOAD,
-		}
-	case "RELATION_EDITOR":
-		return []paperlessV1.Permission{
-			paperlessV1.Permission_PERMISSION_READ,
-			paperlessV1.Permission_PERMISSION_WRITE,
-			paperlessV1.Permission_PERMISSION_DELETE,
-			paperlessV1.Permission_PERMISSION_DOWNLOAD,
-		}
-	case "RELATION_VIEWER":
-		return []paperlessV1.Permission{
-			paperlessV1.Permission_PERMISSION_READ,
-			paperlessV1.Permission_PERMISSION_DOWNLOAD,
-		}
-	case "RELATION_SHARER":
-		return []paperlessV1.Permission{
-			paperlessV1.Permission_PERMISSION_READ,
-			paperlessV1.Permission_PERMISSION_SHARE,
-			paperlessV1.Permission_PERMISSION_DOWNLOAD,
-		}
-	default:
-		return []paperlessV1.Permission{}
-	}
 }

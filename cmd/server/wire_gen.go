@@ -12,6 +12,7 @@ import (
 	"github.com/go-tangra/go-tangra-paperless/internal/data"
 	"github.com/go-tangra/go-tangra-paperless/internal/server"
 	"github.com/go-tangra/go-tangra-paperless/internal/service"
+	"github.com/go-tangra/go-tangra-paperless/internal/service/providers"
 	"github.com/tx7do/kratos-bootstrap/bootstrap"
 )
 
@@ -19,7 +20,7 @@ import (
 
 // initApp initializes the Wire provider entry for the kratos application
 func initApp(context *bootstrap.Context) (*kratos.App, func(), error) {
-	certManager, err := cert.NewCertManager(context)
+	v, err := cert.NewCertManager(context)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -30,8 +31,12 @@ func initApp(context *bootstrap.Context) (*kratos.App, func(), error) {
 	auditLogRepo := data.NewAuditLogRepo(context, entClient)
 	categoryRepo := data.NewCategoryRepo(context, entClient)
 	permissionRepo := data.NewPermissionRepo(context, entClient)
-	categoryService := service.NewCategoryService(context, categoryRepo, permissionRepo)
+	permissionStore := providers.ProvidePermissionStore(permissionRepo)
 	documentRepo := data.NewDocumentRepo(context, entClient, categoryRepo)
+	resourceLookup := providers.ProvideResourceLookup(categoryRepo, documentRepo)
+	engine := providers.ProvideAuthzEngine(permissionStore, resourceLookup, context)
+	checker := providers.ProvideAuthzChecker(engine)
+	categoryService := service.NewCategoryService(context, categoryRepo, permissionRepo, checker)
 	storageClient, cleanup2, err := data.NewStorageClient(context)
 	if err != nil {
 		cleanup()
@@ -51,11 +56,11 @@ func initApp(context *bootstrap.Context) (*kratos.App, func(), error) {
 		return nil, nil, err
 	}
 	documentProcessor := service.NewDocumentProcessor(context, tikaClient, gotenbergClient, documentRepo)
-	documentService := service.NewDocumentService(context, documentRepo, categoryRepo, permissionRepo, storageClient, documentProcessor)
-	permissionService := service.NewPermissionService(context, permissionRepo)
+	documentService := service.NewDocumentService(context, documentRepo, categoryRepo, permissionRepo, storageClient, documentProcessor, checker)
+	permissionService := service.NewPermissionService(context, permissionRepo, engine)
 	statisticsRepo := data.NewStatisticsRepo(context, entClient)
 	statisticsService := service.NewStatisticsService(context, statisticsRepo)
-	grpcServer := server.NewGRPCServer(context, certManager, auditLogRepo, categoryService, documentService, permissionService, statisticsService)
+	grpcServer := server.NewGRPCServer(context, v, auditLogRepo, categoryService, documentService, permissionService, statisticsService)
 	app := newApp(context, grpcServer)
 	return app, func() {
 		cleanup4()

@@ -10,8 +10,9 @@ import (
 	"google.golang.org/protobuf/types/known/emptypb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
+	"github.com/go-tangra/go-tangra-paperless/internal/authz"
 	"github.com/go-tangra/go-tangra-paperless/internal/data"
-	appViewer "github.com/go-tangra/go-tangra-paperless/pkg/viewer"
+	appViewer "github.com/go-tangra/go-tangra-common/viewer"
 
 	paperlessV1 "github.com/go-tangra/go-tangra-paperless/gen/go/paperless/service/v1"
 )
@@ -25,6 +26,7 @@ type DocumentService struct {
 	permRepo     *data.PermissionRepo
 	storage      *data.StorageClient
 	processor    *DocumentProcessor
+	checker      *authz.Checker
 }
 
 func NewDocumentService(
@@ -34,6 +36,7 @@ func NewDocumentService(
 	permRepo *data.PermissionRepo,
 	storage *data.StorageClient,
 	processor *DocumentProcessor,
+	checker *authz.Checker,
 ) *DocumentService {
 	return &DocumentService{
 		log:          ctx.NewLoggerHelper("paperless/service/document"),
@@ -42,6 +45,7 @@ func NewDocumentService(
 		permRepo:     permRepo,
 		storage:      storage,
 		processor:    processor,
+		checker:      checker,
 	}
 }
 
@@ -50,6 +54,13 @@ func (s *DocumentService) CreateDocument(ctx context.Context, req *paperlessV1.C
 	tenantID := getTenantIDFromContext(ctx)
 	createdBy := getUserIDAsUint32(ctx)
 	userID := getUserIDFromContext(ctx)
+
+	// Check write permission on target category
+	if req.CategoryId != nil && *req.CategoryId != "" {
+		if err := s.checker.CanWriteCategory(ctx, tenantID, userID, *req.CategoryId); err != nil {
+			return nil, paperlessV1.ErrorAccessDenied("no write access to category")
+		}
+	}
 
 	// Detect MIME type if not provided
 	mimeType := req.MimeType
@@ -112,6 +123,14 @@ func (s *DocumentService) CreateDocument(ctx context.Context, req *paperlessV1.C
 
 // GetDocument gets a document by ID
 func (s *DocumentService) GetDocument(ctx context.Context, req *paperlessV1.GetDocumentRequest) (*paperlessV1.GetDocumentResponse, error) {
+	tenantID := getTenantIDFromContext(ctx)
+	userID := getUserIDFromContext(ctx)
+
+	// Check read permission
+	if err := s.checker.CanReadDocument(ctx, tenantID, userID, req.Id); err != nil {
+		return nil, paperlessV1.ErrorAccessDenied("no read access to document")
+	}
+
 	document, err := s.documentRepo.GetByID(ctx, req.Id)
 	if err != nil {
 		return nil, err
@@ -133,6 +152,14 @@ func (s *DocumentService) GetDocument(ctx context.Context, req *paperlessV1.GetD
 // ListDocuments lists documents
 func (s *DocumentService) ListDocuments(ctx context.Context, req *paperlessV1.ListDocumentsRequest) (*paperlessV1.ListDocumentsResponse, error) {
 	tenantID := getTenantIDFromContext(ctx)
+	userID := getUserIDFromContext(ctx)
+
+	// Check read permission on category if filtering by category
+	if req.CategoryId != nil && *req.CategoryId != "" {
+		if err := s.checker.CanReadCategory(ctx, tenantID, userID, *req.CategoryId); err != nil {
+			return nil, paperlessV1.ErrorAccessDenied("no read access to category")
+		}
+	}
 
 	page := uint32(1)
 	if req.Page != nil {
@@ -154,8 +181,12 @@ func (s *DocumentService) ListDocuments(ctx context.Context, req *paperlessV1.Li
 		return nil, err
 	}
 
+	// Filter results by read permission
 	protoDocuments := make([]*paperlessV1.Document, 0, len(documents))
 	for _, doc := range documents {
+		if err := s.checker.CanReadDocument(ctx, tenantID, userID, doc.ID); err != nil {
+			continue
+		}
 		proto, err := s.documentRepo.ToProtoWithCategoryPath(ctx, doc)
 		if err != nil {
 			return nil, err
@@ -171,7 +202,14 @@ func (s *DocumentService) ListDocuments(ctx context.Context, req *paperlessV1.Li
 
 // UpdateDocument updates document metadata
 func (s *DocumentService) UpdateDocument(ctx context.Context, req *paperlessV1.UpdateDocumentRequest) (*paperlessV1.UpdateDocumentResponse, error) {
+	tenantID := getTenantIDFromContext(ctx)
+	userID := getUserIDFromContext(ctx)
 	updatedBy := getUserIDAsUint32(ctx)
+
+	// Check write permission
+	if err := s.checker.CanWriteDocument(ctx, tenantID, userID, req.Id); err != nil {
+		return nil, paperlessV1.ErrorAccessDenied("no write access to document")
+	}
 
 	var status *string
 	if req.Status != nil && *req.Status != paperlessV1.DocumentStatus_DOCUMENT_STATUS_UNSPECIFIED {
@@ -197,6 +235,12 @@ func (s *DocumentService) UpdateDocument(ctx context.Context, req *paperlessV1.U
 // DeleteDocument deletes a document
 func (s *DocumentService) DeleteDocument(ctx context.Context, req *paperlessV1.DeleteDocumentRequest) (*emptypb.Empty, error) {
 	tenantID := getTenantIDFromContext(ctx)
+	userID := getUserIDFromContext(ctx)
+
+	// Check delete permission
+	if err := s.checker.CanDeleteDocument(ctx, tenantID, userID, req.Id); err != nil {
+		return nil, paperlessV1.ErrorAccessDenied("no delete access to document")
+	}
 
 	// Get document to retrieve file key
 	document, err := s.documentRepo.GetByID(ctx, req.Id)
@@ -227,6 +271,21 @@ func (s *DocumentService) DeleteDocument(ctx context.Context, req *paperlessV1.D
 
 // MoveDocument moves a document to a different category
 func (s *DocumentService) MoveDocument(ctx context.Context, req *paperlessV1.MoveDocumentRequest) (*paperlessV1.MoveDocumentResponse, error) {
+	tenantID := getTenantIDFromContext(ctx)
+	userID := getUserIDFromContext(ctx)
+
+	// Check write permission on the document
+	if err := s.checker.CanWriteDocument(ctx, tenantID, userID, req.Id); err != nil {
+		return nil, paperlessV1.ErrorAccessDenied("no write access to document")
+	}
+
+	// Check write permission on the target category
+	if req.NewCategoryId != nil && *req.NewCategoryId != "" {
+		if err := s.checker.CanWriteCategory(ctx, tenantID, userID, *req.NewCategoryId); err != nil {
+			return nil, paperlessV1.ErrorAccessDenied("no write access to destination category")
+		}
+	}
+
 	document, err := s.documentRepo.Move(ctx, req.Id, req.NewCategoryId)
 	if err != nil {
 		return nil, err
@@ -244,6 +303,14 @@ func (s *DocumentService) MoveDocument(ctx context.Context, req *paperlessV1.Mov
 
 // DownloadDocument downloads document content
 func (s *DocumentService) DownloadDocument(ctx context.Context, req *paperlessV1.DownloadDocumentRequest) (*paperlessV1.DownloadDocumentResponse, error) {
+	tenantID := getTenantIDFromContext(ctx)
+	userID := getUserIDFromContext(ctx)
+
+	// Check read permission (download implies read)
+	if err := s.checker.CanReadDocument(ctx, tenantID, userID, req.Id); err != nil {
+		return nil, paperlessV1.ErrorAccessDenied("no read access to document")
+	}
+
 	document, err := s.documentRepo.GetByID(ctx, req.Id)
 	if err != nil {
 		return nil, err
@@ -269,6 +336,14 @@ func (s *DocumentService) DownloadDocument(ctx context.Context, req *paperlessV1
 
 // GetDocumentDownloadUrl generates a presigned download URL
 func (s *DocumentService) GetDocumentDownloadUrl(ctx context.Context, req *paperlessV1.GetDocumentDownloadUrlRequest) (*paperlessV1.GetDocumentDownloadUrlResponse, error) {
+	tenantID := getTenantIDFromContext(ctx)
+	userID := getUserIDFromContext(ctx)
+
+	// Check read permission
+	if err := s.checker.CanReadDocument(ctx, tenantID, userID, req.Id); err != nil {
+		return nil, paperlessV1.ErrorAccessDenied("no read access to document")
+	}
+
 	document, err := s.documentRepo.GetByID(ctx, req.Id)
 	if err != nil {
 		return nil, err
@@ -300,6 +375,7 @@ func (s *DocumentService) GetDocumentDownloadUrl(ctx context.Context, req *paper
 // SearchDocuments searches documents
 func (s *DocumentService) SearchDocuments(ctx context.Context, req *paperlessV1.SearchDocumentsRequest) (*paperlessV1.SearchDocumentsResponse, error) {
 	tenantID := getTenantIDFromContext(ctx)
+	userID := getUserIDFromContext(ctx)
 
 	page := uint32(1)
 	if req.Page != nil {
@@ -321,8 +397,12 @@ func (s *DocumentService) SearchDocuments(ctx context.Context, req *paperlessV1.
 		return nil, err
 	}
 
+	// Filter results by read permission
 	protoDocuments := make([]*paperlessV1.Document, 0, len(documents))
 	for _, doc := range documents {
+		if err := s.checker.CanReadDocument(ctx, tenantID, userID, doc.ID); err != nil {
+			continue
+		}
 		proto, err := s.documentRepo.ToProtoWithCategoryPath(ctx, doc)
 		if err != nil {
 			return nil, err
@@ -339,11 +419,28 @@ func (s *DocumentService) SearchDocuments(ctx context.Context, req *paperlessV1.
 // BatchDeleteDocuments batch deletes documents
 func (s *DocumentService) BatchDeleteDocuments(ctx context.Context, req *paperlessV1.BatchDeleteDocumentsRequest) (*paperlessV1.BatchDeleteDocumentsResponse, error) {
 	tenantID := getTenantIDFromContext(ctx)
+	userID := getUserIDFromContext(ctx)
+
+	// Check delete permission for each document
+	allowedIDs := make([]string, 0, len(req.Ids))
+	for _, id := range req.Ids {
+		if err := s.checker.CanDeleteDocument(ctx, tenantID, userID, id); err != nil {
+			continue
+		}
+		allowedIDs = append(allowedIDs, id)
+	}
+
+	if len(allowedIDs) == 0 {
+		return &paperlessV1.BatchDeleteDocumentsResponse{
+			DeletedCount: 0,
+			FailedIds:    req.Ids,
+		}, nil
+	}
 
 	// For permanent deletes, get file keys first
 	var fileKeys []string
 	if req.Permanent {
-		for _, id := range req.Ids {
+		for _, id := range allowedIDs {
 			doc, err := s.documentRepo.GetByID(ctx, id)
 			if err == nil && doc != nil {
 				fileKeys = append(fileKeys, doc.FileKey)
@@ -351,9 +448,23 @@ func (s *DocumentService) BatchDeleteDocuments(ctx context.Context, req *paperle
 		}
 	}
 
-	deletedCount, failedIDs, err := s.documentRepo.BatchDelete(ctx, req.Ids, req.Permanent)
+	deletedCount, failedIDs, err := s.documentRepo.BatchDelete(ctx, allowedIDs, req.Permanent)
 	if err != nil {
 		return nil, err
+	}
+
+	// Add unauthorized IDs to failed list
+	for _, id := range req.Ids {
+		found := false
+		for _, allowedID := range allowedIDs {
+			if id == allowedID {
+				found = true
+				break
+			}
+		}
+		if !found {
+			failedIDs = append(failedIDs, id)
+		}
 	}
 
 	// Delete files from storage for permanent deletes
@@ -366,7 +477,7 @@ func (s *DocumentService) BatchDeleteDocuments(ctx context.Context, req *paperle
 	}
 
 	// Delete permissions for successfully deleted documents
-	for _, id := range req.Ids {
+	for _, id := range allowedIDs {
 		found := false
 		for _, failedID := range failedIDs {
 			if id == failedID {
