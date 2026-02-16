@@ -68,13 +68,17 @@ func (p *DocumentProcessor) ProcessDocument(ctx context.Context, documentID stri
 		converted, err := p.gotenberg.ConvertToPDF(ctx, fileContent, "document"+ext)
 		if err != nil {
 			p.log.Errorf("gotenberg conversion failed for document %s: %v", documentID, err)
-			_ = p.documentRepo.UpdateProcessingResult(ctx, documentID, "", nil, statusFailed)
+			if updateErr := p.documentRepo.UpdateProcessingResult(ctx, documentID, "", nil, statusFailed); updateErr != nil {
+				p.log.Errorf("failed to set processing status to FAILED for document %s: %v", documentID, updateErr)
+			}
 			return
 		}
 		pdfContent = converted
 	default:
 		p.log.Infof("skipping unsupported mime type for document %s: %s", documentID, mimeType)
-		_ = p.documentRepo.UpdateProcessingResult(ctx, documentID, "", nil, statusSkipped)
+		if updateErr := p.documentRepo.UpdateProcessingResult(ctx, documentID, "", nil, statusSkipped); updateErr != nil {
+			p.log.Errorf("failed to set processing status to SKIPPED for document %s: %v", documentID, updateErr)
+		}
 		return
 	}
 
@@ -82,7 +86,9 @@ func (p *DocumentProcessor) ProcessDocument(ctx context.Context, documentID stri
 	text, err := p.tika.ExtractText(ctx, pdfContent, mimeTypePDF)
 	if err != nil {
 		p.log.Errorf("tika text extraction failed for document %s: %v", documentID, err)
-		_ = p.documentRepo.UpdateProcessingResult(ctx, documentID, "", nil, statusFailed)
+		if updateErr := p.documentRepo.UpdateProcessingResult(ctx, documentID, "", nil, statusFailed); updateErr != nil {
+			p.log.Errorf("failed to set processing status to FAILED for document %s: %v", documentID, updateErr)
+		}
 		return
 	}
 

@@ -30,8 +30,6 @@ func NewStatisticsService(ctx *bootstrap.Context, statsRepo *data.StatisticsRepo
 
 // GetStatistics returns comprehensive statistics about the Paperless system
 func (s *StatisticsService) GetStatistics(ctx context.Context, req *paperlessV1.GetStatisticsRequest) (*paperlessV1.GetStatisticsResponse, error) {
-	s.log.Info("GetStatistics called")
-
 	response := &paperlessV1.GetStatisticsResponse{
 		GeneratedAt: timestamppb.Now(),
 	}
@@ -44,8 +42,14 @@ func (s *StatisticsService) GetStatistics(ctx context.Context, req *paperlessV1.
 		last24Hours := time.Now().Add(-24 * time.Hour)
 		last7Days := time.Now().Add(-7 * 24 * time.Hour)
 
-		recentUploads24h, _ := s.statsRepo.GetDocumentTimeStats(ctx, last24Hours)
-		recentUploads7d, _ := s.statsRepo.GetDocumentTimeStats(ctx, last7Days)
+		recentUploads24h, err := s.statsRepo.GetDocumentTimeStats(ctx, last24Hours)
+		if err != nil {
+			s.log.Warnf("failed to get 24h document time stats: %v", err)
+		}
+		recentUploads7d, err := s.statsRepo.GetDocumentTimeStats(ctx, last7Days)
+		if err != nil {
+			s.log.Warnf("failed to get 7d document time stats: %v", err)
+		}
 
 		response.Documents = &paperlessV1.DocumentStatistics{
 			TotalCount:         docStats.TotalCount,

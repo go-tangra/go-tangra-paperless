@@ -96,7 +96,9 @@ func (s *DocumentService) CreateDocument(ctx context.Context, req *paperlessV1.C
 		req.Tags, source, createdBy)
 	if err != nil {
 		// Cleanup uploaded file on failure
-		_ = s.storage.Delete(ctx, uploadResult.Key)
+		if delErr := s.storage.Delete(ctx, uploadResult.Key); delErr != nil {
+			s.log.Warnf("failed to clean up uploaded file %s after document creation failure: %v", uploadResult.Key, delErr)
+		}
 		return nil, err
 	}
 
@@ -264,7 +266,9 @@ func (s *DocumentService) DeleteDocument(ctx context.Context, req *paperlessV1.D
 	}
 
 	// Delete associated permissions
-	_ = s.permRepo.DeleteByResource(ctx, tenantID, "RESOURCE_TYPE_DOCUMENT", req.Id)
+	if err := s.permRepo.DeleteByResource(ctx, tenantID, "RESOURCE_TYPE_DOCUMENT", req.Id); err != nil {
+		s.log.Warnf("failed to delete permissions for document %s: %v", req.Id, err)
+	}
 
 	return &emptypb.Empty{}, nil
 }
@@ -486,7 +490,9 @@ func (s *DocumentService) BatchDeleteDocuments(ctx context.Context, req *paperle
 			}
 		}
 		if !found {
-			_ = s.permRepo.DeleteByResource(ctx, tenantID, "RESOURCE_TYPE_DOCUMENT", id)
+			if err := s.permRepo.DeleteByResource(ctx, tenantID, "RESOURCE_TYPE_DOCUMENT", id); err != nil {
+				s.log.Warnf("failed to delete permissions for document %s: %v", id, err)
+			}
 		}
 	}
 

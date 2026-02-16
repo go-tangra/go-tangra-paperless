@@ -111,11 +111,11 @@ func NewGRPCServer(
 	// Create gRPC server
 	srv := grpc.NewServer(opts...)
 
-	// Register services
-	paperlessV1.RegisterPaperlessCategoryServiceServer(srv, categorySvc)
-	paperlessV1.RegisterPaperlessDocumentServiceServer(srv, documentSvc)
-	paperlessV1.RegisterPaperlessPermissionServiceServer(srv, permissionSvc)
-	paperlessV1.RegisterPaperlessStatisticsServiceServer(srv, statisticsSvc)
+	// Register services with redacted wrappers to prevent sensitive data from leaking in logs
+	paperlessV1.RegisterRedactedPaperlessCategoryServiceServer(srv, categorySvc, nil)
+	paperlessV1.RegisterRedactedPaperlessDocumentServiceServer(srv, documentSvc, nil)
+	paperlessV1.RegisterRedactedPaperlessPermissionServiceServer(srv, permissionSvc, nil)
+	paperlessV1.RegisterRedactedPaperlessStatisticsServiceServer(srv, statisticsSvc, nil)
 
 	return srv
 }

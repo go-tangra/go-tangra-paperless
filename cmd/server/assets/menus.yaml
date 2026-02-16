@@ -31,6 +31,94 @@ menus:
       - platform:admin
       - tenant:manager
 
+dashboard_widgets:
+  - id: paperless.documents_total
+    name: Total Documents
+    description: Active and total document counts
+    icon: lucide:files
+    widget_type: stat_card
+    data_source:
+      endpoint: /admin/v1/modules/paperless/v1/statistics
+      method: GET
+    data_mapping:
+      value_path: documents.byStatus.DOCUMENT_STATUS_ACTIVE
+      total_path: documents.totalCount
+      label: Documents
+    default_size:
+      width: 3
+      height: 1
+    tags: [paperless, overview]
+    authority: [platform:admin, tenant:manager]
+
+  - id: paperless.document_status_bar
+    name: Document Status
+    description: Bar chart of document statuses
+    icon: lucide:bar-chart-3
+    widget_type: bar_chart
+    data_source:
+      endpoint: /admin/v1/modules/paperless/v1/statistics
+      method: GET
+    data_mapping:
+      data_path: documents.byStatus
+      label: Document Status
+    default_size:
+      width: 4
+      height: 2
+    tags: [paperless, chart]
+    authority: [platform:admin, tenant:manager]
+
+  - id: paperless.by_source_pie
+    name: Documents by Source
+    description: Pie chart of documents grouped by source
+    icon: lucide:upload
+    widget_type: pie_chart
+    data_source:
+      endpoint: /admin/v1/modules/paperless/v1/statistics
+      method: GET
+    data_mapping:
+      data_path: documents.bySource
+      label: Document Source
+    default_size:
+      width: 4
+      height: 2
+    tags: [paperless, chart]
+    authority: [platform:admin, tenant:manager]
+
+  - id: paperless.storage_stat
+    name: Storage Used
+    description: Total document storage in bytes
+    icon: lucide:hard-drive
+    widget_type: stat_card
+    data_source:
+      endpoint: /admin/v1/modules/paperless/v1/statistics
+      method: GET
+    data_mapping:
+      value_path: documents.totalStorageBytes
+      label: Storage (bytes)
+    default_size:
+      width: 3
+      height: 1
+    tags: [paperless, overview]
+    authority: [platform:admin, tenant:manager]
+
+  - id: paperless.recent_uploads
+    name: Recent Uploads
+    description: Documents uploaded in last 24h and 7d
+    icon: lucide:upload-cloud
+    widget_type: stat_card
+    data_source:
+      endpoint: /admin/v1/modules/paperless/v1/statistics
+      method: GET
+    data_mapping:
+      value_path: documents.recentUploads24h
+      total_path: documents.recentUploads7d
+      label: Recent Uploads (24h)
+    default_size:
+      width: 3
+      height: 1
+    tags: [paperless, overview]
+    authority: [platform:admin, tenant:manager]
+
 permission_groups:
   - name: Paperless
     module: paperless

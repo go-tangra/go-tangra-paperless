@@ -68,7 +68,10 @@ func (c *GotenbergClient) ConvertToPDF(ctx context.Context, content []byte, file
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
+		body, readErr := io.ReadAll(resp.Body)
+		if readErr != nil {
+			return nil, fmt.Errorf("gotenberg returned status %d (failed to read response body: %w)", resp.StatusCode, readErr)
+		}
 		return nil, fmt.Errorf("gotenberg returned status %d: %s", resp.StatusCode, string(body))
 	}
 

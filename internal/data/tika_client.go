@@ -55,7 +55,10 @@ func (c *TikaClient) ExtractText(ctx context.Context, content []byte, mimeType s
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
+		body, readErr := io.ReadAll(resp.Body)
+		if readErr != nil {
+			return "", fmt.Errorf("tika returned status %d (failed to read response body: %w)", resp.StatusCode, readErr)
+		}
 		return "", fmt.Errorf("tika returned status %d: %s", resp.StatusCode, string(body))
 	}
 
@@ -86,7 +89,10 @@ func (c *TikaClient) ExtractMetadata(ctx context.Context, content []byte, mimeTy
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
+		body, readErr := io.ReadAll(resp.Body)
+		if readErr != nil {
+			return nil, fmt.Errorf("tika meta returned status %d (failed to read response body: %w)", resp.StatusCode, readErr)
+		}
 		return nil, fmt.Errorf("tika meta returned status %d: %s", resp.StatusCode, string(body))
 	}
 

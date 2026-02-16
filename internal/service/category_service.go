@@ -177,7 +177,9 @@ func (s *CategoryService) DeleteCategory(ctx context.Context, req *paperlessV1.D
 	}
 
 	// Delete associated permissions
-	_ = s.permRepo.DeleteByResource(ctx, tenantID, "RESOURCE_TYPE_CATEGORY", req.Id)
+	if err := s.permRepo.DeleteByResource(ctx, tenantID, "RESOURCE_TYPE_CATEGORY", req.Id); err != nil {
+		s.log.Warnf("failed to delete permissions for category %s: %v", req.Id, err)
+	}
 
 	return &emptypb.Empty{}, nil
 }

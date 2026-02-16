@@ -109,8 +109,8 @@ message Document {
   google.protobuf.Timestamp update_time = 16 [json_name = "updateTime"];
   optional uint32 created_by = 17 [json_name = "createdBy"];
   optional uint32 updated_by = 18 [json_name = "updatedBy"];
-  string content_text = 19 [json_name = "contentText"];
-  map<string, string> extracted_metadata = 20 [json_name = "extractedMetadata"];
+  string content_text = 19 [json_name = "contentText", (redact.v3.value).string = ""];
+  map<string, string> extracted_metadata = 20 [json_name = "extractedMetadata", (redact.v3.value).element.empty = true];
   string processing_status = 21 [json_name = "processingStatus"];
 }
 
@@ -323,7 +323,7 @@ message DownloadDocumentRequest {
 
 message DownloadDocumentResponse {
   // File content
-  bytes content = 1 [json_name = "content"];
+  bytes content = 1 [json_name = "content", (redact.v3.value).bytes = ""];
   // Original file name
   string file_name = 2 [json_name = "fileName"];
   // MIME type
@@ -349,7 +349,7 @@ message GetDocumentDownloadUrlRequest {
 }
 
 message GetDocumentDownloadUrlResponse {
-  string url = 1 [json_name = "url"];
+  string url = 1 [json_name = "url", (redact.v3.value).string = ""];
   google.protobuf.Timestamp expires_at = 2 [json_name = "expiresAt"];
 }
 

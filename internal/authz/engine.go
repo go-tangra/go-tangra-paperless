@@ -86,9 +86,6 @@ type CheckResult struct {
 // 4. Check user's roles for indirect permissions
 // 5. Check tenant-level permissions
 func (e *Engine) Check(ctx context.Context, check CheckContext) CheckResult {
-	e.log.Debugf("Checking permission: user=%s, resource=%s:%s, permission=%s",
-		check.UserID, check.ResourceType, check.ResourceID, check.Permission)
-
 	// Step 1: Check direct user permission on resource
 	if result := e.checkDirectPermission(ctx, check, SubjectTypeUser, check.UserID); result.Allowed {
 		return result
@@ -126,7 +123,7 @@ func (e *Engine) Check(ctx context.Context, check CheckContext) CheckResult {
 func (e *Engine) checkDirectPermission(ctx context.Context, check CheckContext, subjectType SubjectType, subjectID string) CheckResult {
 	tuple, err := e.store.HasPermission(ctx, check.TenantID, check.ResourceType, check.ResourceID, subjectType, subjectID)
 	if err != nil {
-		e.log.Debugf("Error checking permission: %v", err)
+		e.log.Warnf("error checking permission on %s:%s for %s:%s: %v", check.ResourceType, check.ResourceID, subjectType, subjectID, err)
 		return CheckResult{Allowed: false, Reason: "error checking permission"}
 	}
 
@@ -262,6 +259,7 @@ func (e *Engine) ListAccessibleResources(ctx context.Context, tenantID uint32, u
 		for _, roleID := range roleIDs {
 			roleResources, err := e.store.ListResourcesBySubject(ctx, tenantID, SubjectTypeRole, roleID, resourceType)
 			if err != nil {
+				e.log.Warnf("failed to list resources for role %s: %v", roleID, err)
 				continue
 			}
 			for _, id := range roleResources {
