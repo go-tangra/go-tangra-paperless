@@ -42,6 +42,7 @@ func NewGRPCServer(
 	documentSvc *service.DocumentService,
 	permissionSvc *service.PermissionService,
 	statisticsSvc *service.StatisticsService,
+	backupSvc *service.BackupService,
 ) *grpc.Server {
 	cfg := ctx.GetConfig()
 	l := ctx.NewLoggerHelper("paperless/grpc")
@@ -101,6 +102,8 @@ func NewGRPCServer(
 		audit.WithSkipOperations(
 			"/grpc.health.v1.Health/Check",
 			"/grpc.health.v1.Health/Watch",
+			"/paperless.service.v1.BackupService/ExportBackup",
+			"/paperless.service.v1.BackupService/ImportBackup",
 		),
 	))
 
@@ -116,6 +119,7 @@ func NewGRPCServer(
 	paperlessV1.RegisterRedactedPaperlessDocumentServiceServer(srv, documentSvc, nil)
 	paperlessV1.RegisterRedactedPaperlessPermissionServiceServer(srv, permissionSvc, nil)
 	paperlessV1.RegisterRedactedPaperlessStatisticsServiceServer(srv, statisticsSvc, nil)
+	paperlessV1.RegisterRedactedBackupServiceServer(srv, backupSvc, nil)
 
 	return srv
 }

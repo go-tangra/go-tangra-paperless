@@ -18,6 +18,7 @@ var ProviderSet = wire.NewSet(
 	service.NewDocumentProcessor,
 	service.NewPermissionService,
 	service.NewStatisticsService,
+	service.NewBackupService,
 	ProvideResourceLookup,
 	ProvidePermissionStore,
 	ProvideAuthzEngine,

@@ -20,7 +20,7 @@ import (
 
 // initApp initializes the Wire provider entry for the kratos application
 func initApp(context *bootstrap.Context) (*kratos.App, func(), error) {
-	v, err := cert.NewCertManager(context)
+	certManager, err := cert.NewCertManager(context)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -60,7 +60,8 @@ func initApp(context *bootstrap.Context) (*kratos.App, func(), error) {
 	permissionService := service.NewPermissionService(context, permissionRepo, engine)
 	statisticsRepo := data.NewStatisticsRepo(context, entClient)
 	statisticsService := service.NewStatisticsService(context, statisticsRepo)
-	grpcServer := server.NewGRPCServer(context, v, auditLogRepo, categoryService, documentService, permissionService, statisticsService)
+	backupService := service.NewBackupService(context, entClient)
+	grpcServer := server.NewGRPCServer(context, certManager, auditLogRepo, categoryService, documentService, permissionService, statisticsService, backupService)
 	app := newApp(context, grpcServer)
 	return app, func() {
 		cleanup4()
