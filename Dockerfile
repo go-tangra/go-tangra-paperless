@@ -60,9 +60,11 @@ COPY --from=builder /src/bin/paperless-server /app/bin/paperless-server
 # Copy configuration files
 COPY --from=builder /src/configs/ /app/configs/
 
-# Create non-root user
+# Create non-root user and pdfcpu font directory
 RUN addgroup -g 1000 paperless && \
     adduser -D -u 1000 -G paperless paperless && \
+    mkdir -p /home/paperless/.config/pdfcpu/fonts && \
+    chown -R paperless:paperless /home/paperless/.config && \
     chown -R paperless:paperless /app
 
 # Switch to non-root user

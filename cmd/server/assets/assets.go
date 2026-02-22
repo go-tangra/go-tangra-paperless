@@ -12,3 +12,6 @@ var MenusData []byte
 
 //go:embed descriptor.bin
 var DescriptorData []byte
+
+//go:embed DejaVuSans.ttf
+var DejaVuSansFont []byte

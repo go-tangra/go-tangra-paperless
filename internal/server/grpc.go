@@ -43,6 +43,8 @@ func NewGRPCServer(
 	permissionSvc *service.PermissionService,
 	statisticsSvc *service.StatisticsService,
 	backupSvc *service.BackupService,
+	signingTemplateSvc *service.SigningTemplateService,
+	signingRequestSvc *service.SigningRequestService,
 ) *grpc.Server {
 	cfg := ctx.GetConfig()
 	l := ctx.NewLoggerHelper("paperless/grpc")
@@ -120,6 +122,8 @@ func NewGRPCServer(
 	paperlessV1.RegisterRedactedPaperlessPermissionServiceServer(srv, permissionSvc, nil)
 	paperlessV1.RegisterRedactedPaperlessStatisticsServiceServer(srv, statisticsSvc, nil)
 	paperlessV1.RegisterRedactedBackupServiceServer(srv, backupSvc, nil)
+	paperlessV1.RegisterPaperlessSigningTemplateServiceServer(srv, signingTemplateSvc)
+	paperlessV1.RegisterPaperlessSigningRequestServiceServer(srv, signingRequestSvc)
 
 	return srv
 }

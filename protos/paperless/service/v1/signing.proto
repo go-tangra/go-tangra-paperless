@@ -1,0 +1,634 @@
+syntax = "proto3";
+
+package paperless.service.v1;
+
+import "buf/validate/validate.proto";
+import "google/api/annotations.proto";
+import "google/api/field_behavior.proto";
+import "google/protobuf/empty.proto";
+import "google/protobuf/timestamp.proto";
+
+// Signing Template Service - manages PDF templates with visual field positions for document signing
+service PaperlessSigningTemplateService {
+  // Create a new signing template (upload a PDF)
+  rpc CreateSigningTemplate(CreateSigningTemplateRequest) returns (CreateSigningTemplateResponse) {
+    option (google.api.http) = {
+      post: "/v1/signing/templates"
+      body: "*"
+    };
+  }
+
+  // Get a signing template by ID
+  rpc GetSigningTemplate(GetSigningTemplateRequest) returns (GetSigningTemplateResponse) {
+    option (google.api.http) = {
+      get: "/v1/signing/templates/{id}"
+    };
+  }
+
+  // List signing templates
+  rpc ListSigningTemplates(ListSigningTemplatesRequest) returns (ListSigningTemplatesResponse) {
+    option (google.api.http) = {
+      get: "/v1/signing/templates"
+    };
+  }
+
+  // Update signing template metadata
+  rpc UpdateSigningTemplate(UpdateSigningTemplateRequest) returns (UpdateSigningTemplateResponse) {
+    option (google.api.http) = {
+      put: "/v1/signing/templates/{id}"
+      body: "*"
+    };
+  }
+
+  // Delete a signing template
+  rpc DeleteSigningTemplate(DeleteSigningTemplateRequest) returns (google.protobuf.Empty) {
+    option (google.api.http) = {
+      delete: "/v1/signing/templates/{id}"
+    };
+  }
+
+  // Update template field definitions (positions from visual builder)
+  rpc UpdateTemplateFields(UpdateTemplateFieldsRequest) returns (UpdateTemplateFieldsResponse) {
+    option (google.api.http) = {
+      put: "/v1/signing/templates/{id}/fields"
+      body: "*"
+    };
+  }
+
+  // Get a presigned URL to view the template PDF
+  rpc GetTemplatePdfUrl(GetTemplatePdfUrlRequest) returns (GetTemplatePdfUrlResponse) {
+    option (google.api.http) = {
+      get: "/v1/signing/templates/{id}/pdf-url"
+    };
+  }
+}
+
+// Signing Request Service - manages signing requests with recipients
+service PaperlessSigningRequestService {
+  // Create a new signing request from a template
+  rpc CreateSigningRequest(CreateSigningRequestRequest) returns (CreateSigningRequestResponse) {
+    option (google.api.http) = {
+      post: "/v1/signing/requests"
+      body: "*"
+    };
+  }
+
+  // Get a signing request by ID
+  rpc GetSigningRequest(GetSigningRequestRequest) returns (GetSigningRequestResponse) {
+    option (google.api.http) = {
+      get: "/v1/signing/requests/{id}"
+    };
+  }
+
+  // List signing requests
+  rpc ListSigningRequests(ListSigningRequestsRequest) returns (ListSigningRequestsResponse) {
+    option (google.api.http) = {
+      get: "/v1/signing/requests"
+    };
+  }
+
+  // Cancel a signing request
+  rpc CancelSigningRequest(CancelSigningRequestRequest) returns (CancelSigningRequestResponse) {
+    option (google.api.http) = {
+      post: "/v1/signing/requests/{id}/cancel"
+      body: "*"
+    };
+  }
+
+  // Resend signing email to a specific recipient
+  rpc ResendSigningEmail(ResendSigningEmailRequest) returns (google.protobuf.Empty) {
+    option (google.api.http) = {
+      post: "/v1/signing/requests/{id}/resend"
+      body: "*"
+    };
+  }
+
+  // Get download URL for the signed document
+  rpc DownloadSignedDocument(DownloadSignedDocumentRequest) returns (DownloadSignedDocumentResponse) {
+    option (google.api.http) = {
+      get: "/v1/signing/requests/{id}/download"
+    };
+  }
+}
+
+// Signing Session Service - public endpoints for recipients to view and sign documents
+// These are served via the public HTTP server (no authentication required)
+service PaperlessSigningSessionService {
+  // Get signing session info (public, token-based)
+  rpc GetSigningSession(GetSigningSessionRequest) returns (GetSigningSessionResponse) {
+    option (google.api.http) = {
+      get: "/v1/signing/sessions/{token}"
+    };
+  }
+
+  // Submit signing (public, token-based)
+  rpc SubmitSigning(SubmitSigningRequest) returns (SubmitSigningResponse) {
+    option (google.api.http) = {
+      post: "/v1/signing/sessions/{token}/submit"
+      body: "*"
+    };
+  }
+}
+
+// ============================================================================
+// Enums
+// ============================================================================
+
+// Field type for signing template fields
+enum SigningFieldType {
+  SIGNING_FIELD_TYPE_UNSPECIFIED = 0;
+  SIGNING_FIELD_TYPE_TEXT = 1;
+  SIGNING_FIELD_TYPE_SIGNATURE = 2;
+  SIGNING_FIELD_TYPE_DATE = 3;
+  SIGNING_FIELD_TYPE_INITIALS = 4;
+  SIGNING_FIELD_TYPE_CHECKBOX = 5;
+  SIGNING_FIELD_TYPE_EMAIL = 6;
+}
+
+// Status of a signing request
+enum SigningRequestStatus {
+  SIGNING_REQUEST_STATUS_UNSPECIFIED = 0;
+  SIGNING_REQUEST_STATUS_DRAFT = 1;
+  SIGNING_REQUEST_STATUS_PENDING = 2;
+  SIGNING_REQUEST_STATUS_COMPLETED = 3;
+  SIGNING_REQUEST_STATUS_CANCELLED = 4;
+  SIGNING_REQUEST_STATUS_EXPIRED = 5;
+}
+
+// Status of a signing recipient
+enum SigningRecipientStatus {
+  SIGNING_RECIPIENT_STATUS_UNSPECIFIED = 0;
+  SIGNING_RECIPIENT_STATUS_WAITING = 1;
+  SIGNING_RECIPIENT_STATUS_PENDING = 2;
+  SIGNING_RECIPIENT_STATUS_COMPLETED = 3;
+  SIGNING_RECIPIENT_STATUS_DECLINED = 4;
+}
+
+// ============================================================================
+// Entity Messages
+// ============================================================================
+
+// A field definition within a signing template
+message SigningTemplateField {
+  string id = 1 [json_name = "id"];
+  string name = 2 [json_name = "name"];
+  SigningFieldType type = 3 [json_name = "type"];
+  bool required = 4 [json_name = "required"];
+  int32 page_number = 5 [json_name = "pageNumber"];
+  double x_percent = 6 [json_name = "xPercent"];
+  double y_percent = 7 [json_name = "yPercent"];
+  double width_percent = 8 [json_name = "widthPercent"];
+  double height_percent = 9 [json_name = "heightPercent"];
+  int32 prefill_stage = 10 [json_name = "prefillStage"];
+  int32 recipient_index = 11 [json_name = "recipientIndex"];
+}
+
+// Signing template entity
+message SigningTemplate {
+  string id = 1 [json_name = "id"];
+  uint32 tenant_id = 2 [json_name = "tenantId"];
+  string name = 3 [json_name = "name"];
+  string description = 4 [json_name = "description"];
+  string file_key = 5 [json_name = "fileKey"];
+  string file_name = 6 [json_name = "fileName"];
+  int64 file_size = 7 [json_name = "fileSize"];
+  repeated SigningTemplateField fields = 8 [json_name = "fields"];
+  google.protobuf.Timestamp create_time = 9 [json_name = "createTime"];
+  google.protobuf.Timestamp update_time = 10 [json_name = "updateTime"];
+  optional uint32 created_by = 11 [json_name = "createdBy"];
+  optional uint32 updated_by = 12 [json_name = "updatedBy"];
+}
+
+// A recipient in a signing request
+message SigningRecipient {
+  string id = 1 [json_name = "id"];
+  string email = 2 [json_name = "email"];
+  string name = 3 [json_name = "name"];
+  int32 signing_order = 4 [json_name = "signingOrder"];
+  SigningRecipientStatus status = 5 [json_name = "status"];
+  google.protobuf.Timestamp signed_at = 6 [json_name = "signedAt"];
+}
+
+// A field value filled during signing
+message SigningFieldValue {
+  string field_id = 1 [json_name = "fieldId"];
+  string field_name = 2 [json_name = "fieldName"];
+  string value = 3 [json_name = "value"];
+  string filled_by = 4 [json_name = "filledBy"];
+}
+
+// Signing request entity
+message SigningRequest {
+  string id = 1 [json_name = "id"];
+  uint32 tenant_id = 2 [json_name = "tenantId"];
+  string template_id = 3 [json_name = "templateId"];
+  string template_name = 4 [json_name = "templateName"];
+  string name = 5 [json_name = "name"];
+  SigningRequestStatus status = 6 [json_name = "status"];
+  string original_file_key = 7 [json_name = "originalFileKey"];
+  string signed_file_key = 8 [json_name = "signedFileKey"];
+  repeated SigningRecipient recipients = 9 [json_name = "recipients"];
+  repeated SigningFieldValue field_values = 10 [json_name = "fieldValues"];
+  string message = 11 [json_name = "message"];
+  google.protobuf.Timestamp expires_at = 12 [json_name = "expiresAt"];
+  google.protobuf.Timestamp create_time = 13 [json_name = "createTime"];
+  google.protobuf.Timestamp update_time = 14 [json_name = "updateTime"];
+  optional uint32 created_by = 15 [json_name = "createdBy"];
+}
+
+// ============================================================================
+// Signing Template Service Messages
+// ============================================================================
+
+message CreateSigningTemplateRequest {
+  string name = 1 [
+    json_name = "name",
+    (google.api.field_behavior) = REQUIRED,
+    (buf.validate.field).string = {
+      min_len: 1
+      max_len: 255
+    }
+  ];
+
+  string description = 2 [
+    json_name = "description",
+    (buf.validate.field).string = {max_len: 4096}
+  ];
+
+  string file_name = 3 [
+    json_name = "fileName",
+    (google.api.field_behavior) = REQUIRED,
+    (buf.validate.field).string = {
+      min_len: 1
+      max_len: 255
+    }
+  ];
+
+  bytes file_content = 4 [
+    json_name = "fileContent",
+    (google.api.field_behavior) = REQUIRED
+  ];
+}
+
+message CreateSigningTemplateResponse {
+  SigningTemplate template = 1 [json_name = "template"];
+}
+
+message GetSigningTemplateRequest {
+  string id = 1 [
+    json_name = "id",
+    (google.api.field_behavior) = REQUIRED,
+    (buf.validate.field).string = {
+      min_len: 1
+      max_len: 36
+      pattern: "^[a-fA-F0-9\\-]+$"
+    }
+  ];
+}
+
+message GetSigningTemplateResponse {
+  SigningTemplate template = 1 [json_name = "template"];
+}
+
+message ListSigningTemplatesRequest {
+  optional uint32 page = 1 [json_name = "page"];
+  optional uint32 page_size = 2 [json_name = "pageSize"];
+  optional string name_filter = 3 [json_name = "nameFilter"];
+}
+
+message ListSigningTemplatesResponse {
+  repeated SigningTemplate templates = 1 [json_name = "templates"];
+  uint32 total = 2 [json_name = "total"];
+}
+
+message UpdateSigningTemplateRequest {
+  string id = 1 [
+    json_name = "id",
+    (google.api.field_behavior) = REQUIRED,
+    (buf.validate.field).string = {
+      min_len: 1
+      max_len: 36
+      pattern: "^[a-fA-F0-9\\-]+$"
+    }
+  ];
+
+  optional string name = 2 [
+    json_name = "name",
+    (buf.validate.field).string = {
+      min_len: 1
+      max_len: 255
+    }
+  ];
+
+  optional string description = 3 [
+    json_name = "description",
+    (buf.validate.field).string = {max_len: 4096}
+  ];
+}
+
+message UpdateSigningTemplateResponse {
+  SigningTemplate template = 1 [json_name = "template"];
+}
+
+message DeleteSigningTemplateRequest {
+  string id = 1 [
+    json_name = "id",
+    (google.api.field_behavior) = REQUIRED,
+    (buf.validate.field).string = {
+      min_len: 1
+      max_len: 36
+      pattern: "^[a-fA-F0-9\\-]+$"
+    }
+  ];
+}
+
+message UpdateTemplateFieldsRequest {
+  string id = 1 [
+    json_name = "id",
+    (google.api.field_behavior) = REQUIRED,
+    (buf.validate.field).string = {
+      min_len: 1
+      max_len: 36
+      pattern: "^[a-fA-F0-9\\-]+$"
+    }
+  ];
+
+  repeated SigningTemplateField fields = 2 [json_name = "fields"];
+}
+
+message UpdateTemplateFieldsResponse {
+  SigningTemplate template = 1 [json_name = "template"];
+}
+
+message GetTemplatePdfUrlRequest {
+  string id = 1 [
+    json_name = "id",
+    (google.api.field_behavior) = REQUIRED,
+    (buf.validate.field).string = {
+      min_len: 1
+      max_len: 36
+      pattern: "^[a-fA-F0-9\\-]+$"
+    }
+  ];
+}
+
+message GetTemplatePdfUrlResponse {
+  string url = 1 [json_name = "url"];
+}
+
+// ============================================================================
+// Signing Request Service Messages
+// ============================================================================
+
+// Recipient input for creating a signing request
+message SigningRecipientInput {
+  string email = 1 [
+    json_name = "email",
+    (google.api.field_behavior) = REQUIRED,
+    (buf.validate.field).string = {
+      min_len: 1
+      max_len: 255
+    }
+  ];
+
+  string name = 2 [
+    json_name = "name",
+    (google.api.field_behavior) = REQUIRED,
+    (buf.validate.field).string = {
+      min_len: 1
+      max_len: 255
+    }
+  ];
+
+  int32 signing_order = 3 [json_name = "signingOrder"];
+}
+
+// Pre-filled field value for creating a signing request
+message SigningFieldValueInput {
+  string field_id = 1 [
+    json_name = "fieldId",
+    (google.api.field_behavior) = REQUIRED
+  ];
+
+  string value = 2 [
+    json_name = "value",
+    (google.api.field_behavior) = REQUIRED
+  ];
+}
+
+message CreateSigningRequestRequest {
+  string template_id = 1 [
+    json_name = "templateId",
+    (google.api.field_behavior) = REQUIRED,
+    (buf.validate.field).string = {
+      min_len: 1
+      max_len: 36
+      pattern: "^[a-fA-F0-9\\-]+$"
+    }
+  ];
+
+  string name = 2 [
+    json_name = "name",
+    (google.api.field_behavior) = REQUIRED,
+    (buf.validate.field).string = {
+      min_len: 1
+      max_len: 255
+    }
+  ];
+
+  repeated SigningRecipientInput recipients = 3 [
+    json_name = "recipients",
+    (buf.validate.field).repeated = {
+      min_items: 1
+      max_items: 20
+    }
+  ];
+
+  repeated SigningFieldValueInput field_values = 4 [json_name = "fieldValues"];
+
+  string message = 5 [
+    json_name = "message",
+    (buf.validate.field).string = {max_len: 4096}
+  ];
+
+  optional google.protobuf.Timestamp expires_at = 6 [json_name = "expiresAt"];
+}
+
+message CreateSigningRequestResponse {
+  SigningRequest request = 1 [json_name = "request"];
+}
+
+message GetSigningRequestRequest {
+  string id = 1 [
+    json_name = "id",
+    (google.api.field_behavior) = REQUIRED,
+    (buf.validate.field).string = {
+      min_len: 1
+      max_len: 36
+      pattern: "^[a-fA-F0-9\\-]+$"
+    }
+  ];
+}
+
+message GetSigningRequestResponse {
+  SigningRequest request = 1 [json_name = "request"];
+}
+
+message ListSigningRequestsRequest {
+  optional uint32 page = 1 [json_name = "page"];
+  optional uint32 page_size = 2 [json_name = "pageSize"];
+  optional SigningRequestStatus status = 3 [json_name = "status"];
+  optional string template_id = 4 [
+    json_name = "templateId",
+    (buf.validate.field).string = {
+      max_len: 36
+      pattern: "^[a-fA-F0-9\\-]*$"
+    }
+  ];
+  optional string name_filter = 5 [json_name = "nameFilter"];
+}
+
+message ListSigningRequestsResponse {
+  repeated SigningRequest requests = 1 [json_name = "requests"];
+  uint32 total = 2 [json_name = "total"];
+}
+
+message CancelSigningRequestRequest {
+  string id = 1 [
+    json_name = "id",
+    (google.api.field_behavior) = REQUIRED,
+    (buf.validate.field).string = {
+      min_len: 1
+      max_len: 36
+      pattern: "^[a-fA-F0-9\\-]+$"
+    }
+  ];
+}
+
+message CancelSigningRequestResponse {
+  SigningRequest request = 1 [json_name = "request"];
+}
+
+message ResendSigningEmailRequest {
+  string id = 1 [
+    json_name = "id",
+    (google.api.field_behavior) = REQUIRED,
+    (buf.validate.field).string = {
+      min_len: 1
+      max_len: 36
+      pattern: "^[a-fA-F0-9\\-]+$"
+    }
+  ];
+
+  string recipient_id = 2 [
+    json_name = "recipientId",
+    (google.api.field_behavior) = REQUIRED,
+    (buf.validate.field).string = {
+      min_len: 1
+      max_len: 36
+      pattern: "^[a-fA-F0-9\\-]+$"
+    }
+  ];
+}
+
+message DownloadSignedDocumentRequest {
+  string id = 1 [
+    json_name = "id",
+    (google.api.field_behavior) = REQUIRED,
+    (buf.validate.field).string = {
+      min_len: 1
+      max_len: 36
+      pattern: "^[a-fA-F0-9\\-]+$"
+    }
+  ];
+}
+
+message DownloadSignedDocumentResponse {
+  string url = 1 [json_name = "url"];
+  google.protobuf.Timestamp expires_at = 2 [json_name = "expiresAt"];
+}
+
+// ============================================================================
+// Signing Session Service Messages (Public)
+// ============================================================================
+
+message GetSigningSessionRequest {
+  string token = 1 [
+    json_name = "token",
+    (google.api.field_behavior) = REQUIRED,
+    (buf.validate.field).string = {
+      min_len: 64
+      max_len: 64
+    }
+  ];
+}
+
+// Field to be filled by the signer
+message SigningSessionField {
+  string field_id = 1 [json_name = "fieldId"];
+  string name = 2 [json_name = "name"];
+  SigningFieldType type = 3 [json_name = "type"];
+  bool required = 4 [json_name = "required"];
+  string prefilled_value = 5 [json_name = "prefilledValue"];
+  int32 recipient_index = 6 [json_name = "recipientIndex"];
+  int32 page_number = 7 [json_name = "pageNumber"];
+  double x_percent = 8 [json_name = "xPercent"];
+  double y_percent = 9 [json_name = "yPercent"];
+  double width_percent = 10 [json_name = "widthPercent"];
+  double height_percent = 11 [json_name = "heightPercent"];
+}
+
+message GetSigningSessionResponse {
+  string request_name = 1 [json_name = "requestName"];
+  string document_url = 2 [json_name = "documentUrl"];
+  string recipient_name = 3 [json_name = "recipientName"];
+  string recipient_email = 4 [json_name = "recipientEmail"];
+  repeated SigningSessionField fields = 5 [json_name = "fields"];
+  string message = 6 [json_name = "message"];
+  google.protobuf.Timestamp expires_at = 7 [json_name = "expiresAt"];
+}
+
+// Field value submitted during signing
+message SigningFieldSubmission {
+  string field_id = 1 [
+    json_name = "fieldId",
+    (google.api.field_behavior) = REQUIRED
+  ];
+
+  string value = 2 [json_name = "value"];
+
+  // Overlay position on PDF page (from template field definitions)
+  int32 page_number = 3 [json_name = "pageNumber"];
+  double x_percent = 4 [json_name = "xPercent"];
+  double y_percent = 5 [json_name = "yPercent"];
+  double width_percent = 6 [json_name = "widthPercent"];
+  double height_percent = 7 [json_name = "heightPercent"];
+}
+
+message SubmitSigningRequest {
+  string token = 1 [
+    json_name = "token",
+    (google.api.field_behavior) = REQUIRED,
+    (buf.validate.field).string = {
+      min_len: 64
+      max_len: 64
+    }
+  ];
+
+  repeated SigningFieldSubmission field_values = 2 [json_name = "fieldValues"];
+
+  // Base64-encoded signature image (PNG)
+  bytes signature_image = 3 [json_name = "signatureImage"];
+
+  // Signature overlay position on PDF page
+  int32 signature_page_number = 4 [json_name = "signaturePageNumber"];
+  double signature_x_percent = 5 [json_name = "signatureXPercent"];
+  double signature_y_percent = 6 [json_name = "signatureYPercent"];
+  double signature_width_percent = 7 [json_name = "signatureWidthPercent"];
+  double signature_height_percent = 8 [json_name = "signatureHeightPercent"];
+}
+
+message SubmitSigningResponse {
+  bool completed = 1 [json_name = "completed"];
+  string message = 2 [json_name = "message"];
+}

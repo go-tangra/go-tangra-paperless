@@ -122,6 +122,39 @@ func (s *StorageClient) Upload(ctx context.Context, tenantID uint32, categoryID,
 	}, nil
 }
 
+// UploadRaw uploads a file to storage with a pre-formed key
+func (s *StorageClient) UploadRaw(ctx context.Context, key string, content []byte, mimeType string) (*UploadResult, error) {
+	hash := sha256.Sum256(content)
+	checksum := hex.EncodeToString(hash[:])
+
+	reader := bytes.NewReader(content)
+	_, err := s.client.PutObject(ctx, s.bucket, key, reader, int64(len(content)), minio.PutObjectOptions{
+		ContentType: mimeType,
+	})
+	if err != nil {
+		s.log.Errorf("failed to upload file: %v", err)
+		return nil, fmt.Errorf("failed to upload file: %w", err)
+	}
+
+	return &UploadResult{
+		Key:      key,
+		Size:     int64(len(content)),
+		Checksum: checksum,
+	}, nil
+}
+
+// CopyObject copies an object to a new key
+func (s *StorageClient) CopyObject(ctx context.Context, srcKey, dstKey string) error {
+	src := minio.CopySrcOptions{Bucket: s.bucket, Object: srcKey}
+	dst := minio.CopyDestOptions{Bucket: s.bucket, Object: dstKey}
+	_, err := s.client.CopyObject(ctx, dst, src)
+	if err != nil {
+		s.log.Errorf("failed to copy object: %v", err)
+		return fmt.Errorf("failed to copy object: %w", err)
+	}
+	return nil
+}
+
 // Download downloads a file from storage
 func (s *StorageClient) Download(ctx context.Context, key string) ([]byte, error) {
 	obj, err := s.client.GetObject(ctx, s.bucket, key, minio.GetObjectOptions{})

@@ -17,6 +17,9 @@ enum PaperlessErrorReason {
   CATEGORY_NOT_EMPTY = 6 [(errors.code) = 400];
   INVALID_PERMISSION = 7 [(errors.code) = 400];
   INVALID_FORMAT = 8 [(errors.code) = 400];
+  INVALID_TEMPLATE_PDF = 9 [(errors.code) = 400];
+  NO_PLACEHOLDERS_FOUND = 10 [(errors.code) = 400];
+  SIGNING_ALREADY_COMPLETED = 11 [(errors.code) = 400];
 
   // 401 - Unauthorized
   UNAUTHORIZED = 100 [(errors.code) = 401];
@@ -33,6 +36,9 @@ enum PaperlessErrorReason {
   DOCUMENT_NOT_FOUND = 402 [(errors.code) = 404];
   FILE_NOT_FOUND = 403 [(errors.code) = 404];
   PERMISSION_NOT_FOUND = 404 [(errors.code) = 404];
+  SIGNING_TEMPLATE_NOT_FOUND = 405 [(errors.code) = 404];
+  SIGNING_REQUEST_NOT_FOUND = 406 [(errors.code) = 404];
+  SIGNING_SESSION_NOT_FOUND = 407 [(errors.code) = 404];
 
   // 409 - Conflict
   CONFLICT = 900 [(errors.code) = 409];
@@ -45,6 +51,9 @@ enum PaperlessErrorReason {
   STORAGE_CONNECTION_ERROR = 2001 [(errors.code) = 500];
   STORAGE_OPERATION_ERROR = 2002 [(errors.code) = 500];
   DATABASE_ERROR = 2003 [(errors.code) = 500];
+
+  // 410 - Gone
+  SIGNING_SESSION_EXPIRED = 1000 [(errors.code) = 410];
 
   // 503 - Service Unavailable
   SERVICE_UNAVAILABLE = 2300 [(errors.code) = 503];

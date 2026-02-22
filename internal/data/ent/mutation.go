@@ -16,6 +16,10 @@ import (
 	"github.com/go-tangra/go-tangra-paperless/internal/data/ent/document"
 	"github.com/go-tangra/go-tangra-paperless/internal/data/ent/documentpermission"
 	"github.com/go-tangra/go-tangra-paperless/internal/data/ent/predicate"
+	"github.com/go-tangra/go-tangra-paperless/internal/data/ent/schema"
+	"github.com/go-tangra/go-tangra-paperless/internal/data/ent/signingrecipient"
+	"github.com/go-tangra/go-tangra-paperless/internal/data/ent/signingrequest"
+	"github.com/go-tangra/go-tangra-paperless/internal/data/ent/signingtemplate"
 )
 
 const (
@@ -31,6 +35,9 @@ const (
 	TypeCategory           = "Category"
 	TypeDocument           = "Document"
 	TypeDocumentPermission = "DocumentPermission"
+	TypeSigningRecipient   = "SigningRecipient"
+	TypeSigningRequest     = "SigningRequest"
+	TypeSigningTemplate    = "SigningTemplate"
 )
 
 // AuditLogMutation represents an operation that mutates the AuditLog nodes in the graph.
@@ -6423,4 +6430,3834 @@ func (m *DocumentPermissionMutation) ResetEdge(name string) error {
 		return nil
 	}
 	return fmt.Errorf("unknown DocumentPermission edge %s", name)
+}
+
+// SigningRecipientMutation represents an operation that mutates the SigningRecipient nodes in the graph.
+type SigningRecipientMutation struct {
+	config
+	op                     Op
+	typ                    string
+	id                     *string
+	create_time            *time.Time
+	update_time            *time.Time
+	delete_time            *time.Time
+	email                  *string
+	name                   *string
+	signing_order          *int32
+	addsigning_order       *int32
+	status                 *signingrecipient.Status
+	token                  *string
+	signed_at              *time.Time
+	signed_ip              *string
+	signature_data         *[]byte
+	clearedFields          map[string]struct{}
+	signing_request        *string
+	clearedsigning_request bool
+	done                   bool
+	oldValue               func(context.Context) (*SigningRecipient, error)
+	predicates             []predicate.SigningRecipient
+}
+
+var _ ent.Mutation = (*SigningRecipientMutation)(nil)
+
+// signingrecipientOption allows management of the mutation configuration using functional options.
+type signingrecipientOption func(*SigningRecipientMutation)
+
+// newSigningRecipientMutation creates new mutation for the SigningRecipient entity.
+func newSigningRecipientMutation(c config, op Op, opts ...signingrecipientOption) *SigningRecipientMutation {
+	m := &SigningRecipientMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeSigningRecipient,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withSigningRecipientID sets the ID field of the mutation.
+func withSigningRecipientID(id string) signingrecipientOption {
+	return func(m *SigningRecipientMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *SigningRecipient
+		)
+		m.oldValue = func(ctx context.Context) (*SigningRecipient, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().SigningRecipient.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withSigningRecipient sets the old SigningRecipient of the mutation.
+func withSigningRecipient(node *SigningRecipient) signingrecipientOption {
+	return func(m *SigningRecipientMutation) {
+		m.oldValue = func(context.Context) (*SigningRecipient, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m SigningRecipientMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m SigningRecipientMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// SetID sets the value of the id field. Note that this
+// operation is only accepted on creation of SigningRecipient entities.
+func (m *SigningRecipientMutation) SetID(id string) {
+	m.id = &id
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *SigningRecipientMutation) ID() (id string, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *SigningRecipientMutation) IDs(ctx context.Context) ([]string, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []string{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().SigningRecipient.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetCreateTime sets the "create_time" field.
+func (m *SigningRecipientMutation) SetCreateTime(t time.Time) {
+	m.create_time = &t
+}
+
+// CreateTime returns the value of the "create_time" field in the mutation.
+func (m *SigningRecipientMutation) CreateTime() (r time.Time, exists bool) {
+	v := m.create_time
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreateTime returns the old "create_time" field's value of the SigningRecipient entity.
+// If the SigningRecipient object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SigningRecipientMutation) OldCreateTime(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreateTime is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreateTime requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreateTime: %w", err)
+	}
+	return oldValue.CreateTime, nil
+}
+
+// ClearCreateTime clears the value of the "create_time" field.
+func (m *SigningRecipientMutation) ClearCreateTime() {
+	m.create_time = nil
+	m.clearedFields[signingrecipient.FieldCreateTime] = struct{}{}
+}
+
+// CreateTimeCleared returns if the "create_time" field was cleared in this mutation.
+func (m *SigningRecipientMutation) CreateTimeCleared() bool {
+	_, ok := m.clearedFields[signingrecipient.FieldCreateTime]
+	return ok
+}
+
+// ResetCreateTime resets all changes to the "create_time" field.
+func (m *SigningRecipientMutation) ResetCreateTime() {
+	m.create_time = nil
+	delete(m.clearedFields, signingrecipient.FieldCreateTime)
+}
+
+// SetUpdateTime sets the "update_time" field.
+func (m *SigningRecipientMutation) SetUpdateTime(t time.Time) {
+	m.update_time = &t
+}
+
+// UpdateTime returns the value of the "update_time" field in the mutation.
+func (m *SigningRecipientMutation) UpdateTime() (r time.Time, exists bool) {
+	v := m.update_time
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUpdateTime returns the old "update_time" field's value of the SigningRecipient entity.
+// If the SigningRecipient object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SigningRecipientMutation) OldUpdateTime(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUpdateTime is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUpdateTime requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUpdateTime: %w", err)
+	}
+	return oldValue.UpdateTime, nil
+}
+
+// ClearUpdateTime clears the value of the "update_time" field.
+func (m *SigningRecipientMutation) ClearUpdateTime() {
+	m.update_time = nil
+	m.clearedFields[signingrecipient.FieldUpdateTime] = struct{}{}
+}
+
+// UpdateTimeCleared returns if the "update_time" field was cleared in this mutation.
+func (m *SigningRecipientMutation) UpdateTimeCleared() bool {
+	_, ok := m.clearedFields[signingrecipient.FieldUpdateTime]
+	return ok
+}
+
+// ResetUpdateTime resets all changes to the "update_time" field.
+func (m *SigningRecipientMutation) ResetUpdateTime() {
+	m.update_time = nil
+	delete(m.clearedFields, signingrecipient.FieldUpdateTime)
+}
+
+// SetDeleteTime sets the "delete_time" field.
+func (m *SigningRecipientMutation) SetDeleteTime(t time.Time) {
+	m.delete_time = &t
+}
+
+// DeleteTime returns the value of the "delete_time" field in the mutation.
+func (m *SigningRecipientMutation) DeleteTime() (r time.Time, exists bool) {
+	v := m.delete_time
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldDeleteTime returns the old "delete_time" field's value of the SigningRecipient entity.
+// If the SigningRecipient object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SigningRecipientMutation) OldDeleteTime(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldDeleteTime is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldDeleteTime requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldDeleteTime: %w", err)
+	}
+	return oldValue.DeleteTime, nil
+}
+
+// ClearDeleteTime clears the value of the "delete_time" field.
+func (m *SigningRecipientMutation) ClearDeleteTime() {
+	m.delete_time = nil
+	m.clearedFields[signingrecipient.FieldDeleteTime] = struct{}{}
+}
+
+// DeleteTimeCleared returns if the "delete_time" field was cleared in this mutation.
+func (m *SigningRecipientMutation) DeleteTimeCleared() bool {
+	_, ok := m.clearedFields[signingrecipient.FieldDeleteTime]
+	return ok
+}
+
+// ResetDeleteTime resets all changes to the "delete_time" field.
+func (m *SigningRecipientMutation) ResetDeleteTime() {
+	m.delete_time = nil
+	delete(m.clearedFields, signingrecipient.FieldDeleteTime)
+}
+
+// SetSigningRequestID sets the "signing_request_id" field.
+func (m *SigningRecipientMutation) SetSigningRequestID(s string) {
+	m.signing_request = &s
+}
+
+// SigningRequestID returns the value of the "signing_request_id" field in the mutation.
+func (m *SigningRecipientMutation) SigningRequestID() (r string, exists bool) {
+	v := m.signing_request
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSigningRequestID returns the old "signing_request_id" field's value of the SigningRecipient entity.
+// If the SigningRecipient object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SigningRecipientMutation) OldSigningRequestID(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSigningRequestID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSigningRequestID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSigningRequestID: %w", err)
+	}
+	return oldValue.SigningRequestID, nil
+}
+
+// ResetSigningRequestID resets all changes to the "signing_request_id" field.
+func (m *SigningRecipientMutation) ResetSigningRequestID() {
+	m.signing_request = nil
+}
+
+// SetEmail sets the "email" field.
+func (m *SigningRecipientMutation) SetEmail(s string) {
+	m.email = &s
+}
+
+// Email returns the value of the "email" field in the mutation.
+func (m *SigningRecipientMutation) Email() (r string, exists bool) {
+	v := m.email
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldEmail returns the old "email" field's value of the SigningRecipient entity.
+// If the SigningRecipient object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SigningRecipientMutation) OldEmail(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldEmail is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldEmail requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldEmail: %w", err)
+	}
+	return oldValue.Email, nil
+}
+
+// ResetEmail resets all changes to the "email" field.
+func (m *SigningRecipientMutation) ResetEmail() {
+	m.email = nil
+}
+
+// SetName sets the "name" field.
+func (m *SigningRecipientMutation) SetName(s string) {
+	m.name = &s
+}
+
+// Name returns the value of the "name" field in the mutation.
+func (m *SigningRecipientMutation) Name() (r string, exists bool) {
+	v := m.name
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldName returns the old "name" field's value of the SigningRecipient entity.
+// If the SigningRecipient object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SigningRecipientMutation) OldName(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldName is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldName requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldName: %w", err)
+	}
+	return oldValue.Name, nil
+}
+
+// ResetName resets all changes to the "name" field.
+func (m *SigningRecipientMutation) ResetName() {
+	m.name = nil
+}
+
+// SetSigningOrder sets the "signing_order" field.
+func (m *SigningRecipientMutation) SetSigningOrder(i int32) {
+	m.signing_order = &i
+	m.addsigning_order = nil
+}
+
+// SigningOrder returns the value of the "signing_order" field in the mutation.
+func (m *SigningRecipientMutation) SigningOrder() (r int32, exists bool) {
+	v := m.signing_order
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSigningOrder returns the old "signing_order" field's value of the SigningRecipient entity.
+// If the SigningRecipient object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SigningRecipientMutation) OldSigningOrder(ctx context.Context) (v int32, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSigningOrder is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSigningOrder requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSigningOrder: %w", err)
+	}
+	return oldValue.SigningOrder, nil
+}
+
+// AddSigningOrder adds i to the "signing_order" field.
+func (m *SigningRecipientMutation) AddSigningOrder(i int32) {
+	if m.addsigning_order != nil {
+		*m.addsigning_order += i
+	} else {
+		m.addsigning_order = &i
+	}
+}
+
+// AddedSigningOrder returns the value that was added to the "signing_order" field in this mutation.
+func (m *SigningRecipientMutation) AddedSigningOrder() (r int32, exists bool) {
+	v := m.addsigning_order
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetSigningOrder resets all changes to the "signing_order" field.
+func (m *SigningRecipientMutation) ResetSigningOrder() {
+	m.signing_order = nil
+	m.addsigning_order = nil
+}
+
+// SetStatus sets the "status" field.
+func (m *SigningRecipientMutation) SetStatus(s signingrecipient.Status) {
+	m.status = &s
+}
+
+// Status returns the value of the "status" field in the mutation.
+func (m *SigningRecipientMutation) Status() (r signingrecipient.Status, exists bool) {
+	v := m.status
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldStatus returns the old "status" field's value of the SigningRecipient entity.
+// If the SigningRecipient object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SigningRecipientMutation) OldStatus(ctx context.Context) (v signingrecipient.Status, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldStatus is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldStatus requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldStatus: %w", err)
+	}
+	return oldValue.Status, nil
+}
+
+// ResetStatus resets all changes to the "status" field.
+func (m *SigningRecipientMutation) ResetStatus() {
+	m.status = nil
+}
+
+// SetToken sets the "token" field.
+func (m *SigningRecipientMutation) SetToken(s string) {
+	m.token = &s
+}
+
+// Token returns the value of the "token" field in the mutation.
+func (m *SigningRecipientMutation) Token() (r string, exists bool) {
+	v := m.token
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldToken returns the old "token" field's value of the SigningRecipient entity.
+// If the SigningRecipient object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SigningRecipientMutation) OldToken(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldToken is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldToken requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldToken: %w", err)
+	}
+	return oldValue.Token, nil
+}
+
+// ResetToken resets all changes to the "token" field.
+func (m *SigningRecipientMutation) ResetToken() {
+	m.token = nil
+}
+
+// SetSignedAt sets the "signed_at" field.
+func (m *SigningRecipientMutation) SetSignedAt(t time.Time) {
+	m.signed_at = &t
+}
+
+// SignedAt returns the value of the "signed_at" field in the mutation.
+func (m *SigningRecipientMutation) SignedAt() (r time.Time, exists bool) {
+	v := m.signed_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSignedAt returns the old "signed_at" field's value of the SigningRecipient entity.
+// If the SigningRecipient object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SigningRecipientMutation) OldSignedAt(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSignedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSignedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSignedAt: %w", err)
+	}
+	return oldValue.SignedAt, nil
+}
+
+// ClearSignedAt clears the value of the "signed_at" field.
+func (m *SigningRecipientMutation) ClearSignedAt() {
+	m.signed_at = nil
+	m.clearedFields[signingrecipient.FieldSignedAt] = struct{}{}
+}
+
+// SignedAtCleared returns if the "signed_at" field was cleared in this mutation.
+func (m *SigningRecipientMutation) SignedAtCleared() bool {
+	_, ok := m.clearedFields[signingrecipient.FieldSignedAt]
+	return ok
+}
+
+// ResetSignedAt resets all changes to the "signed_at" field.
+func (m *SigningRecipientMutation) ResetSignedAt() {
+	m.signed_at = nil
+	delete(m.clearedFields, signingrecipient.FieldSignedAt)
+}
+
+// SetSignedIP sets the "signed_ip" field.
+func (m *SigningRecipientMutation) SetSignedIP(s string) {
+	m.signed_ip = &s
+}
+
+// SignedIP returns the value of the "signed_ip" field in the mutation.
+func (m *SigningRecipientMutation) SignedIP() (r string, exists bool) {
+	v := m.signed_ip
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSignedIP returns the old "signed_ip" field's value of the SigningRecipient entity.
+// If the SigningRecipient object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SigningRecipientMutation) OldSignedIP(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSignedIP is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSignedIP requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSignedIP: %w", err)
+	}
+	return oldValue.SignedIP, nil
+}
+
+// ClearSignedIP clears the value of the "signed_ip" field.
+func (m *SigningRecipientMutation) ClearSignedIP() {
+	m.signed_ip = nil
+	m.clearedFields[signingrecipient.FieldSignedIP] = struct{}{}
+}
+
+// SignedIPCleared returns if the "signed_ip" field was cleared in this mutation.
+func (m *SigningRecipientMutation) SignedIPCleared() bool {
+	_, ok := m.clearedFields[signingrecipient.FieldSignedIP]
+	return ok
+}
+
+// ResetSignedIP resets all changes to the "signed_ip" field.
+func (m *SigningRecipientMutation) ResetSignedIP() {
+	m.signed_ip = nil
+	delete(m.clearedFields, signingrecipient.FieldSignedIP)
+}
+
+// SetSignatureData sets the "signature_data" field.
+func (m *SigningRecipientMutation) SetSignatureData(b []byte) {
+	m.signature_data = &b
+}
+
+// SignatureData returns the value of the "signature_data" field in the mutation.
+func (m *SigningRecipientMutation) SignatureData() (r []byte, exists bool) {
+	v := m.signature_data
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSignatureData returns the old "signature_data" field's value of the SigningRecipient entity.
+// If the SigningRecipient object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SigningRecipientMutation) OldSignatureData(ctx context.Context) (v []byte, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSignatureData is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSignatureData requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSignatureData: %w", err)
+	}
+	return oldValue.SignatureData, nil
+}
+
+// ClearSignatureData clears the value of the "signature_data" field.
+func (m *SigningRecipientMutation) ClearSignatureData() {
+	m.signature_data = nil
+	m.clearedFields[signingrecipient.FieldSignatureData] = struct{}{}
+}
+
+// SignatureDataCleared returns if the "signature_data" field was cleared in this mutation.
+func (m *SigningRecipientMutation) SignatureDataCleared() bool {
+	_, ok := m.clearedFields[signingrecipient.FieldSignatureData]
+	return ok
+}
+
+// ResetSignatureData resets all changes to the "signature_data" field.
+func (m *SigningRecipientMutation) ResetSignatureData() {
+	m.signature_data = nil
+	delete(m.clearedFields, signingrecipient.FieldSignatureData)
+}
+
+// ClearSigningRequest clears the "signing_request" edge to the SigningRequest entity.
+func (m *SigningRecipientMutation) ClearSigningRequest() {
+	m.clearedsigning_request = true
+	m.clearedFields[signingrecipient.FieldSigningRequestID] = struct{}{}
+}
+
+// SigningRequestCleared reports if the "signing_request" edge to the SigningRequest entity was cleared.
+func (m *SigningRecipientMutation) SigningRequestCleared() bool {
+	return m.clearedsigning_request
+}
+
+// SigningRequestIDs returns the "signing_request" edge IDs in the mutation.
+// Note that IDs always returns len(IDs) <= 1 for unique edges, and you should use
+// SigningRequestID instead. It exists only for internal usage by the builders.
+func (m *SigningRecipientMutation) SigningRequestIDs() (ids []string) {
+	if id := m.signing_request; id != nil {
+		ids = append(ids, *id)
+	}
+	return
+}
+
+// ResetSigningRequest resets all changes to the "signing_request" edge.
+func (m *SigningRecipientMutation) ResetSigningRequest() {
+	m.signing_request = nil
+	m.clearedsigning_request = false
+}
+
+// Where appends a list predicates to the SigningRecipientMutation builder.
+func (m *SigningRecipientMutation) Where(ps ...predicate.SigningRecipient) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the SigningRecipientMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *SigningRecipientMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.SigningRecipient, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *SigningRecipientMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *SigningRecipientMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (SigningRecipient).
+func (m *SigningRecipientMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *SigningRecipientMutation) Fields() []string {
+	fields := make([]string, 0, 12)
+	if m.create_time != nil {
+		fields = append(fields, signingrecipient.FieldCreateTime)
+	}
+	if m.update_time != nil {
+		fields = append(fields, signingrecipient.FieldUpdateTime)
+	}
+	if m.delete_time != nil {
+		fields = append(fields, signingrecipient.FieldDeleteTime)
+	}
+	if m.signing_request != nil {
+		fields = append(fields, signingrecipient.FieldSigningRequestID)
+	}
+	if m.email != nil {
+		fields = append(fields, signingrecipient.FieldEmail)
+	}
+	if m.name != nil {
+		fields = append(fields, signingrecipient.FieldName)
+	}
+	if m.signing_order != nil {
+		fields = append(fields, signingrecipient.FieldSigningOrder)
+	}
+	if m.status != nil {
+		fields = append(fields, signingrecipient.FieldStatus)
+	}
+	if m.token != nil {
+		fields = append(fields, signingrecipient.FieldToken)
+	}
+	if m.signed_at != nil {
+		fields = append(fields, signingrecipient.FieldSignedAt)
+	}
+	if m.signed_ip != nil {
+		fields = append(fields, signingrecipient.FieldSignedIP)
+	}
+	if m.signature_data != nil {
+		fields = append(fields, signingrecipient.FieldSignatureData)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *SigningRecipientMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case signingrecipient.FieldCreateTime:
+		return m.CreateTime()
+	case signingrecipient.FieldUpdateTime:
+		return m.UpdateTime()
+	case signingrecipient.FieldDeleteTime:
+		return m.DeleteTime()
+	case signingrecipient.FieldSigningRequestID:
+		return m.SigningRequestID()
+	case signingrecipient.FieldEmail:
+		return m.Email()
+	case signingrecipient.FieldName:
+		return m.Name()
+	case signingrecipient.FieldSigningOrder:
+		return m.SigningOrder()
+	case signingrecipient.FieldStatus:
+		return m.Status()
+	case signingrecipient.FieldToken:
+		return m.Token()
+	case signingrecipient.FieldSignedAt:
+		return m.SignedAt()
+	case signingrecipient.FieldSignedIP:
+		return m.SignedIP()
+	case signingrecipient.FieldSignatureData:
+		return m.SignatureData()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *SigningRecipientMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case signingrecipient.FieldCreateTime:
+		return m.OldCreateTime(ctx)
+	case signingrecipient.FieldUpdateTime:
+		return m.OldUpdateTime(ctx)
+	case signingrecipient.FieldDeleteTime:
+		return m.OldDeleteTime(ctx)
+	case signingrecipient.FieldSigningRequestID:
+		return m.OldSigningRequestID(ctx)
+	case signingrecipient.FieldEmail:
+		return m.OldEmail(ctx)
+	case signingrecipient.FieldName:
+		return m.OldName(ctx)
+	case signingrecipient.FieldSigningOrder:
+		return m.OldSigningOrder(ctx)
+	case signingrecipient.FieldStatus:
+		return m.OldStatus(ctx)
+	case signingrecipient.FieldToken:
+		return m.OldToken(ctx)
+	case signingrecipient.FieldSignedAt:
+		return m.OldSignedAt(ctx)
+	case signingrecipient.FieldSignedIP:
+		return m.OldSignedIP(ctx)
+	case signingrecipient.FieldSignatureData:
+		return m.OldSignatureData(ctx)
+	}
+	return nil, fmt.Errorf("unknown SigningRecipient field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *SigningRecipientMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case signingrecipient.FieldCreateTime:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreateTime(v)
+		return nil
+	case signingrecipient.FieldUpdateTime:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUpdateTime(v)
+		return nil
+	case signingrecipient.FieldDeleteTime:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetDeleteTime(v)
+		return nil
+	case signingrecipient.FieldSigningRequestID:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSigningRequestID(v)
+		return nil
+	case signingrecipient.FieldEmail:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetEmail(v)
+		return nil
+	case signingrecipient.FieldName:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetName(v)
+		return nil
+	case signingrecipient.FieldSigningOrder:
+		v, ok := value.(int32)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSigningOrder(v)
+		return nil
+	case signingrecipient.FieldStatus:
+		v, ok := value.(signingrecipient.Status)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetStatus(v)
+		return nil
+	case signingrecipient.FieldToken:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetToken(v)
+		return nil
+	case signingrecipient.FieldSignedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSignedAt(v)
+		return nil
+	case signingrecipient.FieldSignedIP:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSignedIP(v)
+		return nil
+	case signingrecipient.FieldSignatureData:
+		v, ok := value.([]byte)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSignatureData(v)
+		return nil
+	}
+	return fmt.Errorf("unknown SigningRecipient field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *SigningRecipientMutation) AddedFields() []string {
+	var fields []string
+	if m.addsigning_order != nil {
+		fields = append(fields, signingrecipient.FieldSigningOrder)
+	}
+	return fields
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *SigningRecipientMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	case signingrecipient.FieldSigningOrder:
+		return m.AddedSigningOrder()
+	}
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *SigningRecipientMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	case signingrecipient.FieldSigningOrder:
+		v, ok := value.(int32)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddSigningOrder(v)
+		return nil
+	}
+	return fmt.Errorf("unknown SigningRecipient numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *SigningRecipientMutation) ClearedFields() []string {
+	var fields []string
+	if m.FieldCleared(signingrecipient.FieldCreateTime) {
+		fields = append(fields, signingrecipient.FieldCreateTime)
+	}
+	if m.FieldCleared(signingrecipient.FieldUpdateTime) {
+		fields = append(fields, signingrecipient.FieldUpdateTime)
+	}
+	if m.FieldCleared(signingrecipient.FieldDeleteTime) {
+		fields = append(fields, signingrecipient.FieldDeleteTime)
+	}
+	if m.FieldCleared(signingrecipient.FieldSignedAt) {
+		fields = append(fields, signingrecipient.FieldSignedAt)
+	}
+	if m.FieldCleared(signingrecipient.FieldSignedIP) {
+		fields = append(fields, signingrecipient.FieldSignedIP)
+	}
+	if m.FieldCleared(signingrecipient.FieldSignatureData) {
+		fields = append(fields, signingrecipient.FieldSignatureData)
+	}
+	return fields
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *SigningRecipientMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *SigningRecipientMutation) ClearField(name string) error {
+	switch name {
+	case signingrecipient.FieldCreateTime:
+		m.ClearCreateTime()
+		return nil
+	case signingrecipient.FieldUpdateTime:
+		m.ClearUpdateTime()
+		return nil
+	case signingrecipient.FieldDeleteTime:
+		m.ClearDeleteTime()
+		return nil
+	case signingrecipient.FieldSignedAt:
+		m.ClearSignedAt()
+		return nil
+	case signingrecipient.FieldSignedIP:
+		m.ClearSignedIP()
+		return nil
+	case signingrecipient.FieldSignatureData:
+		m.ClearSignatureData()
+		return nil
+	}
+	return fmt.Errorf("unknown SigningRecipient nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *SigningRecipientMutation) ResetField(name string) error {
+	switch name {
+	case signingrecipient.FieldCreateTime:
+		m.ResetCreateTime()
+		return nil
+	case signingrecipient.FieldUpdateTime:
+		m.ResetUpdateTime()
+		return nil
+	case signingrecipient.FieldDeleteTime:
+		m.ResetDeleteTime()
+		return nil
+	case signingrecipient.FieldSigningRequestID:
+		m.ResetSigningRequestID()
+		return nil
+	case signingrecipient.FieldEmail:
+		m.ResetEmail()
+		return nil
+	case signingrecipient.FieldName:
+		m.ResetName()
+		return nil
+	case signingrecipient.FieldSigningOrder:
+		m.ResetSigningOrder()
+		return nil
+	case signingrecipient.FieldStatus:
+		m.ResetStatus()
+		return nil
+	case signingrecipient.FieldToken:
+		m.ResetToken()
+		return nil
+	case signingrecipient.FieldSignedAt:
+		m.ResetSignedAt()
+		return nil
+	case signingrecipient.FieldSignedIP:
+		m.ResetSignedIP()
+		return nil
+	case signingrecipient.FieldSignatureData:
+		m.ResetSignatureData()
+		return nil
+	}
+	return fmt.Errorf("unknown SigningRecipient field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *SigningRecipientMutation) AddedEdges() []string {
+	edges := make([]string, 0, 1)
+	if m.signing_request != nil {
+		edges = append(edges, signingrecipient.EdgeSigningRequest)
+	}
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *SigningRecipientMutation) AddedIDs(name string) []ent.Value {
+	switch name {
+	case signingrecipient.EdgeSigningRequest:
+		if id := m.signing_request; id != nil {
+			return []ent.Value{*id}
+		}
+	}
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *SigningRecipientMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 1)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *SigningRecipientMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *SigningRecipientMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 1)
+	if m.clearedsigning_request {
+		edges = append(edges, signingrecipient.EdgeSigningRequest)
+	}
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *SigningRecipientMutation) EdgeCleared(name string) bool {
+	switch name {
+	case signingrecipient.EdgeSigningRequest:
+		return m.clearedsigning_request
+	}
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *SigningRecipientMutation) ClearEdge(name string) error {
+	switch name {
+	case signingrecipient.EdgeSigningRequest:
+		m.ClearSigningRequest()
+		return nil
+	}
+	return fmt.Errorf("unknown SigningRecipient unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *SigningRecipientMutation) ResetEdge(name string) error {
+	switch name {
+	case signingrecipient.EdgeSigningRequest:
+		m.ResetSigningRequest()
+		return nil
+	}
+	return fmt.Errorf("unknown SigningRecipient edge %s", name)
+}
+
+// SigningRequestMutation represents an operation that mutates the SigningRequest nodes in the graph.
+type SigningRequestMutation struct {
+	config
+	op                 Op
+	typ                string
+	id                 *string
+	create_by          *uint32
+	addcreate_by       *int32
+	update_by          *uint32
+	addupdate_by       *int32
+	create_time        *time.Time
+	update_time        *time.Time
+	delete_time        *time.Time
+	tenant_id          *uint32
+	addtenant_id       *int32
+	template_id        *string
+	name               *string
+	status             *signingrequest.Status
+	original_file_key  *string
+	signed_file_key    *string
+	field_values       *[]schema.SigningFieldValueDef
+	appendfield_values []schema.SigningFieldValueDef
+	message            *string
+	expires_at         *time.Time
+	clearedFields      map[string]struct{}
+	recipients         map[string]struct{}
+	removedrecipients  map[string]struct{}
+	clearedrecipients  bool
+	done               bool
+	oldValue           func(context.Context) (*SigningRequest, error)
+	predicates         []predicate.SigningRequest
+}
+
+var _ ent.Mutation = (*SigningRequestMutation)(nil)
+
+// signingrequestOption allows management of the mutation configuration using functional options.
+type signingrequestOption func(*SigningRequestMutation)
+
+// newSigningRequestMutation creates new mutation for the SigningRequest entity.
+func newSigningRequestMutation(c config, op Op, opts ...signingrequestOption) *SigningRequestMutation {
+	m := &SigningRequestMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeSigningRequest,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withSigningRequestID sets the ID field of the mutation.
+func withSigningRequestID(id string) signingrequestOption {
+	return func(m *SigningRequestMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *SigningRequest
+		)
+		m.oldValue = func(ctx context.Context) (*SigningRequest, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().SigningRequest.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withSigningRequest sets the old SigningRequest of the mutation.
+func withSigningRequest(node *SigningRequest) signingrequestOption {
+	return func(m *SigningRequestMutation) {
+		m.oldValue = func(context.Context) (*SigningRequest, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m SigningRequestMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m SigningRequestMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// SetID sets the value of the id field. Note that this
+// operation is only accepted on creation of SigningRequest entities.
+func (m *SigningRequestMutation) SetID(id string) {
+	m.id = &id
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *SigningRequestMutation) ID() (id string, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *SigningRequestMutation) IDs(ctx context.Context) ([]string, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []string{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().SigningRequest.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetCreateBy sets the "create_by" field.
+func (m *SigningRequestMutation) SetCreateBy(u uint32) {
+	m.create_by = &u
+	m.addcreate_by = nil
+}
+
+// CreateBy returns the value of the "create_by" field in the mutation.
+func (m *SigningRequestMutation) CreateBy() (r uint32, exists bool) {
+	v := m.create_by
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreateBy returns the old "create_by" field's value of the SigningRequest entity.
+// If the SigningRequest object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SigningRequestMutation) OldCreateBy(ctx context.Context) (v *uint32, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreateBy is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreateBy requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreateBy: %w", err)
+	}
+	return oldValue.CreateBy, nil
+}
+
+// AddCreateBy adds u to the "create_by" field.
+func (m *SigningRequestMutation) AddCreateBy(u int32) {
+	if m.addcreate_by != nil {
+		*m.addcreate_by += u
+	} else {
+		m.addcreate_by = &u
+	}
+}
+
+// AddedCreateBy returns the value that was added to the "create_by" field in this mutation.
+func (m *SigningRequestMutation) AddedCreateBy() (r int32, exists bool) {
+	v := m.addcreate_by
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearCreateBy clears the value of the "create_by" field.
+func (m *SigningRequestMutation) ClearCreateBy() {
+	m.create_by = nil
+	m.addcreate_by = nil
+	m.clearedFields[signingrequest.FieldCreateBy] = struct{}{}
+}
+
+// CreateByCleared returns if the "create_by" field was cleared in this mutation.
+func (m *SigningRequestMutation) CreateByCleared() bool {
+	_, ok := m.clearedFields[signingrequest.FieldCreateBy]
+	return ok
+}
+
+// ResetCreateBy resets all changes to the "create_by" field.
+func (m *SigningRequestMutation) ResetCreateBy() {
+	m.create_by = nil
+	m.addcreate_by = nil
+	delete(m.clearedFields, signingrequest.FieldCreateBy)
+}
+
+// SetUpdateBy sets the "update_by" field.
+func (m *SigningRequestMutation) SetUpdateBy(u uint32) {
+	m.update_by = &u
+	m.addupdate_by = nil
+}
+
+// UpdateBy returns the value of the "update_by" field in the mutation.
+func (m *SigningRequestMutation) UpdateBy() (r uint32, exists bool) {
+	v := m.update_by
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUpdateBy returns the old "update_by" field's value of the SigningRequest entity.
+// If the SigningRequest object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SigningRequestMutation) OldUpdateBy(ctx context.Context) (v *uint32, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUpdateBy is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUpdateBy requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUpdateBy: %w", err)
+	}
+	return oldValue.UpdateBy, nil
+}
+
+// AddUpdateBy adds u to the "update_by" field.
+func (m *SigningRequestMutation) AddUpdateBy(u int32) {
+	if m.addupdate_by != nil {
+		*m.addupdate_by += u
+	} else {
+		m.addupdate_by = &u
+	}
+}
+
+// AddedUpdateBy returns the value that was added to the "update_by" field in this mutation.
+func (m *SigningRequestMutation) AddedUpdateBy() (r int32, exists bool) {
+	v := m.addupdate_by
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearUpdateBy clears the value of the "update_by" field.
+func (m *SigningRequestMutation) ClearUpdateBy() {
+	m.update_by = nil
+	m.addupdate_by = nil
+	m.clearedFields[signingrequest.FieldUpdateBy] = struct{}{}
+}
+
+// UpdateByCleared returns if the "update_by" field was cleared in this mutation.
+func (m *SigningRequestMutation) UpdateByCleared() bool {
+	_, ok := m.clearedFields[signingrequest.FieldUpdateBy]
+	return ok
+}
+
+// ResetUpdateBy resets all changes to the "update_by" field.
+func (m *SigningRequestMutation) ResetUpdateBy() {
+	m.update_by = nil
+	m.addupdate_by = nil
+	delete(m.clearedFields, signingrequest.FieldUpdateBy)
+}
+
+// SetCreateTime sets the "create_time" field.
+func (m *SigningRequestMutation) SetCreateTime(t time.Time) {
+	m.create_time = &t
+}
+
+// CreateTime returns the value of the "create_time" field in the mutation.
+func (m *SigningRequestMutation) CreateTime() (r time.Time, exists bool) {
+	v := m.create_time
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreateTime returns the old "create_time" field's value of the SigningRequest entity.
+// If the SigningRequest object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SigningRequestMutation) OldCreateTime(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreateTime is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreateTime requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreateTime: %w", err)
+	}
+	return oldValue.CreateTime, nil
+}
+
+// ClearCreateTime clears the value of the "create_time" field.
+func (m *SigningRequestMutation) ClearCreateTime() {
+	m.create_time = nil
+	m.clearedFields[signingrequest.FieldCreateTime] = struct{}{}
+}
+
+// CreateTimeCleared returns if the "create_time" field was cleared in this mutation.
+func (m *SigningRequestMutation) CreateTimeCleared() bool {
+	_, ok := m.clearedFields[signingrequest.FieldCreateTime]
+	return ok
+}
+
+// ResetCreateTime resets all changes to the "create_time" field.
+func (m *SigningRequestMutation) ResetCreateTime() {
+	m.create_time = nil
+	delete(m.clearedFields, signingrequest.FieldCreateTime)
+}
+
+// SetUpdateTime sets the "update_time" field.
+func (m *SigningRequestMutation) SetUpdateTime(t time.Time) {
+	m.update_time = &t
+}
+
+// UpdateTime returns the value of the "update_time" field in the mutation.
+func (m *SigningRequestMutation) UpdateTime() (r time.Time, exists bool) {
+	v := m.update_time
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUpdateTime returns the old "update_time" field's value of the SigningRequest entity.
+// If the SigningRequest object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SigningRequestMutation) OldUpdateTime(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUpdateTime is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUpdateTime requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUpdateTime: %w", err)
+	}
+	return oldValue.UpdateTime, nil
+}
+
+// ClearUpdateTime clears the value of the "update_time" field.
+func (m *SigningRequestMutation) ClearUpdateTime() {
+	m.update_time = nil
+	m.clearedFields[signingrequest.FieldUpdateTime] = struct{}{}
+}
+
+// UpdateTimeCleared returns if the "update_time" field was cleared in this mutation.
+func (m *SigningRequestMutation) UpdateTimeCleared() bool {
+	_, ok := m.clearedFields[signingrequest.FieldUpdateTime]
+	return ok
+}
+
+// ResetUpdateTime resets all changes to the "update_time" field.
+func (m *SigningRequestMutation) ResetUpdateTime() {
+	m.update_time = nil
+	delete(m.clearedFields, signingrequest.FieldUpdateTime)
+}
+
+// SetDeleteTime sets the "delete_time" field.
+func (m *SigningRequestMutation) SetDeleteTime(t time.Time) {
+	m.delete_time = &t
+}
+
+// DeleteTime returns the value of the "delete_time" field in the mutation.
+func (m *SigningRequestMutation) DeleteTime() (r time.Time, exists bool) {
+	v := m.delete_time
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldDeleteTime returns the old "delete_time" field's value of the SigningRequest entity.
+// If the SigningRequest object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SigningRequestMutation) OldDeleteTime(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldDeleteTime is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldDeleteTime requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldDeleteTime: %w", err)
+	}
+	return oldValue.DeleteTime, nil
+}
+
+// ClearDeleteTime clears the value of the "delete_time" field.
+func (m *SigningRequestMutation) ClearDeleteTime() {
+	m.delete_time = nil
+	m.clearedFields[signingrequest.FieldDeleteTime] = struct{}{}
+}
+
+// DeleteTimeCleared returns if the "delete_time" field was cleared in this mutation.
+func (m *SigningRequestMutation) DeleteTimeCleared() bool {
+	_, ok := m.clearedFields[signingrequest.FieldDeleteTime]
+	return ok
+}
+
+// ResetDeleteTime resets all changes to the "delete_time" field.
+func (m *SigningRequestMutation) ResetDeleteTime() {
+	m.delete_time = nil
+	delete(m.clearedFields, signingrequest.FieldDeleteTime)
+}
+
+// SetTenantID sets the "tenant_id" field.
+func (m *SigningRequestMutation) SetTenantID(u uint32) {
+	m.tenant_id = &u
+	m.addtenant_id = nil
+}
+
+// TenantID returns the value of the "tenant_id" field in the mutation.
+func (m *SigningRequestMutation) TenantID() (r uint32, exists bool) {
+	v := m.tenant_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldTenantID returns the old "tenant_id" field's value of the SigningRequest entity.
+// If the SigningRequest object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SigningRequestMutation) OldTenantID(ctx context.Context) (v *uint32, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldTenantID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldTenantID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldTenantID: %w", err)
+	}
+	return oldValue.TenantID, nil
+}
+
+// AddTenantID adds u to the "tenant_id" field.
+func (m *SigningRequestMutation) AddTenantID(u int32) {
+	if m.addtenant_id != nil {
+		*m.addtenant_id += u
+	} else {
+		m.addtenant_id = &u
+	}
+}
+
+// AddedTenantID returns the value that was added to the "tenant_id" field in this mutation.
+func (m *SigningRequestMutation) AddedTenantID() (r int32, exists bool) {
+	v := m.addtenant_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearTenantID clears the value of the "tenant_id" field.
+func (m *SigningRequestMutation) ClearTenantID() {
+	m.tenant_id = nil
+	m.addtenant_id = nil
+	m.clearedFields[signingrequest.FieldTenantID] = struct{}{}
+}
+
+// TenantIDCleared returns if the "tenant_id" field was cleared in this mutation.
+func (m *SigningRequestMutation) TenantIDCleared() bool {
+	_, ok := m.clearedFields[signingrequest.FieldTenantID]
+	return ok
+}
+
+// ResetTenantID resets all changes to the "tenant_id" field.
+func (m *SigningRequestMutation) ResetTenantID() {
+	m.tenant_id = nil
+	m.addtenant_id = nil
+	delete(m.clearedFields, signingrequest.FieldTenantID)
+}
+
+// SetTemplateID sets the "template_id" field.
+func (m *SigningRequestMutation) SetTemplateID(s string) {
+	m.template_id = &s
+}
+
+// TemplateID returns the value of the "template_id" field in the mutation.
+func (m *SigningRequestMutation) TemplateID() (r string, exists bool) {
+	v := m.template_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldTemplateID returns the old "template_id" field's value of the SigningRequest entity.
+// If the SigningRequest object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SigningRequestMutation) OldTemplateID(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldTemplateID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldTemplateID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldTemplateID: %w", err)
+	}
+	return oldValue.TemplateID, nil
+}
+
+// ResetTemplateID resets all changes to the "template_id" field.
+func (m *SigningRequestMutation) ResetTemplateID() {
+	m.template_id = nil
+}
+
+// SetName sets the "name" field.
+func (m *SigningRequestMutation) SetName(s string) {
+	m.name = &s
+}
+
+// Name returns the value of the "name" field in the mutation.
+func (m *SigningRequestMutation) Name() (r string, exists bool) {
+	v := m.name
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldName returns the old "name" field's value of the SigningRequest entity.
+// If the SigningRequest object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SigningRequestMutation) OldName(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldName is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldName requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldName: %w", err)
+	}
+	return oldValue.Name, nil
+}
+
+// ResetName resets all changes to the "name" field.
+func (m *SigningRequestMutation) ResetName() {
+	m.name = nil
+}
+
+// SetStatus sets the "status" field.
+func (m *SigningRequestMutation) SetStatus(s signingrequest.Status) {
+	m.status = &s
+}
+
+// Status returns the value of the "status" field in the mutation.
+func (m *SigningRequestMutation) Status() (r signingrequest.Status, exists bool) {
+	v := m.status
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldStatus returns the old "status" field's value of the SigningRequest entity.
+// If the SigningRequest object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SigningRequestMutation) OldStatus(ctx context.Context) (v signingrequest.Status, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldStatus is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldStatus requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldStatus: %w", err)
+	}
+	return oldValue.Status, nil
+}
+
+// ResetStatus resets all changes to the "status" field.
+func (m *SigningRequestMutation) ResetStatus() {
+	m.status = nil
+}
+
+// SetOriginalFileKey sets the "original_file_key" field.
+func (m *SigningRequestMutation) SetOriginalFileKey(s string) {
+	m.original_file_key = &s
+}
+
+// OriginalFileKey returns the value of the "original_file_key" field in the mutation.
+func (m *SigningRequestMutation) OriginalFileKey() (r string, exists bool) {
+	v := m.original_file_key
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldOriginalFileKey returns the old "original_file_key" field's value of the SigningRequest entity.
+// If the SigningRequest object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SigningRequestMutation) OldOriginalFileKey(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldOriginalFileKey is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldOriginalFileKey requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldOriginalFileKey: %w", err)
+	}
+	return oldValue.OriginalFileKey, nil
+}
+
+// ClearOriginalFileKey clears the value of the "original_file_key" field.
+func (m *SigningRequestMutation) ClearOriginalFileKey() {
+	m.original_file_key = nil
+	m.clearedFields[signingrequest.FieldOriginalFileKey] = struct{}{}
+}
+
+// OriginalFileKeyCleared returns if the "original_file_key" field was cleared in this mutation.
+func (m *SigningRequestMutation) OriginalFileKeyCleared() bool {
+	_, ok := m.clearedFields[signingrequest.FieldOriginalFileKey]
+	return ok
+}
+
+// ResetOriginalFileKey resets all changes to the "original_file_key" field.
+func (m *SigningRequestMutation) ResetOriginalFileKey() {
+	m.original_file_key = nil
+	delete(m.clearedFields, signingrequest.FieldOriginalFileKey)
+}
+
+// SetSignedFileKey sets the "signed_file_key" field.
+func (m *SigningRequestMutation) SetSignedFileKey(s string) {
+	m.signed_file_key = &s
+}
+
+// SignedFileKey returns the value of the "signed_file_key" field in the mutation.
+func (m *SigningRequestMutation) SignedFileKey() (r string, exists bool) {
+	v := m.signed_file_key
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSignedFileKey returns the old "signed_file_key" field's value of the SigningRequest entity.
+// If the SigningRequest object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SigningRequestMutation) OldSignedFileKey(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSignedFileKey is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSignedFileKey requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSignedFileKey: %w", err)
+	}
+	return oldValue.SignedFileKey, nil
+}
+
+// ClearSignedFileKey clears the value of the "signed_file_key" field.
+func (m *SigningRequestMutation) ClearSignedFileKey() {
+	m.signed_file_key = nil
+	m.clearedFields[signingrequest.FieldSignedFileKey] = struct{}{}
+}
+
+// SignedFileKeyCleared returns if the "signed_file_key" field was cleared in this mutation.
+func (m *SigningRequestMutation) SignedFileKeyCleared() bool {
+	_, ok := m.clearedFields[signingrequest.FieldSignedFileKey]
+	return ok
+}
+
+// ResetSignedFileKey resets all changes to the "signed_file_key" field.
+func (m *SigningRequestMutation) ResetSignedFileKey() {
+	m.signed_file_key = nil
+	delete(m.clearedFields, signingrequest.FieldSignedFileKey)
+}
+
+// SetFieldValues sets the "field_values" field.
+func (m *SigningRequestMutation) SetFieldValues(sfvd []schema.SigningFieldValueDef) {
+	m.field_values = &sfvd
+	m.appendfield_values = nil
+}
+
+// FieldValues returns the value of the "field_values" field in the mutation.
+func (m *SigningRequestMutation) FieldValues() (r []schema.SigningFieldValueDef, exists bool) {
+	v := m.field_values
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldFieldValues returns the old "field_values" field's value of the SigningRequest entity.
+// If the SigningRequest object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SigningRequestMutation) OldFieldValues(ctx context.Context) (v []schema.SigningFieldValueDef, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldFieldValues is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldFieldValues requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldFieldValues: %w", err)
+	}
+	return oldValue.FieldValues, nil
+}
+
+// AppendFieldValues adds sfvd to the "field_values" field.
+func (m *SigningRequestMutation) AppendFieldValues(sfvd []schema.SigningFieldValueDef) {
+	m.appendfield_values = append(m.appendfield_values, sfvd...)
+}
+
+// AppendedFieldValues returns the list of values that were appended to the "field_values" field in this mutation.
+func (m *SigningRequestMutation) AppendedFieldValues() ([]schema.SigningFieldValueDef, bool) {
+	if len(m.appendfield_values) == 0 {
+		return nil, false
+	}
+	return m.appendfield_values, true
+}
+
+// ClearFieldValues clears the value of the "field_values" field.
+func (m *SigningRequestMutation) ClearFieldValues() {
+	m.field_values = nil
+	m.appendfield_values = nil
+	m.clearedFields[signingrequest.FieldFieldValues] = struct{}{}
+}
+
+// FieldValuesCleared returns if the "field_values" field was cleared in this mutation.
+func (m *SigningRequestMutation) FieldValuesCleared() bool {
+	_, ok := m.clearedFields[signingrequest.FieldFieldValues]
+	return ok
+}
+
+// ResetFieldValues resets all changes to the "field_values" field.
+func (m *SigningRequestMutation) ResetFieldValues() {
+	m.field_values = nil
+	m.appendfield_values = nil
+	delete(m.clearedFields, signingrequest.FieldFieldValues)
+}
+
+// SetMessage sets the "message" field.
+func (m *SigningRequestMutation) SetMessage(s string) {
+	m.message = &s
+}
+
+// Message returns the value of the "message" field in the mutation.
+func (m *SigningRequestMutation) Message() (r string, exists bool) {
+	v := m.message
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldMessage returns the old "message" field's value of the SigningRequest entity.
+// If the SigningRequest object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SigningRequestMutation) OldMessage(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldMessage is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldMessage requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldMessage: %w", err)
+	}
+	return oldValue.Message, nil
+}
+
+// ClearMessage clears the value of the "message" field.
+func (m *SigningRequestMutation) ClearMessage() {
+	m.message = nil
+	m.clearedFields[signingrequest.FieldMessage] = struct{}{}
+}
+
+// MessageCleared returns if the "message" field was cleared in this mutation.
+func (m *SigningRequestMutation) MessageCleared() bool {
+	_, ok := m.clearedFields[signingrequest.FieldMessage]
+	return ok
+}
+
+// ResetMessage resets all changes to the "message" field.
+func (m *SigningRequestMutation) ResetMessage() {
+	m.message = nil
+	delete(m.clearedFields, signingrequest.FieldMessage)
+}
+
+// SetExpiresAt sets the "expires_at" field.
+func (m *SigningRequestMutation) SetExpiresAt(t time.Time) {
+	m.expires_at = &t
+}
+
+// ExpiresAt returns the value of the "expires_at" field in the mutation.
+func (m *SigningRequestMutation) ExpiresAt() (r time.Time, exists bool) {
+	v := m.expires_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldExpiresAt returns the old "expires_at" field's value of the SigningRequest entity.
+// If the SigningRequest object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SigningRequestMutation) OldExpiresAt(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldExpiresAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldExpiresAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldExpiresAt: %w", err)
+	}
+	return oldValue.ExpiresAt, nil
+}
+
+// ClearExpiresAt clears the value of the "expires_at" field.
+func (m *SigningRequestMutation) ClearExpiresAt() {
+	m.expires_at = nil
+	m.clearedFields[signingrequest.FieldExpiresAt] = struct{}{}
+}
+
+// ExpiresAtCleared returns if the "expires_at" field was cleared in this mutation.
+func (m *SigningRequestMutation) ExpiresAtCleared() bool {
+	_, ok := m.clearedFields[signingrequest.FieldExpiresAt]
+	return ok
+}
+
+// ResetExpiresAt resets all changes to the "expires_at" field.
+func (m *SigningRequestMutation) ResetExpiresAt() {
+	m.expires_at = nil
+	delete(m.clearedFields, signingrequest.FieldExpiresAt)
+}
+
+// AddRecipientIDs adds the "recipients" edge to the SigningRecipient entity by ids.
+func (m *SigningRequestMutation) AddRecipientIDs(ids ...string) {
+	if m.recipients == nil {
+		m.recipients = make(map[string]struct{})
+	}
+	for i := range ids {
+		m.recipients[ids[i]] = struct{}{}
+	}
+}
+
+// ClearRecipients clears the "recipients" edge to the SigningRecipient entity.
+func (m *SigningRequestMutation) ClearRecipients() {
+	m.clearedrecipients = true
+}
+
+// RecipientsCleared reports if the "recipients" edge to the SigningRecipient entity was cleared.
+func (m *SigningRequestMutation) RecipientsCleared() bool {
+	return m.clearedrecipients
+}
+
+// RemoveRecipientIDs removes the "recipients" edge to the SigningRecipient entity by IDs.
+func (m *SigningRequestMutation) RemoveRecipientIDs(ids ...string) {
+	if m.removedrecipients == nil {
+		m.removedrecipients = make(map[string]struct{})
+	}
+	for i := range ids {
+		delete(m.recipients, ids[i])
+		m.removedrecipients[ids[i]] = struct{}{}
+	}
+}
+
+// RemovedRecipients returns the removed IDs of the "recipients" edge to the SigningRecipient entity.
+func (m *SigningRequestMutation) RemovedRecipientsIDs() (ids []string) {
+	for id := range m.removedrecipients {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// RecipientsIDs returns the "recipients" edge IDs in the mutation.
+func (m *SigningRequestMutation) RecipientsIDs() (ids []string) {
+	for id := range m.recipients {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ResetRecipients resets all changes to the "recipients" edge.
+func (m *SigningRequestMutation) ResetRecipients() {
+	m.recipients = nil
+	m.clearedrecipients = false
+	m.removedrecipients = nil
+}
+
+// Where appends a list predicates to the SigningRequestMutation builder.
+func (m *SigningRequestMutation) Where(ps ...predicate.SigningRequest) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the SigningRequestMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *SigningRequestMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.SigningRequest, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *SigningRequestMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *SigningRequestMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (SigningRequest).
+func (m *SigningRequestMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *SigningRequestMutation) Fields() []string {
+	fields := make([]string, 0, 14)
+	if m.create_by != nil {
+		fields = append(fields, signingrequest.FieldCreateBy)
+	}
+	if m.update_by != nil {
+		fields = append(fields, signingrequest.FieldUpdateBy)
+	}
+	if m.create_time != nil {
+		fields = append(fields, signingrequest.FieldCreateTime)
+	}
+	if m.update_time != nil {
+		fields = append(fields, signingrequest.FieldUpdateTime)
+	}
+	if m.delete_time != nil {
+		fields = append(fields, signingrequest.FieldDeleteTime)
+	}
+	if m.tenant_id != nil {
+		fields = append(fields, signingrequest.FieldTenantID)
+	}
+	if m.template_id != nil {
+		fields = append(fields, signingrequest.FieldTemplateID)
+	}
+	if m.name != nil {
+		fields = append(fields, signingrequest.FieldName)
+	}
+	if m.status != nil {
+		fields = append(fields, signingrequest.FieldStatus)
+	}
+	if m.original_file_key != nil {
+		fields = append(fields, signingrequest.FieldOriginalFileKey)
+	}
+	if m.signed_file_key != nil {
+		fields = append(fields, signingrequest.FieldSignedFileKey)
+	}
+	if m.field_values != nil {
+		fields = append(fields, signingrequest.FieldFieldValues)
+	}
+	if m.message != nil {
+		fields = append(fields, signingrequest.FieldMessage)
+	}
+	if m.expires_at != nil {
+		fields = append(fields, signingrequest.FieldExpiresAt)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *SigningRequestMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case signingrequest.FieldCreateBy:
+		return m.CreateBy()
+	case signingrequest.FieldUpdateBy:
+		return m.UpdateBy()
+	case signingrequest.FieldCreateTime:
+		return m.CreateTime()
+	case signingrequest.FieldUpdateTime:
+		return m.UpdateTime()
+	case signingrequest.FieldDeleteTime:
+		return m.DeleteTime()
+	case signingrequest.FieldTenantID:
+		return m.TenantID()
+	case signingrequest.FieldTemplateID:
+		return m.TemplateID()
+	case signingrequest.FieldName:
+		return m.Name()
+	case signingrequest.FieldStatus:
+		return m.Status()
+	case signingrequest.FieldOriginalFileKey:
+		return m.OriginalFileKey()
+	case signingrequest.FieldSignedFileKey:
+		return m.SignedFileKey()
+	case signingrequest.FieldFieldValues:
+		return m.FieldValues()
+	case signingrequest.FieldMessage:
+		return m.Message()
+	case signingrequest.FieldExpiresAt:
+		return m.ExpiresAt()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *SigningRequestMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case signingrequest.FieldCreateBy:
+		return m.OldCreateBy(ctx)
+	case signingrequest.FieldUpdateBy:
+		return m.OldUpdateBy(ctx)
+	case signingrequest.FieldCreateTime:
+		return m.OldCreateTime(ctx)
+	case signingrequest.FieldUpdateTime:
+		return m.OldUpdateTime(ctx)
+	case signingrequest.FieldDeleteTime:
+		return m.OldDeleteTime(ctx)
+	case signingrequest.FieldTenantID:
+		return m.OldTenantID(ctx)
+	case signingrequest.FieldTemplateID:
+		return m.OldTemplateID(ctx)
+	case signingrequest.FieldName:
+		return m.OldName(ctx)
+	case signingrequest.FieldStatus:
+		return m.OldStatus(ctx)
+	case signingrequest.FieldOriginalFileKey:
+		return m.OldOriginalFileKey(ctx)
+	case signingrequest.FieldSignedFileKey:
+		return m.OldSignedFileKey(ctx)
+	case signingrequest.FieldFieldValues:
+		return m.OldFieldValues(ctx)
+	case signingrequest.FieldMessage:
+		return m.OldMessage(ctx)
+	case signingrequest.FieldExpiresAt:
+		return m.OldExpiresAt(ctx)
+	}
+	return nil, fmt.Errorf("unknown SigningRequest field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *SigningRequestMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case signingrequest.FieldCreateBy:
+		v, ok := value.(uint32)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreateBy(v)
+		return nil
+	case signingrequest.FieldUpdateBy:
+		v, ok := value.(uint32)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUpdateBy(v)
+		return nil
+	case signingrequest.FieldCreateTime:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreateTime(v)
+		return nil
+	case signingrequest.FieldUpdateTime:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUpdateTime(v)
+		return nil
+	case signingrequest.FieldDeleteTime:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetDeleteTime(v)
+		return nil
+	case signingrequest.FieldTenantID:
+		v, ok := value.(uint32)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetTenantID(v)
+		return nil
+	case signingrequest.FieldTemplateID:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetTemplateID(v)
+		return nil
+	case signingrequest.FieldName:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetName(v)
+		return nil
+	case signingrequest.FieldStatus:
+		v, ok := value.(signingrequest.Status)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetStatus(v)
+		return nil
+	case signingrequest.FieldOriginalFileKey:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetOriginalFileKey(v)
+		return nil
+	case signingrequest.FieldSignedFileKey:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSignedFileKey(v)
+		return nil
+	case signingrequest.FieldFieldValues:
+		v, ok := value.([]schema.SigningFieldValueDef)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetFieldValues(v)
+		return nil
+	case signingrequest.FieldMessage:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetMessage(v)
+		return nil
+	case signingrequest.FieldExpiresAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetExpiresAt(v)
+		return nil
+	}
+	return fmt.Errorf("unknown SigningRequest field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *SigningRequestMutation) AddedFields() []string {
+	var fields []string
+	if m.addcreate_by != nil {
+		fields = append(fields, signingrequest.FieldCreateBy)
+	}
+	if m.addupdate_by != nil {
+		fields = append(fields, signingrequest.FieldUpdateBy)
+	}
+	if m.addtenant_id != nil {
+		fields = append(fields, signingrequest.FieldTenantID)
+	}
+	return fields
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *SigningRequestMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	case signingrequest.FieldCreateBy:
+		return m.AddedCreateBy()
+	case signingrequest.FieldUpdateBy:
+		return m.AddedUpdateBy()
+	case signingrequest.FieldTenantID:
+		return m.AddedTenantID()
+	}
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *SigningRequestMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	case signingrequest.FieldCreateBy:
+		v, ok := value.(int32)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddCreateBy(v)
+		return nil
+	case signingrequest.FieldUpdateBy:
+		v, ok := value.(int32)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddUpdateBy(v)
+		return nil
+	case signingrequest.FieldTenantID:
+		v, ok := value.(int32)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddTenantID(v)
+		return nil
+	}
+	return fmt.Errorf("unknown SigningRequest numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *SigningRequestMutation) ClearedFields() []string {
+	var fields []string
+	if m.FieldCleared(signingrequest.FieldCreateBy) {
+		fields = append(fields, signingrequest.FieldCreateBy)
+	}
+	if m.FieldCleared(signingrequest.FieldUpdateBy) {
+		fields = append(fields, signingrequest.FieldUpdateBy)
+	}
+	if m.FieldCleared(signingrequest.FieldCreateTime) {
+		fields = append(fields, signingrequest.FieldCreateTime)
+	}
+	if m.FieldCleared(signingrequest.FieldUpdateTime) {
+		fields = append(fields, signingrequest.FieldUpdateTime)
+	}
+	if m.FieldCleared(signingrequest.FieldDeleteTime) {
+		fields = append(fields, signingrequest.FieldDeleteTime)
+	}
+	if m.FieldCleared(signingrequest.FieldTenantID) {
+		fields = append(fields, signingrequest.FieldTenantID)
+	}
+	if m.FieldCleared(signingrequest.FieldOriginalFileKey) {
+		fields = append(fields, signingrequest.FieldOriginalFileKey)
+	}
+	if m.FieldCleared(signingrequest.FieldSignedFileKey) {
+		fields = append(fields, signingrequest.FieldSignedFileKey)
+	}
+	if m.FieldCleared(signingrequest.FieldFieldValues) {
+		fields = append(fields, signingrequest.FieldFieldValues)
+	}
+	if m.FieldCleared(signingrequest.FieldMessage) {
+		fields = append(fields, signingrequest.FieldMessage)
+	}
+	if m.FieldCleared(signingrequest.FieldExpiresAt) {
+		fields = append(fields, signingrequest.FieldExpiresAt)
+	}
+	return fields
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *SigningRequestMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *SigningRequestMutation) ClearField(name string) error {
+	switch name {
+	case signingrequest.FieldCreateBy:
+		m.ClearCreateBy()
+		return nil
+	case signingrequest.FieldUpdateBy:
+		m.ClearUpdateBy()
+		return nil
+	case signingrequest.FieldCreateTime:
+		m.ClearCreateTime()
+		return nil
+	case signingrequest.FieldUpdateTime:
+		m.ClearUpdateTime()
+		return nil
+	case signingrequest.FieldDeleteTime:
+		m.ClearDeleteTime()
+		return nil
+	case signingrequest.FieldTenantID:
+		m.ClearTenantID()
+		return nil
+	case signingrequest.FieldOriginalFileKey:
+		m.ClearOriginalFileKey()
+		return nil
+	case signingrequest.FieldSignedFileKey:
+		m.ClearSignedFileKey()
+		return nil
+	case signingrequest.FieldFieldValues:
+		m.ClearFieldValues()
+		return nil
+	case signingrequest.FieldMessage:
+		m.ClearMessage()
+		return nil
+	case signingrequest.FieldExpiresAt:
+		m.ClearExpiresAt()
+		return nil
+	}
+	return fmt.Errorf("unknown SigningRequest nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *SigningRequestMutation) ResetField(name string) error {
+	switch name {
+	case signingrequest.FieldCreateBy:
+		m.ResetCreateBy()
+		return nil
+	case signingrequest.FieldUpdateBy:
+		m.ResetUpdateBy()
+		return nil
+	case signingrequest.FieldCreateTime:
+		m.ResetCreateTime()
+		return nil
+	case signingrequest.FieldUpdateTime:
+		m.ResetUpdateTime()
+		return nil
+	case signingrequest.FieldDeleteTime:
+		m.ResetDeleteTime()
+		return nil
+	case signingrequest.FieldTenantID:
+		m.ResetTenantID()
+		return nil
+	case signingrequest.FieldTemplateID:
+		m.ResetTemplateID()
+		return nil
+	case signingrequest.FieldName:
+		m.ResetName()
+		return nil
+	case signingrequest.FieldStatus:
+		m.ResetStatus()
+		return nil
+	case signingrequest.FieldOriginalFileKey:
+		m.ResetOriginalFileKey()
+		return nil
+	case signingrequest.FieldSignedFileKey:
+		m.ResetSignedFileKey()
+		return nil
+	case signingrequest.FieldFieldValues:
+		m.ResetFieldValues()
+		return nil
+	case signingrequest.FieldMessage:
+		m.ResetMessage()
+		return nil
+	case signingrequest.FieldExpiresAt:
+		m.ResetExpiresAt()
+		return nil
+	}
+	return fmt.Errorf("unknown SigningRequest field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *SigningRequestMutation) AddedEdges() []string {
+	edges := make([]string, 0, 1)
+	if m.recipients != nil {
+		edges = append(edges, signingrequest.EdgeRecipients)
+	}
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *SigningRequestMutation) AddedIDs(name string) []ent.Value {
+	switch name {
+	case signingrequest.EdgeRecipients:
+		ids := make([]ent.Value, 0, len(m.recipients))
+		for id := range m.recipients {
+			ids = append(ids, id)
+		}
+		return ids
+	}
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *SigningRequestMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 1)
+	if m.removedrecipients != nil {
+		edges = append(edges, signingrequest.EdgeRecipients)
+	}
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *SigningRequestMutation) RemovedIDs(name string) []ent.Value {
+	switch name {
+	case signingrequest.EdgeRecipients:
+		ids := make([]ent.Value, 0, len(m.removedrecipients))
+		for id := range m.removedrecipients {
+			ids = append(ids, id)
+		}
+		return ids
+	}
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *SigningRequestMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 1)
+	if m.clearedrecipients {
+		edges = append(edges, signingrequest.EdgeRecipients)
+	}
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *SigningRequestMutation) EdgeCleared(name string) bool {
+	switch name {
+	case signingrequest.EdgeRecipients:
+		return m.clearedrecipients
+	}
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *SigningRequestMutation) ClearEdge(name string) error {
+	switch name {
+	}
+	return fmt.Errorf("unknown SigningRequest unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *SigningRequestMutation) ResetEdge(name string) error {
+	switch name {
+	case signingrequest.EdgeRecipients:
+		m.ResetRecipients()
+		return nil
+	}
+	return fmt.Errorf("unknown SigningRequest edge %s", name)
+}
+
+// SigningTemplateMutation represents an operation that mutates the SigningTemplate nodes in the graph.
+type SigningTemplateMutation struct {
+	config
+	op            Op
+	typ           string
+	id            *string
+	create_by     *uint32
+	addcreate_by  *int32
+	update_by     *uint32
+	addupdate_by  *int32
+	create_time   *time.Time
+	update_time   *time.Time
+	delete_time   *time.Time
+	tenant_id     *uint32
+	addtenant_id  *int32
+	name          *string
+	description   *string
+	file_key      *string
+	file_name     *string
+	file_size     *int64
+	addfile_size  *int64
+	fields        *[]schema.SigningTemplateFieldDef
+	appendfields  []schema.SigningTemplateFieldDef
+	clearedFields map[string]struct{}
+	done          bool
+	oldValue      func(context.Context) (*SigningTemplate, error)
+	predicates    []predicate.SigningTemplate
+}
+
+var _ ent.Mutation = (*SigningTemplateMutation)(nil)
+
+// signingtemplateOption allows management of the mutation configuration using functional options.
+type signingtemplateOption func(*SigningTemplateMutation)
+
+// newSigningTemplateMutation creates new mutation for the SigningTemplate entity.
+func newSigningTemplateMutation(c config, op Op, opts ...signingtemplateOption) *SigningTemplateMutation {
+	m := &SigningTemplateMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeSigningTemplate,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withSigningTemplateID sets the ID field of the mutation.
+func withSigningTemplateID(id string) signingtemplateOption {
+	return func(m *SigningTemplateMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *SigningTemplate
+		)
+		m.oldValue = func(ctx context.Context) (*SigningTemplate, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().SigningTemplate.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withSigningTemplate sets the old SigningTemplate of the mutation.
+func withSigningTemplate(node *SigningTemplate) signingtemplateOption {
+	return func(m *SigningTemplateMutation) {
+		m.oldValue = func(context.Context) (*SigningTemplate, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m SigningTemplateMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m SigningTemplateMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// SetID sets the value of the id field. Note that this
+// operation is only accepted on creation of SigningTemplate entities.
+func (m *SigningTemplateMutation) SetID(id string) {
+	m.id = &id
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *SigningTemplateMutation) ID() (id string, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *SigningTemplateMutation) IDs(ctx context.Context) ([]string, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []string{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().SigningTemplate.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetCreateBy sets the "create_by" field.
+func (m *SigningTemplateMutation) SetCreateBy(u uint32) {
+	m.create_by = &u
+	m.addcreate_by = nil
+}
+
+// CreateBy returns the value of the "create_by" field in the mutation.
+func (m *SigningTemplateMutation) CreateBy() (r uint32, exists bool) {
+	v := m.create_by
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreateBy returns the old "create_by" field's value of the SigningTemplate entity.
+// If the SigningTemplate object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SigningTemplateMutation) OldCreateBy(ctx context.Context) (v *uint32, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreateBy is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreateBy requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreateBy: %w", err)
+	}
+	return oldValue.CreateBy, nil
+}
+
+// AddCreateBy adds u to the "create_by" field.
+func (m *SigningTemplateMutation) AddCreateBy(u int32) {
+	if m.addcreate_by != nil {
+		*m.addcreate_by += u
+	} else {
+		m.addcreate_by = &u
+	}
+}
+
+// AddedCreateBy returns the value that was added to the "create_by" field in this mutation.
+func (m *SigningTemplateMutation) AddedCreateBy() (r int32, exists bool) {
+	v := m.addcreate_by
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearCreateBy clears the value of the "create_by" field.
+func (m *SigningTemplateMutation) ClearCreateBy() {
+	m.create_by = nil
+	m.addcreate_by = nil
+	m.clearedFields[signingtemplate.FieldCreateBy] = struct{}{}
+}
+
+// CreateByCleared returns if the "create_by" field was cleared in this mutation.
+func (m *SigningTemplateMutation) CreateByCleared() bool {
+	_, ok := m.clearedFields[signingtemplate.FieldCreateBy]
+	return ok
+}
+
+// ResetCreateBy resets all changes to the "create_by" field.
+func (m *SigningTemplateMutation) ResetCreateBy() {
+	m.create_by = nil
+	m.addcreate_by = nil
+	delete(m.clearedFields, signingtemplate.FieldCreateBy)
+}
+
+// SetUpdateBy sets the "update_by" field.
+func (m *SigningTemplateMutation) SetUpdateBy(u uint32) {
+	m.update_by = &u
+	m.addupdate_by = nil
+}
+
+// UpdateBy returns the value of the "update_by" field in the mutation.
+func (m *SigningTemplateMutation) UpdateBy() (r uint32, exists bool) {
+	v := m.update_by
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUpdateBy returns the old "update_by" field's value of the SigningTemplate entity.
+// If the SigningTemplate object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SigningTemplateMutation) OldUpdateBy(ctx context.Context) (v *uint32, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUpdateBy is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUpdateBy requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUpdateBy: %w", err)
+	}
+	return oldValue.UpdateBy, nil
+}
+
+// AddUpdateBy adds u to the "update_by" field.
+func (m *SigningTemplateMutation) AddUpdateBy(u int32) {
+	if m.addupdate_by != nil {
+		*m.addupdate_by += u
+	} else {
+		m.addupdate_by = &u
+	}
+}
+
+// AddedUpdateBy returns the value that was added to the "update_by" field in this mutation.
+func (m *SigningTemplateMutation) AddedUpdateBy() (r int32, exists bool) {
+	v := m.addupdate_by
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearUpdateBy clears the value of the "update_by" field.
+func (m *SigningTemplateMutation) ClearUpdateBy() {
+	m.update_by = nil
+	m.addupdate_by = nil
+	m.clearedFields[signingtemplate.FieldUpdateBy] = struct{}{}
+}
+
+// UpdateByCleared returns if the "update_by" field was cleared in this mutation.
+func (m *SigningTemplateMutation) UpdateByCleared() bool {
+	_, ok := m.clearedFields[signingtemplate.FieldUpdateBy]
+	return ok
+}
+
+// ResetUpdateBy resets all changes to the "update_by" field.
+func (m *SigningTemplateMutation) ResetUpdateBy() {
+	m.update_by = nil
+	m.addupdate_by = nil
+	delete(m.clearedFields, signingtemplate.FieldUpdateBy)
+}
+
+// SetCreateTime sets the "create_time" field.
+func (m *SigningTemplateMutation) SetCreateTime(t time.Time) {
+	m.create_time = &t
+}
+
+// CreateTime returns the value of the "create_time" field in the mutation.
+func (m *SigningTemplateMutation) CreateTime() (r time.Time, exists bool) {
+	v := m.create_time
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreateTime returns the old "create_time" field's value of the SigningTemplate entity.
+// If the SigningTemplate object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SigningTemplateMutation) OldCreateTime(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreateTime is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreateTime requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreateTime: %w", err)
+	}
+	return oldValue.CreateTime, nil
+}
+
+// ClearCreateTime clears the value of the "create_time" field.
+func (m *SigningTemplateMutation) ClearCreateTime() {
+	m.create_time = nil
+	m.clearedFields[signingtemplate.FieldCreateTime] = struct{}{}
+}
+
+// CreateTimeCleared returns if the "create_time" field was cleared in this mutation.
+func (m *SigningTemplateMutation) CreateTimeCleared() bool {
+	_, ok := m.clearedFields[signingtemplate.FieldCreateTime]
+	return ok
+}
+
+// ResetCreateTime resets all changes to the "create_time" field.
+func (m *SigningTemplateMutation) ResetCreateTime() {
+	m.create_time = nil
+	delete(m.clearedFields, signingtemplate.FieldCreateTime)
+}
+
+// SetUpdateTime sets the "update_time" field.
+func (m *SigningTemplateMutation) SetUpdateTime(t time.Time) {
+	m.update_time = &t
+}
+
+// UpdateTime returns the value of the "update_time" field in the mutation.
+func (m *SigningTemplateMutation) UpdateTime() (r time.Time, exists bool) {
+	v := m.update_time
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUpdateTime returns the old "update_time" field's value of the SigningTemplate entity.
+// If the SigningTemplate object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SigningTemplateMutation) OldUpdateTime(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUpdateTime is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUpdateTime requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUpdateTime: %w", err)
+	}
+	return oldValue.UpdateTime, nil
+}
+
+// ClearUpdateTime clears the value of the "update_time" field.
+func (m *SigningTemplateMutation) ClearUpdateTime() {
+	m.update_time = nil
+	m.clearedFields[signingtemplate.FieldUpdateTime] = struct{}{}
+}
+
+// UpdateTimeCleared returns if the "update_time" field was cleared in this mutation.
+func (m *SigningTemplateMutation) UpdateTimeCleared() bool {
+	_, ok := m.clearedFields[signingtemplate.FieldUpdateTime]
+	return ok
+}
+
+// ResetUpdateTime resets all changes to the "update_time" field.
+func (m *SigningTemplateMutation) ResetUpdateTime() {
+	m.update_time = nil
+	delete(m.clearedFields, signingtemplate.FieldUpdateTime)
+}
+
+// SetDeleteTime sets the "delete_time" field.
+func (m *SigningTemplateMutation) SetDeleteTime(t time.Time) {
+	m.delete_time = &t
+}
+
+// DeleteTime returns the value of the "delete_time" field in the mutation.
+func (m *SigningTemplateMutation) DeleteTime() (r time.Time, exists bool) {
+	v := m.delete_time
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldDeleteTime returns the old "delete_time" field's value of the SigningTemplate entity.
+// If the SigningTemplate object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SigningTemplateMutation) OldDeleteTime(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldDeleteTime is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldDeleteTime requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldDeleteTime: %w", err)
+	}
+	return oldValue.DeleteTime, nil
+}
+
+// ClearDeleteTime clears the value of the "delete_time" field.
+func (m *SigningTemplateMutation) ClearDeleteTime() {
+	m.delete_time = nil
+	m.clearedFields[signingtemplate.FieldDeleteTime] = struct{}{}
+}
+
+// DeleteTimeCleared returns if the "delete_time" field was cleared in this mutation.
+func (m *SigningTemplateMutation) DeleteTimeCleared() bool {
+	_, ok := m.clearedFields[signingtemplate.FieldDeleteTime]
+	return ok
+}
+
+// ResetDeleteTime resets all changes to the "delete_time" field.
+func (m *SigningTemplateMutation) ResetDeleteTime() {
+	m.delete_time = nil
+	delete(m.clearedFields, signingtemplate.FieldDeleteTime)
+}
+
+// SetTenantID sets the "tenant_id" field.
+func (m *SigningTemplateMutation) SetTenantID(u uint32) {
+	m.tenant_id = &u
+	m.addtenant_id = nil
+}
+
+// TenantID returns the value of the "tenant_id" field in the mutation.
+func (m *SigningTemplateMutation) TenantID() (r uint32, exists bool) {
+	v := m.tenant_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldTenantID returns the old "tenant_id" field's value of the SigningTemplate entity.
+// If the SigningTemplate object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SigningTemplateMutation) OldTenantID(ctx context.Context) (v *uint32, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldTenantID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldTenantID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldTenantID: %w", err)
+	}
+	return oldValue.TenantID, nil
+}
+
+// AddTenantID adds u to the "tenant_id" field.
+func (m *SigningTemplateMutation) AddTenantID(u int32) {
+	if m.addtenant_id != nil {
+		*m.addtenant_id += u
+	} else {
+		m.addtenant_id = &u
+	}
+}
+
+// AddedTenantID returns the value that was added to the "tenant_id" field in this mutation.
+func (m *SigningTemplateMutation) AddedTenantID() (r int32, exists bool) {
+	v := m.addtenant_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearTenantID clears the value of the "tenant_id" field.
+func (m *SigningTemplateMutation) ClearTenantID() {
+	m.tenant_id = nil
+	m.addtenant_id = nil
+	m.clearedFields[signingtemplate.FieldTenantID] = struct{}{}
+}
+
+// TenantIDCleared returns if the "tenant_id" field was cleared in this mutation.
+func (m *SigningTemplateMutation) TenantIDCleared() bool {
+	_, ok := m.clearedFields[signingtemplate.FieldTenantID]
+	return ok
+}
+
+// ResetTenantID resets all changes to the "tenant_id" field.
+func (m *SigningTemplateMutation) ResetTenantID() {
+	m.tenant_id = nil
+	m.addtenant_id = nil
+	delete(m.clearedFields, signingtemplate.FieldTenantID)
+}
+
+// SetName sets the "name" field.
+func (m *SigningTemplateMutation) SetName(s string) {
+	m.name = &s
+}
+
+// Name returns the value of the "name" field in the mutation.
+func (m *SigningTemplateMutation) Name() (r string, exists bool) {
+	v := m.name
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldName returns the old "name" field's value of the SigningTemplate entity.
+// If the SigningTemplate object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SigningTemplateMutation) OldName(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldName is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldName requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldName: %w", err)
+	}
+	return oldValue.Name, nil
+}
+
+// ResetName resets all changes to the "name" field.
+func (m *SigningTemplateMutation) ResetName() {
+	m.name = nil
+}
+
+// SetDescription sets the "description" field.
+func (m *SigningTemplateMutation) SetDescription(s string) {
+	m.description = &s
+}
+
+// Description returns the value of the "description" field in the mutation.
+func (m *SigningTemplateMutation) Description() (r string, exists bool) {
+	v := m.description
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldDescription returns the old "description" field's value of the SigningTemplate entity.
+// If the SigningTemplate object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SigningTemplateMutation) OldDescription(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldDescription is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldDescription requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldDescription: %w", err)
+	}
+	return oldValue.Description, nil
+}
+
+// ClearDescription clears the value of the "description" field.
+func (m *SigningTemplateMutation) ClearDescription() {
+	m.description = nil
+	m.clearedFields[signingtemplate.FieldDescription] = struct{}{}
+}
+
+// DescriptionCleared returns if the "description" field was cleared in this mutation.
+func (m *SigningTemplateMutation) DescriptionCleared() bool {
+	_, ok := m.clearedFields[signingtemplate.FieldDescription]
+	return ok
+}
+
+// ResetDescription resets all changes to the "description" field.
+func (m *SigningTemplateMutation) ResetDescription() {
+	m.description = nil
+	delete(m.clearedFields, signingtemplate.FieldDescription)
+}
+
+// SetFileKey sets the "file_key" field.
+func (m *SigningTemplateMutation) SetFileKey(s string) {
+	m.file_key = &s
+}
+
+// FileKey returns the value of the "file_key" field in the mutation.
+func (m *SigningTemplateMutation) FileKey() (r string, exists bool) {
+	v := m.file_key
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldFileKey returns the old "file_key" field's value of the SigningTemplate entity.
+// If the SigningTemplate object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SigningTemplateMutation) OldFileKey(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldFileKey is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldFileKey requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldFileKey: %w", err)
+	}
+	return oldValue.FileKey, nil
+}
+
+// ResetFileKey resets all changes to the "file_key" field.
+func (m *SigningTemplateMutation) ResetFileKey() {
+	m.file_key = nil
+}
+
+// SetFileName sets the "file_name" field.
+func (m *SigningTemplateMutation) SetFileName(s string) {
+	m.file_name = &s
+}
+
+// FileName returns the value of the "file_name" field in the mutation.
+func (m *SigningTemplateMutation) FileName() (r string, exists bool) {
+	v := m.file_name
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldFileName returns the old "file_name" field's value of the SigningTemplate entity.
+// If the SigningTemplate object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SigningTemplateMutation) OldFileName(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldFileName is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldFileName requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldFileName: %w", err)
+	}
+	return oldValue.FileName, nil
+}
+
+// ResetFileName resets all changes to the "file_name" field.
+func (m *SigningTemplateMutation) ResetFileName() {
+	m.file_name = nil
+}
+
+// SetFileSize sets the "file_size" field.
+func (m *SigningTemplateMutation) SetFileSize(i int64) {
+	m.file_size = &i
+	m.addfile_size = nil
+}
+
+// FileSize returns the value of the "file_size" field in the mutation.
+func (m *SigningTemplateMutation) FileSize() (r int64, exists bool) {
+	v := m.file_size
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldFileSize returns the old "file_size" field's value of the SigningTemplate entity.
+// If the SigningTemplate object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SigningTemplateMutation) OldFileSize(ctx context.Context) (v int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldFileSize is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldFileSize requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldFileSize: %w", err)
+	}
+	return oldValue.FileSize, nil
+}
+
+// AddFileSize adds i to the "file_size" field.
+func (m *SigningTemplateMutation) AddFileSize(i int64) {
+	if m.addfile_size != nil {
+		*m.addfile_size += i
+	} else {
+		m.addfile_size = &i
+	}
+}
+
+// AddedFileSize returns the value that was added to the "file_size" field in this mutation.
+func (m *SigningTemplateMutation) AddedFileSize() (r int64, exists bool) {
+	v := m.addfile_size
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetFileSize resets all changes to the "file_size" field.
+func (m *SigningTemplateMutation) ResetFileSize() {
+	m.file_size = nil
+	m.addfile_size = nil
+}
+
+// SetFields sets the "fields" field.
+func (m *SigningTemplateMutation) SetFields(stfd []schema.SigningTemplateFieldDef) {
+	m.fields = &stfd
+	m.appendfields = nil
+}
+
+// GetFields returns the value of the "fields" field in the mutation.
+func (m *SigningTemplateMutation) GetFields() (r []schema.SigningTemplateFieldDef, exists bool) {
+	v := m.fields
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldFields returns the old "fields" field's value of the SigningTemplate entity.
+// If the SigningTemplate object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SigningTemplateMutation) OldFields(ctx context.Context) (v []schema.SigningTemplateFieldDef, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldFields is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldFields requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldFields: %w", err)
+	}
+	return oldValue.Fields, nil
+}
+
+// AppendFields adds stfd to the "fields" field.
+func (m *SigningTemplateMutation) AppendFields(stfd []schema.SigningTemplateFieldDef) {
+	m.appendfields = append(m.appendfields, stfd...)
+}
+
+// AppendedFields returns the list of values that were appended to the "fields" field in this mutation.
+func (m *SigningTemplateMutation) AppendedFields() ([]schema.SigningTemplateFieldDef, bool) {
+	if len(m.appendfields) == 0 {
+		return nil, false
+	}
+	return m.appendfields, true
+}
+
+// ClearFields clears the value of the "fields" field.
+func (m *SigningTemplateMutation) ClearFields() {
+	m.fields = nil
+	m.appendfields = nil
+	m.clearedFields[signingtemplate.FieldFields] = struct{}{}
+}
+
+// FieldsCleared returns if the "fields" field was cleared in this mutation.
+func (m *SigningTemplateMutation) FieldsCleared() bool {
+	_, ok := m.clearedFields[signingtemplate.FieldFields]
+	return ok
+}
+
+// ResetFields resets all changes to the "fields" field.
+func (m *SigningTemplateMutation) ResetFields() {
+	m.fields = nil
+	m.appendfields = nil
+	delete(m.clearedFields, signingtemplate.FieldFields)
+}
+
+// Where appends a list predicates to the SigningTemplateMutation builder.
+func (m *SigningTemplateMutation) Where(ps ...predicate.SigningTemplate) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the SigningTemplateMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *SigningTemplateMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.SigningTemplate, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *SigningTemplateMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *SigningTemplateMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (SigningTemplate).
+func (m *SigningTemplateMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *SigningTemplateMutation) Fields() []string {
+	fields := make([]string, 0, 12)
+	if m.create_by != nil {
+		fields = append(fields, signingtemplate.FieldCreateBy)
+	}
+	if m.update_by != nil {
+		fields = append(fields, signingtemplate.FieldUpdateBy)
+	}
+	if m.create_time != nil {
+		fields = append(fields, signingtemplate.FieldCreateTime)
+	}
+	if m.update_time != nil {
+		fields = append(fields, signingtemplate.FieldUpdateTime)
+	}
+	if m.delete_time != nil {
+		fields = append(fields, signingtemplate.FieldDeleteTime)
+	}
+	if m.tenant_id != nil {
+		fields = append(fields, signingtemplate.FieldTenantID)
+	}
+	if m.name != nil {
+		fields = append(fields, signingtemplate.FieldName)
+	}
+	if m.description != nil {
+		fields = append(fields, signingtemplate.FieldDescription)
+	}
+	if m.file_key != nil {
+		fields = append(fields, signingtemplate.FieldFileKey)
+	}
+	if m.file_name != nil {
+		fields = append(fields, signingtemplate.FieldFileName)
+	}
+	if m.file_size != nil {
+		fields = append(fields, signingtemplate.FieldFileSize)
+	}
+	if m.fields != nil {
+		fields = append(fields, signingtemplate.FieldFields)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *SigningTemplateMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case signingtemplate.FieldCreateBy:
+		return m.CreateBy()
+	case signingtemplate.FieldUpdateBy:
+		return m.UpdateBy()
+	case signingtemplate.FieldCreateTime:
+		return m.CreateTime()
+	case signingtemplate.FieldUpdateTime:
+		return m.UpdateTime()
+	case signingtemplate.FieldDeleteTime:
+		return m.DeleteTime()
+	case signingtemplate.FieldTenantID:
+		return m.TenantID()
+	case signingtemplate.FieldName:
+		return m.Name()
+	case signingtemplate.FieldDescription:
+		return m.Description()
+	case signingtemplate.FieldFileKey:
+		return m.FileKey()
+	case signingtemplate.FieldFileName:
+		return m.FileName()
+	case signingtemplate.FieldFileSize:
+		return m.FileSize()
+	case signingtemplate.FieldFields:
+		return m.GetFields()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *SigningTemplateMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case signingtemplate.FieldCreateBy:
+		return m.OldCreateBy(ctx)
+	case signingtemplate.FieldUpdateBy:
+		return m.OldUpdateBy(ctx)
+	case signingtemplate.FieldCreateTime:
+		return m.OldCreateTime(ctx)
+	case signingtemplate.FieldUpdateTime:
+		return m.OldUpdateTime(ctx)
+	case signingtemplate.FieldDeleteTime:
+		return m.OldDeleteTime(ctx)
+	case signingtemplate.FieldTenantID:
+		return m.OldTenantID(ctx)
+	case signingtemplate.FieldName:
+		return m.OldName(ctx)
+	case signingtemplate.FieldDescription:
+		return m.OldDescription(ctx)
+	case signingtemplate.FieldFileKey:
+		return m.OldFileKey(ctx)
+	case signingtemplate.FieldFileName:
+		return m.OldFileName(ctx)
+	case signingtemplate.FieldFileSize:
+		return m.OldFileSize(ctx)
+	case signingtemplate.FieldFields:
+		return m.OldFields(ctx)
+	}
+	return nil, fmt.Errorf("unknown SigningTemplate field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *SigningTemplateMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case signingtemplate.FieldCreateBy:
+		v, ok := value.(uint32)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreateBy(v)
+		return nil
+	case signingtemplate.FieldUpdateBy:
+		v, ok := value.(uint32)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUpdateBy(v)
+		return nil
+	case signingtemplate.FieldCreateTime:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreateTime(v)
+		return nil
+	case signingtemplate.FieldUpdateTime:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUpdateTime(v)
+		return nil
+	case signingtemplate.FieldDeleteTime:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetDeleteTime(v)
+		return nil
+	case signingtemplate.FieldTenantID:
+		v, ok := value.(uint32)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetTenantID(v)
+		return nil
+	case signingtemplate.FieldName:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetName(v)
+		return nil
+	case signingtemplate.FieldDescription:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetDescription(v)
+		return nil
+	case signingtemplate.FieldFileKey:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetFileKey(v)
+		return nil
+	case signingtemplate.FieldFileName:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetFileName(v)
+		return nil
+	case signingtemplate.FieldFileSize:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetFileSize(v)
+		return nil
+	case signingtemplate.FieldFields:
+		v, ok := value.([]schema.SigningTemplateFieldDef)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetFields(v)
+		return nil
+	}
+	return fmt.Errorf("unknown SigningTemplate field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *SigningTemplateMutation) AddedFields() []string {
+	var fields []string
+	if m.addcreate_by != nil {
+		fields = append(fields, signingtemplate.FieldCreateBy)
+	}
+	if m.addupdate_by != nil {
+		fields = append(fields, signingtemplate.FieldUpdateBy)
+	}
+	if m.addtenant_id != nil {
+		fields = append(fields, signingtemplate.FieldTenantID)
+	}
+	if m.addfile_size != nil {
+		fields = append(fields, signingtemplate.FieldFileSize)
+	}
+	return fields
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *SigningTemplateMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	case signingtemplate.FieldCreateBy:
+		return m.AddedCreateBy()
+	case signingtemplate.FieldUpdateBy:
+		return m.AddedUpdateBy()
+	case signingtemplate.FieldTenantID:
+		return m.AddedTenantID()
+	case signingtemplate.FieldFileSize:
+		return m.AddedFileSize()
+	}
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *SigningTemplateMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	case signingtemplate.FieldCreateBy:
+		v, ok := value.(int32)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddCreateBy(v)
+		return nil
+	case signingtemplate.FieldUpdateBy:
+		v, ok := value.(int32)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddUpdateBy(v)
+		return nil
+	case signingtemplate.FieldTenantID:
+		v, ok := value.(int32)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddTenantID(v)
+		return nil
+	case signingtemplate.FieldFileSize:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddFileSize(v)
+		return nil
+	}
+	return fmt.Errorf("unknown SigningTemplate numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *SigningTemplateMutation) ClearedFields() []string {
+	var fields []string
+	if m.FieldCleared(signingtemplate.FieldCreateBy) {
+		fields = append(fields, signingtemplate.FieldCreateBy)
+	}
+	if m.FieldCleared(signingtemplate.FieldUpdateBy) {
+		fields = append(fields, signingtemplate.FieldUpdateBy)
+	}
+	if m.FieldCleared(signingtemplate.FieldCreateTime) {
+		fields = append(fields, signingtemplate.FieldCreateTime)
+	}
+	if m.FieldCleared(signingtemplate.FieldUpdateTime) {
+		fields = append(fields, signingtemplate.FieldUpdateTime)
+	}
+	if m.FieldCleared(signingtemplate.FieldDeleteTime) {
+		fields = append(fields, signingtemplate.FieldDeleteTime)
+	}
+	if m.FieldCleared(signingtemplate.FieldTenantID) {
+		fields = append(fields, signingtemplate.FieldTenantID)
+	}
+	if m.FieldCleared(signingtemplate.FieldDescription) {
+		fields = append(fields, signingtemplate.FieldDescription)
+	}
+	if m.FieldCleared(signingtemplate.FieldFields) {
+		fields = append(fields, signingtemplate.FieldFields)
+	}
+	return fields
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *SigningTemplateMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *SigningTemplateMutation) ClearField(name string) error {
+	switch name {
+	case signingtemplate.FieldCreateBy:
+		m.ClearCreateBy()
+		return nil
+	case signingtemplate.FieldUpdateBy:
+		m.ClearUpdateBy()
+		return nil
+	case signingtemplate.FieldCreateTime:
+		m.ClearCreateTime()
+		return nil
+	case signingtemplate.FieldUpdateTime:
+		m.ClearUpdateTime()
+		return nil
+	case signingtemplate.FieldDeleteTime:
+		m.ClearDeleteTime()
+		return nil
+	case signingtemplate.FieldTenantID:
+		m.ClearTenantID()
+		return nil
+	case signingtemplate.FieldDescription:
+		m.ClearDescription()
+		return nil
+	case signingtemplate.FieldFields:
+		m.ClearFields()
+		return nil
+	}
+	return fmt.Errorf("unknown SigningTemplate nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *SigningTemplateMutation) ResetField(name string) error {
+	switch name {
+	case signingtemplate.FieldCreateBy:
+		m.ResetCreateBy()
+		return nil
+	case signingtemplate.FieldUpdateBy:
+		m.ResetUpdateBy()
+		return nil
+	case signingtemplate.FieldCreateTime:
+		m.ResetCreateTime()
+		return nil
+	case signingtemplate.FieldUpdateTime:
+		m.ResetUpdateTime()
+		return nil
+	case signingtemplate.FieldDeleteTime:
+		m.ResetDeleteTime()
+		return nil
+	case signingtemplate.FieldTenantID:
+		m.ResetTenantID()
+		return nil
+	case signingtemplate.FieldName:
+		m.ResetName()
+		return nil
+	case signingtemplate.FieldDescription:
+		m.ResetDescription()
+		return nil
+	case signingtemplate.FieldFileKey:
+		m.ResetFileKey()
+		return nil
+	case signingtemplate.FieldFileName:
+		m.ResetFileName()
+		return nil
+	case signingtemplate.FieldFileSize:
+		m.ResetFileSize()
+		return nil
+	case signingtemplate.FieldFields:
+		m.ResetFields()
+		return nil
+	}
+	return fmt.Errorf("unknown SigningTemplate field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *SigningTemplateMutation) AddedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *SigningTemplateMutation) AddedIDs(name string) []ent.Value {
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *SigningTemplateMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *SigningTemplateMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *SigningTemplateMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *SigningTemplateMutation) EdgeCleared(name string) bool {
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *SigningTemplateMutation) ClearEdge(name string) error {
+	return fmt.Errorf("unknown SigningTemplate unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *SigningTemplateMutation) ResetEdge(name string) error {
+	return fmt.Errorf("unknown SigningTemplate edge %s", name)
 }

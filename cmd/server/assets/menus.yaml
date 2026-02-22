@@ -31,6 +31,31 @@ menus:
       - platform:admin
       - tenant:manager
 
+  - id: paperless-signing-templates
+    parent_id: paperless
+    type: MENU
+    name: Signing Templates
+    path: signing/templates
+    component: app/paperless/signing/templates/index.vue
+    icon: lucide:file-signature
+    order: 3
+    authority:
+      - platform:admin
+      - tenant:manager
+
+  - id: paperless-signing-requests
+    parent_id: paperless
+    type: MENU
+    name: Signing Requests
+    path: signing/requests
+    component: app/paperless/signing/requests/index.vue
+    icon: lucide:pen-tool
+    order: 4
+    authority:
+      - platform:admin
+      - tenant:manager
+
+
 dashboard_widgets:
   - id: paperless.documents_total
     name: Total Documents
@@ -136,6 +161,18 @@ permission_groups:
       - name: Delete Documents
         code: paperless.document.delete
         description: Delete documents
+      - name: View Signing Templates
+        code: paperless.signing.template.view
+        description: View signing templates
+      - name: Manage Signing Templates
+        code: paperless.signing.template.manage
+        description: Create, update, and delete signing templates
+      - name: View Signing Requests
+        code: paperless.signing.request.view
+        description: View signing requests and their status
+      - name: Create Signing Requests
+        code: paperless.signing.request.create
+        description: Create new signing requests
 
 roles:
   - name: Paperless Administrator
@@ -148,6 +185,10 @@ roles:
       - paperless.document.update
       - paperless.document.delete
       - paperless.category.manage
+      - paperless.signing.template.view
+      - paperless.signing.template.manage
+      - paperless.signing.request.view
+      - paperless.signing.request.create
 
   - name: Paperless Operator
     code: paperless.operator
@@ -158,6 +199,9 @@ roles:
       - paperless.document.upload
       - paperless.document.update
       - paperless.category.manage
+      - paperless.signing.template.view
+      - paperless.signing.request.view
+      - paperless.signing.request.create
 
   - name: Paperless Viewer
     code: paperless.viewer
@@ -165,3 +209,5 @@ roles:
     is_system: true
     permissions:
       - paperless.document.view
+      - paperless.signing.template.view
+      - paperless.signing.request.view

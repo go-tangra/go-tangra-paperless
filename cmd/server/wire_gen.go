@@ -20,7 +20,7 @@ import (
 
 // initApp initializes the Wire provider entry for the kratos application
 func initApp(context *bootstrap.Context) (*kratos.App, func(), error) {
-	certManager, err := cert.NewCertManager(context)
+	v, err := cert.NewCertManager(context)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -61,8 +61,17 @@ func initApp(context *bootstrap.Context) (*kratos.App, func(), error) {
 	statisticsRepo := data.NewStatisticsRepo(context, entClient)
 	statisticsService := service.NewStatisticsService(context, statisticsRepo)
 	backupService := service.NewBackupService(context, entClient)
-	grpcServer := server.NewGRPCServer(context, certManager, auditLogRepo, categoryService, documentService, permissionService, statisticsService, backupService)
-	app := newApp(context, grpcServer)
+	signingTemplateRepo := data.NewSigningTemplateRepo(context, entClient)
+	pdfProcessor := service.NewPDFProcessor(context)
+	signingTemplateService := service.NewSigningTemplateService(context, signingTemplateRepo, storageClient, pdfProcessor)
+	signingRecipientRepo := data.NewSigningRecipientRepo(context, entClient)
+	signingRequestRepo := data.NewSigningRequestRepo(context, entClient, signingRecipientRepo, signingTemplateRepo)
+	smtpClient := data.NewSMTPClient(context)
+	signingRequestService := service.NewSigningRequestService(context, signingRequestRepo, signingTemplateRepo, signingRecipientRepo, storageClient, pdfProcessor, smtpClient)
+	grpcServer := server.NewGRPCServer(context, v, auditLogRepo, categoryService, documentService, permissionService, statisticsService, backupService, signingTemplateService, signingRequestService)
+	signingSessionService := service.NewSigningSessionService(context, signingRecipientRepo, signingRequestRepo, signingTemplateRepo, storageClient, pdfProcessor, smtpClient)
+	httpServer := server.NewHTTPServer(context, signingSessionService, signingRequestService, signingTemplateService)
+	app := newApp(context, grpcServer, httpServer)
 	return app, func() {
 		cleanup4()
 		cleanup3()

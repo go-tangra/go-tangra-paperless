@@ -20,6 +20,12 @@ type Tx struct {
 	Document *DocumentClient
 	// DocumentPermission is the client for interacting with the DocumentPermission builders.
 	DocumentPermission *DocumentPermissionClient
+	// SigningRecipient is the client for interacting with the SigningRecipient builders.
+	SigningRecipient *SigningRecipientClient
+	// SigningRequest is the client for interacting with the SigningRequest builders.
+	SigningRequest *SigningRequestClient
+	// SigningTemplate is the client for interacting with the SigningTemplate builders.
+	SigningTemplate *SigningTemplateClient
 
 	// lazily loaded.
 	client     *Client
@@ -155,6 +161,9 @@ func (tx *Tx) init() {
 	tx.Category = NewCategoryClient(tx.config)
 	tx.Document = NewDocumentClient(tx.config)
 	tx.DocumentPermission = NewDocumentPermissionClient(tx.config)
+	tx.SigningRecipient = NewSigningRecipientClient(tx.config)
+	tx.SigningRequest = NewSigningRequestClient(tx.config)
+	tx.SigningTemplate = NewSigningTemplateClient(tx.config)
 }
 
 // txDriver wraps the given dialect.Tx with a nop dialect.Driver implementation.

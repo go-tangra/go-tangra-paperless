@@ -10,6 +10,9 @@ import (
 	"github.com/go-tangra/go-tangra-paperless/internal/data/ent/document"
 	"github.com/go-tangra/go-tangra-paperless/internal/data/ent/documentpermission"
 	"github.com/go-tangra/go-tangra-paperless/internal/data/ent/schema"
+	"github.com/go-tangra/go-tangra-paperless/internal/data/ent/signingrecipient"
+	"github.com/go-tangra/go-tangra-paperless/internal/data/ent/signingrequest"
+	"github.com/go-tangra/go-tangra-paperless/internal/data/ent/signingtemplate"
 
 	"entgo.io/ent"
 	"entgo.io/ent/privacy"
@@ -283,6 +286,232 @@ func init() {
 			return nil
 		}
 	}()
+	signingrecipientFields := schema.SigningRecipient{}.Fields()
+	_ = signingrecipientFields
+	// signingrecipientDescSigningRequestID is the schema descriptor for signing_request_id field.
+	signingrecipientDescSigningRequestID := signingrecipientFields[1].Descriptor()
+	// signingrecipient.SigningRequestIDValidator is a validator for the "signing_request_id" field. It is called by the builders before save.
+	signingrecipient.SigningRequestIDValidator = func() func(string) error {
+		validators := signingrecipientDescSigningRequestID.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(signing_request string) error {
+			for _, fn := range fns {
+				if err := fn(signing_request); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// signingrecipientDescEmail is the schema descriptor for email field.
+	signingrecipientDescEmail := signingrecipientFields[2].Descriptor()
+	// signingrecipient.EmailValidator is a validator for the "email" field. It is called by the builders before save.
+	signingrecipient.EmailValidator = func() func(string) error {
+		validators := signingrecipientDescEmail.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(email string) error {
+			for _, fn := range fns {
+				if err := fn(email); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// signingrecipientDescName is the schema descriptor for name field.
+	signingrecipientDescName := signingrecipientFields[3].Descriptor()
+	// signingrecipient.NameValidator is a validator for the "name" field. It is called by the builders before save.
+	signingrecipient.NameValidator = func() func(string) error {
+		validators := signingrecipientDescName.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(name string) error {
+			for _, fn := range fns {
+				if err := fn(name); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// signingrecipientDescSigningOrder is the schema descriptor for signing_order field.
+	signingrecipientDescSigningOrder := signingrecipientFields[4].Descriptor()
+	// signingrecipient.DefaultSigningOrder holds the default value on creation for the signing_order field.
+	signingrecipient.DefaultSigningOrder = signingrecipientDescSigningOrder.Default.(int32)
+	// signingrecipientDescToken is the schema descriptor for token field.
+	signingrecipientDescToken := signingrecipientFields[6].Descriptor()
+	// signingrecipient.TokenValidator is a validator for the "token" field. It is called by the builders before save.
+	signingrecipient.TokenValidator = signingrecipientDescToken.Validators[0].(func(string) error)
+	// signingrecipientDescSignedIP is the schema descriptor for signed_ip field.
+	signingrecipientDescSignedIP := signingrecipientFields[8].Descriptor()
+	// signingrecipient.SignedIPValidator is a validator for the "signed_ip" field. It is called by the builders before save.
+	signingrecipient.SignedIPValidator = signingrecipientDescSignedIP.Validators[0].(func(string) error)
+	// signingrecipientDescID is the schema descriptor for id field.
+	signingrecipientDescID := signingrecipientFields[0].Descriptor()
+	// signingrecipient.IDValidator is a validator for the "id" field. It is called by the builders before save.
+	signingrecipient.IDValidator = signingrecipientDescID.Validators[0].(func(string) error)
+	signingrequestMixin := schema.SigningRequest{}.Mixin()
+	signingrequest.Policy = privacy.NewPolicies(signingrequestMixin[3], schema.SigningRequest{})
+	signingrequest.Hooks[0] = func(next ent.Mutator) ent.Mutator {
+		return ent.MutateFunc(func(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+			if err := signingrequest.Policy.EvalMutation(ctx, m); err != nil {
+				return nil, err
+			}
+			return next.Mutate(ctx, m)
+		})
+	}
+	signingrequestMixinFields3 := signingrequestMixin[3].Fields()
+	_ = signingrequestMixinFields3
+	signingrequestFields := schema.SigningRequest{}.Fields()
+	_ = signingrequestFields
+	// signingrequestDescTenantID is the schema descriptor for tenant_id field.
+	signingrequestDescTenantID := signingrequestMixinFields3[0].Descriptor()
+	// signingrequest.DefaultTenantID holds the default value on creation for the tenant_id field.
+	signingrequest.DefaultTenantID = signingrequestDescTenantID.Default.(uint32)
+	// signingrequestDescTemplateID is the schema descriptor for template_id field.
+	signingrequestDescTemplateID := signingrequestFields[1].Descriptor()
+	// signingrequest.TemplateIDValidator is a validator for the "template_id" field. It is called by the builders before save.
+	signingrequest.TemplateIDValidator = func() func(string) error {
+		validators := signingrequestDescTemplateID.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(template_id string) error {
+			for _, fn := range fns {
+				if err := fn(template_id); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// signingrequestDescName is the schema descriptor for name field.
+	signingrequestDescName := signingrequestFields[2].Descriptor()
+	// signingrequest.NameValidator is a validator for the "name" field. It is called by the builders before save.
+	signingrequest.NameValidator = func() func(string) error {
+		validators := signingrequestDescName.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(name string) error {
+			for _, fn := range fns {
+				if err := fn(name); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// signingrequestDescOriginalFileKey is the schema descriptor for original_file_key field.
+	signingrequestDescOriginalFileKey := signingrequestFields[4].Descriptor()
+	// signingrequest.OriginalFileKeyValidator is a validator for the "original_file_key" field. It is called by the builders before save.
+	signingrequest.OriginalFileKeyValidator = signingrequestDescOriginalFileKey.Validators[0].(func(string) error)
+	// signingrequestDescSignedFileKey is the schema descriptor for signed_file_key field.
+	signingrequestDescSignedFileKey := signingrequestFields[5].Descriptor()
+	// signingrequest.SignedFileKeyValidator is a validator for the "signed_file_key" field. It is called by the builders before save.
+	signingrequest.SignedFileKeyValidator = signingrequestDescSignedFileKey.Validators[0].(func(string) error)
+	// signingrequestDescMessage is the schema descriptor for message field.
+	signingrequestDescMessage := signingrequestFields[7].Descriptor()
+	// signingrequest.MessageValidator is a validator for the "message" field. It is called by the builders before save.
+	signingrequest.MessageValidator = signingrequestDescMessage.Validators[0].(func(string) error)
+	// signingrequestDescID is the schema descriptor for id field.
+	signingrequestDescID := signingrequestFields[0].Descriptor()
+	// signingrequest.IDValidator is a validator for the "id" field. It is called by the builders before save.
+	signingrequest.IDValidator = signingrequestDescID.Validators[0].(func(string) error)
+	signingtemplateMixin := schema.SigningTemplate{}.Mixin()
+	signingtemplate.Policy = privacy.NewPolicies(signingtemplateMixin[3], schema.SigningTemplate{})
+	signingtemplate.Hooks[0] = func(next ent.Mutator) ent.Mutator {
+		return ent.MutateFunc(func(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+			if err := signingtemplate.Policy.EvalMutation(ctx, m); err != nil {
+				return nil, err
+			}
+			return next.Mutate(ctx, m)
+		})
+	}
+	signingtemplateMixinFields3 := signingtemplateMixin[3].Fields()
+	_ = signingtemplateMixinFields3
+	signingtemplateFields := schema.SigningTemplate{}.Fields()
+	_ = signingtemplateFields
+	// signingtemplateDescTenantID is the schema descriptor for tenant_id field.
+	signingtemplateDescTenantID := signingtemplateMixinFields3[0].Descriptor()
+	// signingtemplate.DefaultTenantID holds the default value on creation for the tenant_id field.
+	signingtemplate.DefaultTenantID = signingtemplateDescTenantID.Default.(uint32)
+	// signingtemplateDescName is the schema descriptor for name field.
+	signingtemplateDescName := signingtemplateFields[1].Descriptor()
+	// signingtemplate.NameValidator is a validator for the "name" field. It is called by the builders before save.
+	signingtemplate.NameValidator = func() func(string) error {
+		validators := signingtemplateDescName.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(name string) error {
+			for _, fn := range fns {
+				if err := fn(name); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// signingtemplateDescDescription is the schema descriptor for description field.
+	signingtemplateDescDescription := signingtemplateFields[2].Descriptor()
+	// signingtemplate.DescriptionValidator is a validator for the "description" field. It is called by the builders before save.
+	signingtemplate.DescriptionValidator = signingtemplateDescDescription.Validators[0].(func(string) error)
+	// signingtemplateDescFileKey is the schema descriptor for file_key field.
+	signingtemplateDescFileKey := signingtemplateFields[3].Descriptor()
+	// signingtemplate.FileKeyValidator is a validator for the "file_key" field. It is called by the builders before save.
+	signingtemplate.FileKeyValidator = func() func(string) error {
+		validators := signingtemplateDescFileKey.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(file_key string) error {
+			for _, fn := range fns {
+				if err := fn(file_key); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// signingtemplateDescFileName is the schema descriptor for file_name field.
+	signingtemplateDescFileName := signingtemplateFields[4].Descriptor()
+	// signingtemplate.FileNameValidator is a validator for the "file_name" field. It is called by the builders before save.
+	signingtemplate.FileNameValidator = func() func(string) error {
+		validators := signingtemplateDescFileName.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(file_name string) error {
+			for _, fn := range fns {
+				if err := fn(file_name); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// signingtemplateDescFileSize is the schema descriptor for file_size field.
+	signingtemplateDescFileSize := signingtemplateFields[5].Descriptor()
+	// signingtemplate.DefaultFileSize holds the default value on creation for the file_size field.
+	signingtemplate.DefaultFileSize = signingtemplateDescFileSize.Default.(int64)
+	// signingtemplateDescID is the schema descriptor for id field.
+	signingtemplateDescID := signingtemplateFields[0].Descriptor()
+	// signingtemplate.IDValidator is a validator for the "id" field. It is called by the builders before save.
+	signingtemplate.IDValidator = signingtemplateDescID.Validators[0].(func(string) error)
 }
 
 const (
