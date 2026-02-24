@@ -71,7 +71,7 @@ const progressPercent = computed(() => {
     <div v-if="activeField" class="px-4 py-3">
       <div class="mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">
         {{ activeField.field.name }}
-        <span v-if="activeField.field.required" style="color: #ef4444">*</span>
+        <span v-if="activeField.field.required" class="text-red-500">*</span>
       </div>
 
       <!-- Signature input -->

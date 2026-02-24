@@ -268,7 +268,7 @@ const [Drawer, drawerApi] = useVbenDrawer({
           </div>
         </div>
         <div v-else class="flex items-center gap-2 p-3 bg-gray-50 rounded-lg dark:bg-gray-800">
-          <LucideFile class="size-5" style="color: #3b82f6" />
+          <LucideFile class="size-5 text-blue-500" />
           <span class="font-medium">{{ fileList[0]?.name }}</span>
           <span class="text-sm text-gray-500">
             ({{ formatFileSize(fileList[0]?.size) }})
@@ -276,7 +276,7 @@ const [Drawer, drawerApi] = useVbenDrawer({
           <Button
             type="text"
             size="small"
-            class="ml-auto file-remove-btn"
+            class="ml-auto text-gray-400 hover:text-red-500"
             @click="fileList = []"
           >
             <LucideX class="size-4" />
@@ -326,12 +326,3 @@ const [Drawer, drawerApi] = useVbenDrawer({
     </Form>
   </Drawer>
 </template>
-
-<style scoped>
-.file-remove-btn {
-  color: #9ca3af;
-}
-.file-remove-btn:hover {
-  color: #ef4444;
-}
-</style>

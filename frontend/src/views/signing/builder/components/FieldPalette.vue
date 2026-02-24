@@ -32,7 +32,7 @@ const fieldTypes = [
     <div
       v-for="ft in fieldTypes"
       :key="ft.type"
-      class="palette-item flex cursor-grab items-center gap-2 rounded-lg border p-2.5 transition-colors active:cursor-grabbing"
+      class="flex cursor-grab items-center gap-2 rounded-lg border border-gray-200 bg-white p-2.5 transition-colors hover:border-blue-400 hover:bg-blue-50 active:cursor-grabbing dark:border-gray-600 dark:bg-gray-800 dark:hover:border-blue-500 dark:hover:bg-gray-700"
       draggable="true"
       @dragstart="$emit('drag-start', ft.type, $event)"
     >
@@ -41,22 +41,3 @@ const fieldTypes = [
     </div>
   </div>
 </template>
-
-<style scoped>
-.palette-item {
-  border-color: #e5e7eb;
-  background-color: #fff;
-}
-.palette-item:hover {
-  border-color: #60a5fa;
-  background-color: #eff6ff;
-}
-:global(.dark) .palette-item {
-  border-color: #4b5563;
-  background-color: #1f2937;
-}
-:global(.dark) .palette-item:hover {
-  border-color: #3b82f6;
-  background-color: #374151;
-}
-</style>

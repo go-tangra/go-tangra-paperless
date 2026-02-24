@@ -322,7 +322,7 @@ const [Drawer, drawerApi] = useVbenDrawer({
           </Tag>
         </div>
       </div>
-      <div v-else-if="selectedTemplate && (!selectedTemplate.fields || selectedTemplate.fields.length === 0)" class="warning-banner mb-4 rounded border p-3 text-sm">
+      <div v-else-if="selectedTemplate && (!selectedTemplate.fields || selectedTemplate.fields.length === 0)" class="mb-4 rounded border border-orange-300 bg-orange-50 p-3 text-sm text-orange-700 dark:border-orange-600 dark:bg-orange-900/20 dark:text-orange-400">
         {{ $t('paperless.page.signingTemplate.noFields') }}
       </div>
 
@@ -492,16 +492,3 @@ const [Drawer, drawerApi] = useVbenDrawer({
     </div>
   </Drawer>
 </template>
-
-<style scoped>
-.warning-banner {
-  border-color: #fdba74;
-  background-color: #fff7ed;
-  color: #c2410c;
-}
-:global(.dark) .warning-banner {
-  border-color: #92400e;
-  background-color: rgb(120 53 15 / 0.3);
-  color: #fdba74;
-}
-</style>
