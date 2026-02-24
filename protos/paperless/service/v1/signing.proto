@@ -556,10 +556,7 @@ message GetSigningSessionRequest {
   string token = 1 [
     json_name = "token",
     (google.api.field_behavior) = REQUIRED,
-    (buf.validate.field).string = {
-      min_len: 64
-      max_len: 64
-    }
+    (buf.validate.field).string.len = 64
   ];
 }
 
@@ -609,10 +606,7 @@ message SubmitSigningRequest {
   string token = 1 [
     json_name = "token",
     (google.api.field_behavior) = REQUIRED,
-    (buf.validate.field).string = {
-      min_len: 64
-      max_len: 64
-    }
+    (buf.validate.field).string.len = 64
   ];
 
   repeated SigningFieldSubmission field_values = 2 [json_name = "fieldValues"];
