@@ -61,6 +61,18 @@ func NewHTTPServer(
 		return ctx.JSON(http.StatusOK, map[string]string{"status": "ok"})
 	})
 
+	// Serve frontend assets (Module Federation remote)
+	frontendDist := os.Getenv("FRONTEND_DIST_PATH")
+	if frontendDist == "" {
+		frontendDist = "/app/frontend-dist"
+	}
+
+	if info, err := os.Stat(frontendDist); err == nil && info.IsDir() {
+		fileServer := http.FileServer(http.Dir(frontendDist))
+		srv.HandlePrefix("/", fileServer)
+		l.Infof("Serving frontend assets from %s", frontendDist)
+	}
+
 	l.Infof("HTTP server listening on %s", addr)
 	return srv
 }

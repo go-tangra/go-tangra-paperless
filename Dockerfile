@@ -1,4 +1,18 @@
 ##################################
+# Stage 0: Build frontend module
+##################################
+
+FROM node:20-alpine AS frontend-builder
+
+RUN npm install -g pnpm@9
+
+WORKDIR /frontend
+COPY go-tangra-paperless/frontend/package.json go-tangra-paperless/frontend/pnpm-lock.yaml* ./
+RUN pnpm install --frozen-lockfile || pnpm install
+COPY go-tangra-paperless/frontend/ .
+RUN pnpm build
+
+##################################
 # Stage 1: Build Go executable
 ##################################
 
@@ -20,11 +34,15 @@ RUN curl -sSL "https://github.com/bufbuild/buf/releases/latest/download/buf-$(un
 WORKDIR /src
 
 # Copy go mod files first for better caching
-COPY go.mod go.sum ./
+COPY go-tangra-paperless/go.mod go-tangra-paperless/go.sum ./
+
+# Copy go-tangra-common for replace directive
+COPY go-tangra-common/ /go-tangra-common/
+
 RUN go mod download
 
 # Copy the entire source code
-COPY . .
+COPY go-tangra-paperless/ .
 
 # Regenerate proto descriptor (ensures embedded descriptor.bin is always up to date)
 RUN buf build -o cmd/server/assets/descriptor.bin
@@ -60,6 +78,9 @@ COPY --from=builder /src/bin/paperless-server /app/bin/paperless-server
 # Copy configuration files
 COPY --from=builder /src/configs/ /app/configs/
 
+# Copy frontend assets from frontend builder
+COPY --from=frontend-builder /frontend/dist /app/frontend-dist
+
 # Create non-root user and pdfcpu font directory
 RUN addgroup -g 1000 paperless && \
     adduser -D -u 1000 -G paperless paperless && \
@@ -70,8 +91,8 @@ RUN addgroup -g 1000 paperless && \
 # Switch to non-root user
 USER paperless:paperless
 
-# Expose gRPC port
-EXPOSE 9400
+# Expose gRPC and HTTP ports
+EXPOSE 9500 9501
 
 # Set default command
 CMD ["/app/bin/paperless-server", "-c", "/app/configs"]

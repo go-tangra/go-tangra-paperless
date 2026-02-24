@@ -41,6 +41,8 @@ func newApp(
 		Description:       description,
 		GRPCEndpoint:      registration.GetGRPCAdvertiseAddr(ctx, "0.0.0.0:9500"),
 		AdminEndpoint:     registration.GetEnvOrDefault("ADMIN_GRPC_ENDPOINT", ""),
+		FrontendEntryUrl:  registration.GetEnvOrDefault("FRONTEND_ENTRY_URL", ""),
+		HttpEndpoint:      registration.GetEnvOrDefault("HTTP_ADVERTISE_ADDR", ""),
 		OpenapiSpec:       assets.OpenApiData,
 		ProtoDescriptor:   assets.DescriptorData,
 		MenusYaml:         assets.MenusData,

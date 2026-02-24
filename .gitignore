@@ -1,2 +1,7 @@
 # Claude Code
 CLAUDE.md
+
+# Frontend
+frontend/node_modules/
+frontend/dist/
+frontend/.__mf__temp/
