@@ -1,6 +1,7 @@
 package assets
 
 import (
+	"embed"
 	_ "embed"
 )
 
@@ -15,3 +16,6 @@ var DescriptorData []byte
 
 //go:embed DejaVuSans.ttf
 var DejaVuSansFont []byte
+
+//go:embed all:frontend-dist
+var FrontendDist embed.FS
