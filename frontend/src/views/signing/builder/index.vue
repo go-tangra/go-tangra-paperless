@@ -137,7 +137,7 @@ onBeforeUnmount(() => window.removeEventListener('beforeunload', handleBeforeUnl
         <h1 class="text-base font-semibold">
           {{ template?.name ?? $t('paperless.page.builder.title') }}
         </h1>
-        <span v-if="isDirty" class="rounded bg-orange-100 px-1.5 py-0.5 text-[10px] font-medium text-orange-600">
+        <span v-if="isDirty" class="rounded px-1.5 py-0.5 text-[10px] font-medium" style="background-color: #ffedd5; color: #ea580c">
           {{ $t('paperless.page.builder.unsaved') }}
         </span>
       </div>

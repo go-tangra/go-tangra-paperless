@@ -191,7 +191,7 @@ function getFieldComponent(
         <!-- Message banner -->
         <div
           v-if="session.message"
-          class="mb-4 rounded-lg bg-blue-50 p-3 text-sm text-blue-700 dark:bg-blue-900/30 dark:text-blue-300"
+          class="info-banner mb-4 rounded-lg p-3 text-sm"
         >
           {{ session.message }}
         </div>
@@ -228,7 +228,7 @@ function getFieldComponent(
       <div class="mx-auto flex max-w-6xl gap-6 px-4 py-4 sm:px-6">
         <!-- Left: PDF -->
         <div class="min-w-0 flex-1">
-          <div v-if="session.message" class="mb-4 rounded-lg bg-blue-50 p-3 text-sm text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">
+          <div v-if="session.message" class="info-banner mb-4 rounded-lg p-3 text-sm">
             {{ session.message }}
           </div>
           <PdfDocumentViewer
@@ -250,7 +250,7 @@ function getFieldComponent(
                 >
                   <label class="mb-1 block text-sm font-medium">
                     {{ flowField.field.name }}
-                    <span v-if="flowField.field.required" class="text-red-500"
+                    <span v-if="flowField.field.required" style="color: #ef4444"
                       >*</span
                     >
                   </label>
@@ -315,3 +315,14 @@ function getFieldComponent(
     </template>
   </div>
 </template>
+
+<style scoped>
+.info-banner {
+  background-color: #eff6ff;
+  color: #1d4ed8;
+}
+:global(.dark) .info-banner {
+  background-color: rgb(30 58 138 / 0.3);
+  color: #93c5fd;
+}
+</style>

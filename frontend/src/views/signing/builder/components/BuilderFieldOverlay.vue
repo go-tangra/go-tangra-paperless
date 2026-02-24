@@ -39,13 +39,13 @@ const typeShort = computed(() => fieldTypeToShort(props.field.type));
 
 const typeColor = computed(() => {
   switch (typeShort.value) {
-    case 'signature': return 'border-red-400 bg-red-50/80 dark:bg-red-900/30';
-    case 'text': return 'border-blue-400 bg-blue-50/80 dark:bg-blue-900/30';
-    case 'date': return 'border-green-400 bg-green-50/80 dark:bg-green-900/30';
-    case 'initials': return 'border-orange-400 bg-orange-50/80 dark:bg-orange-900/30';
-    case 'checkbox': return 'border-cyan-400 bg-cyan-50/80 dark:bg-cyan-900/30';
-    case 'email': return 'border-purple-400 bg-purple-50/80 dark:bg-purple-900/30';
-    default: return 'border-gray-400 bg-gray-50/80 dark:bg-gray-900/30';
+    case 'signature': return 'field-type-signature';
+    case 'text': return 'field-type-text';
+    case 'date': return 'field-type-date';
+    case 'initials': return 'field-type-initials';
+    case 'checkbox': return 'field-type-checkbox';
+    case 'email': return 'field-type-email';
+    default: return 'field-type-default';
   }
 });
 
@@ -104,7 +104,7 @@ function onResizeStart(e: MouseEvent) {
 <template>
   <div
     class="absolute cursor-move select-none border-2 transition-shadow"
-    :class="[typeColor, selected ? 'ring-2 ring-blue-500 shadow-lg z-20' : 'z-10']"
+    :class="[typeColor, selected ? 'field-selected z-20' : 'z-10']"
     :style="style"
     @mousedown="onMouseDown"
   >
@@ -116,9 +116,33 @@ function onResizeStart(e: MouseEvent) {
     <!-- Resize handles (visible when selected) -->
     <template v-if="selected">
       <div
-        class="absolute -bottom-1 -right-1 h-3 w-3 cursor-se-resize rounded-sm bg-blue-500"
+        class="absolute -bottom-1 -right-1 h-3 w-3 cursor-se-resize rounded-sm resize-handle"
         @mousedown="onResizeStart"
       />
     </template>
   </div>
 </template>
+
+<style scoped>
+.field-selected {
+  box-shadow: 0 0 0 2px #3b82f6, 0 10px 15px -3px rgb(0 0 0 / 0.1);
+}
+.resize-handle {
+  background-color: #3b82f6;
+}
+.field-type-signature { border-color: #f87171; background-color: rgb(254 242 242 / 0.8); }
+.field-type-text { border-color: #60a5fa; background-color: rgb(239 246 255 / 0.8); }
+.field-type-date { border-color: #4ade80; background-color: rgb(240 253 244 / 0.8); }
+.field-type-initials { border-color: #fb923c; background-color: rgb(255 247 237 / 0.8); }
+.field-type-checkbox { border-color: #22d3ee; background-color: rgb(236 254 255 / 0.8); }
+.field-type-email { border-color: #a78bfa; background-color: rgb(245 243 255 / 0.8); }
+.field-type-default { border-color: #9ca3af; background-color: rgb(249 250 251 / 0.8); }
+
+:global(.dark) .field-type-signature { background-color: rgb(127 29 29 / 0.3); }
+:global(.dark) .field-type-text { background-color: rgb(30 58 138 / 0.3); }
+:global(.dark) .field-type-date { background-color: rgb(20 83 45 / 0.3); }
+:global(.dark) .field-type-initials { background-color: rgb(124 45 18 / 0.3); }
+:global(.dark) .field-type-checkbox { background-color: rgb(22 78 99 / 0.3); }
+:global(.dark) .field-type-email { background-color: rgb(76 29 149 / 0.3); }
+:global(.dark) .field-type-default { background-color: rgb(17 24 39 / 0.3); }
+</style>

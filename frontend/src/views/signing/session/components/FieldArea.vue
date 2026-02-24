@@ -44,10 +44,10 @@ const displayValue = computed(() => {
     class="absolute flex cursor-pointer items-center transition-all duration-200"
     :class="[
       isActive
-        ? 'z-20 border-2 border-blue-500 bg-blue-50/70 ring-2 ring-blue-300 dark:bg-blue-900/40 dark:ring-blue-700'
+        ? 'field-active z-20 border-2'
         : isFilled
-          ? 'z-10 border-2 border-green-400 bg-green-50/60 dark:bg-green-900/30'
-          : 'z-10 border-2 border-orange-400 bg-orange-50/60 hover:bg-orange-100/70 dark:bg-orange-900/30 dark:hover:bg-orange-800/40',
+          ? 'field-filled z-10 border-2'
+          : 'field-empty z-10 border-2',
       isActive && !isFilled ? 'animate-pulse-subtle' : '',
     ]"
     :style="style"
@@ -57,7 +57,7 @@ const displayValue = computed(() => {
     <div class="flex w-full items-center gap-1 px-1.5 py-0.5">
       <template v-if="isFilled && displayValue">
         <span
-          class="truncate text-xs font-medium text-green-700 dark:text-green-300"
+          class="field-value-text truncate text-xs font-medium"
         >
           {{ displayValue }}
         </span>
@@ -66,11 +66,7 @@ const displayValue = computed(() => {
         <span class="flex-shrink-0 text-xs">{{ fieldIcon }}</span>
         <span
           class="truncate text-xs"
-          :class="
-            isActive
-              ? 'font-medium text-blue-700 dark:text-blue-300'
-              : 'text-orange-700 dark:text-orange-300'
-          "
+          :class="isActive ? 'field-label-active font-medium' : 'field-label-empty'"
         >
           {{ flowField.field.name }}
         </span>
@@ -91,5 +87,30 @@ const displayValue = computed(() => {
 }
 .animate-pulse-subtle {
   animation: pulse-subtle 2s ease-in-out infinite;
+}
+.field-active {
+  border-color: #3b82f6;
+  background-color: rgb(239 246 255 / 0.7);
+  box-shadow: 0 0 0 2px #93c5fd;
+}
+.field-filled {
+  border-color: #4ade80;
+  background-color: rgb(240 253 244 / 0.6);
+}
+.field-empty {
+  border-color: #fb923c;
+  background-color: rgb(255 247 237 / 0.6);
+}
+.field-empty:hover {
+  background-color: rgb(255 237 213 / 0.7);
+}
+.field-value-text {
+  color: #15803d;
+}
+.field-label-active {
+  color: #1d4ed8;
+}
+.field-label-empty {
+  color: #c2410c;
 }
 </style>

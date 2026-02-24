@@ -56,10 +56,8 @@ function typeLabel(field: BuilderField): string {
       <div
         v-for="field in fields"
         :key="field.id"
-        class="flex cursor-pointer items-center gap-1.5 rounded px-2 py-1.5 text-xs transition-colors"
-        :class="field.id === selectedFieldId
-          ? 'bg-blue-100 dark:bg-blue-900/40'
-          : 'hover:bg-gray-100 dark:hover:bg-gray-700'"
+        class="field-list-item flex cursor-pointer items-center gap-1.5 rounded px-2 py-1.5 text-xs transition-colors"
+        :class="{ 'field-list-item-selected': field.id === selectedFieldId }"
         @click="$emit('select', field.id)"
       >
         <LucideGripVertical class="size-3 text-gray-400" />
@@ -70,3 +68,18 @@ function typeLabel(field: BuilderField): string {
     </div>
   </div>
 </template>
+
+<style scoped>
+.field-list-item:hover {
+  background-color: #f3f4f6;
+}
+.field-list-item-selected {
+  background-color: #dbeafe;
+}
+:global(.dark) .field-list-item:hover {
+  background-color: #374151;
+}
+:global(.dark) .field-list-item-selected {
+  background-color: rgb(30 58 138 / 0.4);
+}
+</style>
