@@ -7,13 +7,14 @@ require (
 	entgo.io/ent v0.14.5
 	github.com/go-kratos/kratos/v2 v2.9.2
 	github.com/go-sql-driver/mysql v1.9.3
-	github.com/go-tangra/go-tangra-common v0.4.0
+	github.com/go-tangra/go-tangra-common v0.5.0
 	github.com/google/uuid v1.6.0
 	github.com/google/wire v0.7.0
 	github.com/jackc/pgx/v5 v5.8.0
 	github.com/lib/pq v1.10.9
 	github.com/menta2k/protoc-gen-redact/v3 v3.0.0-20251106150014-896cdd075ab1
 	github.com/minio/minio-go/v7 v7.0.98
+	github.com/pdfcpu/pdfcpu v0.11.1
 	github.com/redis/go-redis/v9 v9.17.2
 	github.com/tx7do/go-crud/entgo v0.0.38
 	github.com/tx7do/kratos-bootstrap/api v0.0.34
@@ -79,7 +80,6 @@ require (
 	github.com/olekukonko/ll v0.1.3 // indirect
 	github.com/olekukonko/tablewriter v1.1.2 // indirect
 	github.com/openzipkin/zipkin-go v0.4.3 // indirect
-	github.com/pdfcpu/pdfcpu v0.11.1 // indirect
 	github.com/philhofer/fwd v1.2.0 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/redis/go-redis/extra/rediscmd/v9 v9.17.2 // indirect
@@ -129,4 +129,3 @@ require (
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
-
