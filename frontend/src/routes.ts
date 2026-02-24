@@ -4,7 +4,7 @@ const routes: RouteRecordRaw[] = [
   {
     path: '/paperless',
     name: 'Paperless',
-    component: () => import('shell/vben/layouts').then((m) => m.BasicLayout),
+    component: () => import('shell/app-layout'),
     redirect: '/paperless/documents',
     meta: {
       order: 2020,
