@@ -309,7 +309,7 @@ const [Drawer, drawerApi] = useVbenDrawer({
       </FormItem>
 
       <!-- Template fields preview -->
-      <div v-if="selectedTemplate?.fields?.length" class="mb-4 rounded bg-gray-50 p-3 dark:bg-gray-800">
+      <div v-if="selectedTemplate?.fields?.length" class="mb-4 rounded bg-accent p-3">
         <p class="mb-1 text-sm font-medium text-gray-600">
           {{ $t('paperless.page.signingTemplate.fields') }}:
         </p>
@@ -424,7 +424,7 @@ const [Drawer, drawerApi] = useVbenDrawer({
     <!-- View Mode -->
     <div v-else-if="data?.row">
       <div class="space-y-4">
-        <div class="rounded bg-gray-50 p-4 dark:bg-gray-800">
+        <div class="rounded bg-accent p-4">
           <div class="grid grid-cols-2 gap-3 text-sm">
             <div>
               <span class="text-gray-500">{{ $t('paperless.page.signingRequest.name') }}:</span>

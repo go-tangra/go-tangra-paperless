@@ -102,14 +102,14 @@ const pageNumber = computed(() => props.field.pageNumber ?? 1);
       <p class="mt-0.5 text-[10px] text-gray-400">0 = not prefilled</p>
     </div>
 
-    <div class="rounded bg-gray-50 p-2 text-xs text-gray-500 dark:bg-gray-800">
+    <div class="rounded bg-accent p-2 text-xs text-gray-500">
       <p>Page: {{ pageNumber }}</p>
       <p>X: {{ (field.xPercent ?? 0).toFixed(1) }}%, Y: {{ (field.yPercent ?? 0).toFixed(1) }}%</p>
       <p>W: {{ (field.widthPercent ?? 0).toFixed(1) }}%, H: {{ (field.heightPercent ?? 0).toFixed(1) }}%</p>
     </div>
 
-    <Button danger block size="small" @click="emit('delete')">
-      <template #icon><LucideTrash class="size-3" /></template>
+    <Button danger block size="small" :style="{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }" @click="emit('delete')">
+      <LucideTrash :size="12" />
       {{ $t('paperless.page.builder.deleteField') }}
     </Button>
   </div>

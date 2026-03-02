@@ -127,9 +127,9 @@ onBeforeUnmount(() => window.removeEventListener('beforeunload', handleBeforeUnl
 </script>
 
 <template>
-  <div class="flex h-screen flex-col bg-gray-100 dark:bg-gray-900">
+  <div class="flex h-screen flex-col bg-background">
     <!-- Header -->
-    <div class="flex items-center justify-between border-b bg-white px-4 py-2.5 dark:bg-gray-800">
+    <div class="flex items-center justify-between border-b bg-accent px-4 py-2.5">
       <div class="flex items-center gap-3">
         <Button type="text" size="small" @click="handleBack">
           <template #icon><LucideArrowLeft class="size-4" /></template>
@@ -142,8 +142,8 @@ onBeforeUnmount(() => window.removeEventListener('beforeunload', handleBeforeUnl
         </span>
       </div>
       <div class="flex items-center gap-2">
-        <Button type="primary" :loading="saving" :disabled="!isDirty" @click="handleSave">
-          <template #icon><LucideSave class="size-4" /></template>
+        <Button type="primary" :loading="saving" :disabled="!isDirty" :style="{ display: 'inline-flex', alignItems: 'center', gap: '6px' }" @click="handleSave">
+          <LucideSave :size="14" />
           {{ $t('paperless.page.builder.saveFields') }}
         </Button>
       </div>
@@ -157,7 +157,7 @@ onBeforeUnmount(() => window.removeEventListener('beforeunload', handleBeforeUnl
     <!-- Main content -->
     <div v-else class="flex flex-1 overflow-hidden">
       <!-- Left sidebar: palette + placed fields list -->
-      <div class="w-[220px] flex-shrink-0 overflow-y-auto border-r bg-white p-3 dark:bg-gray-800">
+      <div class="w-[220px] flex-shrink-0 overflow-y-auto border-r bg-accent p-3">
         <FieldPalette @drag-start="handleDragStart" />
         <PlacedFieldsList
           :fields="fields"
@@ -185,7 +185,7 @@ onBeforeUnmount(() => window.removeEventListener('beforeunload', handleBeforeUnl
       <!-- Right sidebar: properties panel -->
       <div
         v-if="selectedField"
-        class="w-[260px] flex-shrink-0 overflow-y-auto border-l bg-white p-3 dark:bg-gray-800"
+        class="w-[260px] flex-shrink-0 overflow-y-auto border-l bg-accent p-3"
       >
         <FieldPropertiesPanel
           :field="selectedField"

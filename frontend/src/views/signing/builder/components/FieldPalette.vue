@@ -32,7 +32,7 @@ const fieldTypes = [
     <div
       v-for="ft in fieldTypes"
       :key="ft.type"
-      class="flex cursor-grab items-center gap-2 rounded-lg border border-gray-200 bg-white p-2.5 transition-colors hover:border-blue-400 hover:bg-blue-50 active:cursor-grabbing dark:border-gray-600 dark:bg-gray-800 dark:hover:border-blue-500 dark:hover:bg-gray-700"
+      class="flex cursor-grab items-center gap-2 rounded-lg border border-border bg-accent p-2.5 transition-colors hover:border-blue-400 hover:bg-accent-hover active:cursor-grabbing"
       draggable="true"
       @dragstart="$emit('drag-start', ft.type, $event)"
     >

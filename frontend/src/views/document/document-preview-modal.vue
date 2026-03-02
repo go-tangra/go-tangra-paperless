@@ -182,7 +182,7 @@ watch(
               <div class="mb-2 flex justify-end">
                 <Button size="small" @click="copyContent">{{ $t('paperless.page.document.copyContent') }}</Button>
               </div>
-              <pre class="max-h-[500px] overflow-auto rounded bg-gray-50 p-4 text-sm whitespace-pre-wrap dark:bg-gray-800">{{ document.contentText }}</pre>
+              <pre class="max-h-[500px] overflow-auto rounded bg-accent p-4 text-sm whitespace-pre-wrap">{{ document.contentText }}</pre>
             </template>
             <Empty v-else :description="$t('paperless.page.document.noContentExtracted')" />
           </TabPane>

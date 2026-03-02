@@ -14,6 +14,7 @@ import (
 	"github.com/go-tangra/go-tangra-paperless/internal/data"
 	"github.com/go-tangra/go-tangra-paperless/internal/data/ent"
 	"github.com/go-tangra/go-tangra-paperless/internal/data/ent/schema"
+	"github.com/go-tangra/go-tangra-paperless/internal/event"
 
 	paperlessV1 "github.com/go-tangra/go-tangra-paperless/gen/go/paperless/service/v1"
 )
@@ -28,6 +29,7 @@ type SigningSessionService struct {
 	storage       *data.StorageClient
 	processor     *PDFProcessor
 	smtp          *data.SMTPClient
+	publisher     *event.Publisher
 }
 
 func NewSigningSessionService(
@@ -38,6 +40,7 @@ func NewSigningSessionService(
 	storage *data.StorageClient,
 	processor *PDFProcessor,
 	smtp *data.SMTPClient,
+	publisher *event.Publisher,
 ) *SigningSessionService {
 	return &SigningSessionService{
 		log:           ctx.NewLoggerHelper("paperless/service/signing-session"),
@@ -47,6 +50,7 @@ func NewSigningSessionService(
 		storage:       storage,
 		processor:     processor,
 		smtp:          smtp,
+		publisher:     publisher,
 	}
 }
 
@@ -324,6 +328,20 @@ func (s *SigningSessionService) SubmitSigning(ctx context.Context, req *paperles
 		s.log.Errorf("failed to get next recipient: %v", err)
 	}
 
+	// Count remaining recipients for event data
+	allRecipients, _ := s.recipientRepo.ListByRequestID(ctx, signingRequest.ID)
+	remainingCount := 0
+	for _, r := range allRecipients {
+		if string(r.Status) == "SIGNING_RECIPIENT_STATUS_WAITING" || string(r.Status) == "SIGNING_RECIPIENT_STATUS_PENDING" {
+			remainingCount++
+		}
+	}
+
+	var tenantID uint32
+	if signingRequest.TenantID != nil {
+		tenantID = *signingRequest.TenantID
+	}
+
 	if nextRecipient != nil {
 		// Apply staged prefill values for the next recipient's stage
 		s.applyStagedPrefills(ctx, signingRequest, template, int(nextRecipient.SigningOrder))
@@ -333,6 +351,16 @@ func (s *SigningSessionService) SubmitSigning(ctx context.Context, req *paperles
 			s.log.Errorf("failed to update next recipient status: %v", err)
 		}
 		go s.sendNextSigningEmail(nextRecipient.Email, nextRecipient.Name, signingRequest.Name, signingRequest.Message, nextRecipient.Token)
+
+		// Publish recipient signed event
+		s.publisher.PublishRecipientSigned(ctx, &event.SigningRecipientSignedData{
+			RequestID:      signingRequest.ID,
+			RecipientEmail: recipient.Email,
+			RecipientName:  recipient.Name,
+			SigningOrder:   recipient.SigningOrder,
+			RemainingCount: remainingCount,
+			TenantID:       tenantID,
+		})
 
 		return &paperlessV1.SubmitSigningResponse{
 			Completed: false,
@@ -349,6 +377,25 @@ func (s *SigningSessionService) SubmitSigning(ctx context.Context, req *paperles
 	if err := s.requestRepo.SetSignedFileKey(ctx, signingRequest.ID, signingRequest.OriginalFileKey); err != nil {
 		s.log.Warnf("failed to set signed file key: %v", err)
 	}
+
+	// Publish recipient signed event (last signer)
+	s.publisher.PublishRecipientSigned(ctx, &event.SigningRecipientSignedData{
+		RequestID:      signingRequest.ID,
+		RecipientEmail: recipient.Email,
+		RecipientName:  recipient.Name,
+		SigningOrder:   recipient.SigningOrder,
+		RemainingCount: 0,
+		TenantID:       tenantID,
+	})
+
+	// Publish request completed event
+	s.publisher.PublishRequestCompleted(ctx, &event.SigningRequestCompletedData{
+		RequestID:    signingRequest.ID,
+		TemplateID:   signingRequest.TemplateID,
+		TemplateName: template.Name,
+		SignedFileKey: signingRequest.OriginalFileKey,
+		TenantID:     tenantID,
+	})
 
 	return &paperlessV1.SubmitSigningResponse{
 		Completed: true,

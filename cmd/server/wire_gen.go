@@ -10,6 +10,7 @@ import (
 	"github.com/go-kratos/kratos/v2"
 	"github.com/go-tangra/go-tangra-paperless/internal/cert"
 	"github.com/go-tangra/go-tangra-paperless/internal/data"
+	"github.com/go-tangra/go-tangra-paperless/internal/event"
 	"github.com/go-tangra/go-tangra-paperless/internal/server"
 	"github.com/go-tangra/go-tangra-paperless/internal/service"
 	"github.com/go-tangra/go-tangra-paperless/internal/service/providers"
@@ -67,12 +68,22 @@ func initApp(context *bootstrap.Context) (*kratos.App, func(), error) {
 	signingRecipientRepo := data.NewSigningRecipientRepo(context, entClient)
 	signingRequestRepo := data.NewSigningRequestRepo(context, entClient, signingRecipientRepo, signingTemplateRepo)
 	smtpClient := data.NewSMTPClient(context)
-	signingRequestService := service.NewSigningRequestService(context, signingRequestRepo, signingTemplateRepo, signingRecipientRepo, storageClient, pdfProcessor, smtpClient)
+	client, cleanup5, err := data.NewRedisClient(context)
+	if err != nil {
+		cleanup4()
+		cleanup3()
+		cleanup2()
+		cleanup()
+		return nil, nil, err
+	}
+	publisher := event.NewPublisher(context, client)
+	signingRequestService := service.NewSigningRequestService(context, signingRequestRepo, signingTemplateRepo, signingRecipientRepo, storageClient, pdfProcessor, smtpClient, publisher)
 	grpcServer := server.NewGRPCServer(context, v, auditLogRepo, categoryService, documentService, permissionService, statisticsService, backupService, signingTemplateService, signingRequestService)
-	signingSessionService := service.NewSigningSessionService(context, signingRecipientRepo, signingRequestRepo, signingTemplateRepo, storageClient, pdfProcessor, smtpClient)
+	signingSessionService := service.NewSigningSessionService(context, signingRecipientRepo, signingRequestRepo, signingTemplateRepo, storageClient, pdfProcessor, smtpClient, publisher)
 	httpServer := server.NewHTTPServer(context, signingSessionService, signingRequestService, signingTemplateService)
 	app := newApp(context, grpcServer, httpServer)
 	return app, func() {
+		cleanup5()
 		cleanup4()
 		cleanup3()
 		cleanup2()

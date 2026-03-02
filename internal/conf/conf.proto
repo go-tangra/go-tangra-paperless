@@ -1,0 +1,14 @@
+syntax = "proto3";
+package kratos.api;
+
+option go_package = "github.com/go-tangra/go-tangra-paperless/internal/conf;conf";
+
+message Paperless {
+  EventConfig events = 1;
+}
+
+// Configuration for event notifications via Redis pub/sub
+message EventConfig {
+  bool enabled = 1;       // Enable/disable event publishing
+  string topic_prefix = 2; // Prefix for all event topics (default: "paperless")
+}

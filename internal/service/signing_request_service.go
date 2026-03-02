@@ -15,6 +15,7 @@ import (
 
 	"github.com/go-tangra/go-tangra-paperless/internal/data"
 	"github.com/go-tangra/go-tangra-paperless/internal/data/ent/schema"
+	"github.com/go-tangra/go-tangra-paperless/internal/event"
 
 	paperlessV1 "github.com/go-tangra/go-tangra-paperless/gen/go/paperless/service/v1"
 )
@@ -29,6 +30,7 @@ type SigningRequestService struct {
 	storage       *data.StorageClient
 	processor     *PDFProcessor
 	smtp          *data.SMTPClient
+	publisher     *event.Publisher
 	appHost       string
 }
 
@@ -40,6 +42,7 @@ func NewSigningRequestService(
 	storage *data.StorageClient,
 	processor *PDFProcessor,
 	smtp *data.SMTPClient,
+	publisher *event.Publisher,
 ) *SigningRequestService {
 	appHost := os.Getenv("APP_HOST")
 	if appHost == "" {
@@ -54,6 +57,7 @@ func NewSigningRequestService(
 		storage:       storage,
 		processor:     processor,
 		smtp:          smtp,
+		publisher:     publisher,
 		appHost:       appHost,
 	}
 }
@@ -184,6 +188,15 @@ func (s *SigningRequestService) CreateSigningRequest(ctx context.Context, req *p
 		return nil, err
 	}
 
+	// Publish signing request created event
+	s.publisher.PublishRequestCreated(ctx, &event.SigningRequestCreatedData{
+		RequestID:      entity.ID,
+		TemplateID:     req.TemplateId,
+		TemplateName:   template.Name,
+		RecipientCount: len(req.Recipients),
+		TenantID:       tenantID,
+	})
+
 	return &paperlessV1.CreateSigningRequestResponse{
 		Request: s.requestRepo.ToProto(ctx, entity),
 	}, nil
@@ -263,6 +276,13 @@ func (s *SigningRequestService) CancelSigningRequest(ctx context.Context, req *p
 	if err := s.requestRepo.UpdateStatus(ctx, req.Id, "SIGNING_REQUEST_STATUS_CANCELLED"); err != nil {
 		return nil, err
 	}
+
+	// Publish signing request cancelled event
+	tenantID := getTenantIDFromContext(ctx)
+	s.publisher.PublishRequestCancelled(ctx, &event.SigningRequestCancelledData{
+		RequestID: req.Id,
+		TenantID:  tenantID,
+	})
 
 	// Re-fetch updated entity
 	entity, err = s.requestRepo.GetByID(ctx, req.Id)

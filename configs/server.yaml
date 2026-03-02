@@ -29,6 +29,11 @@ data:
     secret_key: "minioadmin"
     use_ssl: false
 
+paperless:
+  events:
+    enabled: true
+    topic_prefix: "paperless"
+
 registration:
   admin_endpoint: "localhost:9000"
   module_id: "paperless"

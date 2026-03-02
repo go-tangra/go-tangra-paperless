@@ -323,7 +323,7 @@ const [Drawer, drawerApi] = useVbenDrawer({
             </div>
           </div>
         </div>
-        <div v-else class="flex items-center gap-2 p-3 bg-gray-50 rounded-lg dark:bg-gray-800">
+        <div v-else class="flex items-center gap-2 p-3 bg-accent rounded-lg">
           <LucideFile class="size-5 text-blue-500" />
           <span class="font-medium">{{ fileList[0]?.name }}</span>
           <span class="text-sm text-gray-500">
@@ -341,7 +341,7 @@ const [Drawer, drawerApi] = useVbenDrawer({
       </FormItem>
 
       <!-- File Info for Edit/View Mode -->
-      <div v-if="!isCreateMode && data?.row" class="mb-4 rounded bg-gray-50 p-4 dark:bg-gray-800">
+      <div v-if="!isCreateMode && data?.row" class="mb-4 rounded bg-accent p-4">
         <h4 class="mb-2 font-medium">{{ $t('paperless.page.document.fileInfo') }}</h4>
         <div class="space-y-1 text-sm">
           <p>

@@ -14,6 +14,7 @@ import (
 	"github.com/go-tangra/go-tangra-common/registration"
 	"github.com/go-tangra/go-tangra-common/service"
 	"github.com/go-tangra/go-tangra-paperless/cmd/server/assets"
+	paperlessCnf "github.com/go-tangra/go-tangra-paperless/internal/conf"
 )
 
 var (
@@ -63,6 +64,7 @@ func runApp() error {
 			Version: version,
 		},
 	)
+	ctx.RegisterCustomConfig("paperless", &paperlessCnf.Paperless{})
 
 	// Ensure registration cleanup on exit
 	defer globalRegHelper.Stop()
