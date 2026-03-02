@@ -96,7 +96,7 @@ func (s *SigningRequestService) CreateSigningRequest(ctx context.Context, req *p
 		if len(req.FieldValues) > 0 {
 			for _, fv := range req.FieldValues {
 				for _, tmplField := range template.Fields {
-					if tmplField.ID == fv.FieldId && tmplField.PrefillStage == 1 {
+					if (tmplField.ID == fv.FieldId || tmplField.Name == fv.FieldId) && tmplField.PrefillStage == 1 {
 						stage1Fills = append(stage1Fills, FieldFill{
 							Value:         fv.Value,
 							Type:          tmplField.Type,
@@ -130,10 +130,18 @@ func (s *SigningRequestService) CreateSigningRequest(ctx context.Context, req *p
 	}
 
 	// Convert ALL field values to schema format (stage 2+ values stored for later)
+	// Normalize field references: if FieldId matches a template field's Name, resolve to its ID
 	var fieldValues []schema.SigningFieldValueDef
 	for _, fv := range req.FieldValues {
+		resolvedID := fv.FieldId
+		for _, tmplField := range template.Fields {
+			if tmplField.Name == fv.FieldId && tmplField.ID != fv.FieldId {
+				resolvedID = tmplField.ID
+				break
+			}
+		}
 		fieldValues = append(fieldValues, schema.SigningFieldValueDef{
-			FieldID:  fv.FieldId,
+			FieldID:  resolvedID,
 			Value:    fv.Value,
 			FilledBy: "creator",
 		})

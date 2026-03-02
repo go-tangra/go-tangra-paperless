@@ -128,9 +128,9 @@ func (s *SigningSessionService) GetSigningSession(ctx context.Context, req *pape
 			HeightPercent:  tmplField.HeightPercent,
 		}
 
-		// Check for pre-filled values
+		// Check for pre-filled values (match by ID or Name for backwards compatibility)
 		for _, fv := range signingRequest.FieldValues {
-			if fv.FieldID == tmplField.ID {
+			if fv.FieldID == tmplField.ID || fv.FieldID == tmplField.Name {
 				field.PrefilledValue = fv.Value
 				break
 			}
@@ -412,9 +412,9 @@ func (s *SigningSessionService) applyStagedPrefills(ctx context.Context, signing
 		if tmplField.PrefillStage != stage {
 			continue
 		}
-		// Find the prefill value stored in the request
+		// Find the prefill value stored in the request (match by ID or Name for backwards compatibility)
 		for _, fv := range signingRequest.FieldValues {
-			if fv.FieldID == tmplField.ID {
+			if fv.FieldID == tmplField.ID || fv.FieldID == tmplField.Name {
 				fills = append(fills, FieldFill{
 					Value:         fv.Value,
 					Type:          tmplField.Type,
