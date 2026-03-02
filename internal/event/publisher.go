@@ -39,12 +39,27 @@ func NewPublisher(ctx *bootstrap.Context, redisClient *redis.Client) *Publisher 
 		}
 	}
 
-	return &Publisher{
+	// Fallback: if custom config didn't load (bootstrap Scan can't match nested YAML keys
+	// to proto fields), default to enabled when a Redis client is available
+	if eventConfig == nil && redisClient != nil {
+		l.Info("Custom config 'paperless.events' not loaded, defaulting to enabled")
+		eventConfig = &conf.EventConfig{
+			Enabled:     true,
+			TopicPrefix: topicPrefix,
+		}
+	}
+
+	p := &Publisher{
 		log:         l,
 		redisClient: redisClient,
 		config:      eventConfig,
 		topicPrefix: topicPrefix,
 	}
+
+	l.Infof("Event publisher initialized: enabled=%v, redisConnected=%v, topicPrefix=%s",
+		p.IsEnabled(), redisClient != nil, topicPrefix)
+
+	return p
 }
 
 // IsEnabled returns true if event publishing is enabled
@@ -58,6 +73,7 @@ func (p *Publisher) IsEnabled() bool {
 // Publish publishes an event to the specified topic
 func (p *Publisher) Publish(ctx context.Context, topic string, data any) error {
 	if !p.IsEnabled() {
+		p.log.Debugf("Event publishing disabled, skipping topic: %s", topic)
 		return nil
 	}
 
