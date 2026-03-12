@@ -109,7 +109,7 @@ func initApp(context *bootstrap.Context) (*kratos.App, func(), error) {
 	}
 	signingRequestService := service.NewSigningRequestService(context, signingRequestRepo, signingTemplateRepo, signingRecipientRepo, storageClient, pdfProcessor, notificationClient, adminClient, publisher)
 	userService := service.NewUserService(context, adminClient)
-	grpcServer := server.NewGRPCServer(context, v, auditLogRepo, categoryService, documentService, permissionService, statisticsService, backupService, signingTemplateService, signingRequestService, userService)
+	grpcServer := server.NewGRPCServer(context, v, collector, auditLogRepo, categoryService, documentService, permissionService, statisticsService, backupService, signingTemplateService, signingRequestService, userService)
 	signingSessionService := service.NewSigningSessionService(context, signingRecipientRepo, signingRequestRepo, signingTemplateRepo, storageClient, pdfProcessor, notificationClient, publisher)
 	httpServer := server.NewHTTPServer(context, signingSessionService, signingRequestService, signingTemplateService)
 	app := newApp(context, grpcServer, httpServer)
