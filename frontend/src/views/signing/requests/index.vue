@@ -9,6 +9,7 @@ import {
   LucideXCircle,
   LucideDownload,
   LucideFileSignature,
+  LucideMail,
 } from 'shell/vben/icons';
 
 import {
@@ -22,7 +23,7 @@ import {
 import { useVbenVxeGrid } from 'shell/adapter/vxe-table';
 import { $t } from 'shell/locales';
 import { usePaperlessSigningRequestStore } from '../../../stores/paperless-signing-request.state';
-import type { SigningRequest } from '../../../stores/paperless-signing-request.state';
+import type { SigningRequest, SigningRecipient } from '../../../stores/paperless-signing-request.state';
 
 import RequestDrawer from './request-drawer.vue';
 
@@ -129,7 +130,7 @@ const gridOptions: VxeGridProps<SigningRequest> = {
       field: 'action',
       fixed: 'right',
       slots: { default: 'action' },
-      width: 180,
+      width: 220,
     },
   ],
 };
@@ -220,6 +221,72 @@ async function handleDownload(row: SigningRequest) {
     notification.error({ message: $t('ui.notification.operation_failed') });
   }
 }
+
+function getResendableRecipients(row: SigningRequest): SigningRecipient[] {
+  return (row.recipients ?? []).filter(
+    (r) => r.status === 'SIGNING_RECIPIENT_STATUS_PENDING',
+  );
+}
+
+async function doResend(requestId: string, recipient: SigningRecipient) {
+  try {
+    await requestStore.resendSigningEmail(requestId, recipient.id!);
+    notification.success({
+      message: $t('paperless.page.signingRequest.resendSuccess', {
+        name: recipient.name || recipient.email,
+      }),
+    });
+  } catch {
+    notification.error({ message: $t('ui.notification.operation_failed') });
+  }
+}
+
+function handleResend(row: SigningRequest) {
+  if (!row.id) return;
+  const recipients = getResendableRecipients(row);
+  if (recipients.length === 0) {
+    notification.warning({
+      message: $t('paperless.page.signingRequest.noResendableRecipients'),
+    });
+    return;
+  }
+
+  if (recipients.length === 1) {
+    doResend(row.id, recipients[0]!);
+    return;
+  }
+
+  Modal.info({
+    title: $t('paperless.page.signingRequest.selectRecipient'),
+    content: h(
+      'div',
+      { style: 'margin-top: 12px' },
+      recipients.map((r) =>
+        h(
+          'div',
+          {
+            key: r.id,
+            style:
+              'padding: 8px 12px; margin-bottom: 8px; border: 1px solid #e8e8e8; border-radius: 6px; cursor: pointer; transition: background 0.2s',
+            onMouseenter: (e: MouseEvent) =>
+              ((e.currentTarget as HTMLElement).style.background = '#f0f5ff'),
+            onMouseleave: (e: MouseEvent) =>
+              ((e.currentTarget as HTMLElement).style.background = ''),
+            onClick: () => {
+              Modal.destroyAll();
+              doResend(row.id!, r);
+            },
+          },
+          [
+            h('div', { style: 'font-weight: 500' }, r.name || r.email || ''),
+            h('div', { style: 'font-size: 12px; color: #8c8c8c' }, r.email || ''),
+          ],
+        ),
+      ),
+    ),
+    okButtonProps: { style: 'display: none' },
+  });
+}
 </script>
 
 <template>
@@ -271,6 +338,14 @@ async function handleDownload(row: SigningRequest) {
             :icon="h(LucideDownload)"
             :title="$t('paperless.page.signingRequest.download')"
             @click.stop="handleDownload(row)"
+          />
+          <Button
+            v-if="row.status === 'SIGNING_REQUEST_STATUS_PENDING'"
+            type="link"
+            size="small"
+            :icon="h(LucideMail)"
+            :title="$t('paperless.page.signingRequest.resend')"
+            @click.stop="handleResend(row)"
           />
           <Button
             v-if="row.status === 'SIGNING_REQUEST_STATUS_PENDING'"

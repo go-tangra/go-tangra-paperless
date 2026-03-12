@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"os"
+	"strings"
 	"sync"
 	"time"
 
@@ -563,6 +564,20 @@ func (s *SigningRequestService) ensureNotificationTemplate(ctx context.Context) 
 	}
 	created, err := s.notificationClient.CreateTemplate(ctx, createReq)
 	if err != nil {
+		// Template may already exist (cross-tenant or race condition) — retry lookup
+		if strings.Contains(err.Error(), "already exists") {
+			s.log.Info("Template already exists, retrying lookup...")
+			tmpl2, findErr := s.notificationClient.FindTemplateByName(ctx, signingRequestTemplateName)
+			if findErr != nil {
+				return "", fmt.Errorf("retry find template after conflict: %w", findErr)
+			}
+			if tmpl2 != nil {
+				s.notifTemplateID = tmpl2.GetId()
+				s.notifTemplateDone = true
+				s.log.Infof("Found existing notification template on retry: %s", s.notifTemplateID)
+				return s.notifTemplateID, nil
+			}
+		}
 		return "", fmt.Errorf("create notification template: %w", err)
 	}
 	s.notifTemplateID = created.GetId()

@@ -1,11 +1,14 @@
 package server
 
 import (
+	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"io"
 	"io/fs"
 	"net/http"
 	"os"
+	"strconv"
 	"strings"
 
 	kratosHttp "github.com/go-kratos/kratos/v2/transport/http"
@@ -293,9 +296,14 @@ func handleGetAuthenticatedSigningSession(signingSessionSvc *service.SigningSess
 		}
 
 		viewerIP := getViewerIP(ctx)
+		userID := extractUserIDFromBearer(ctx)
 
-		// For authenticated endpoints, pass through all incoming metadata (including auth headers)
-		grpcCtx := grpcMD.NewIncomingContext(ctx, grpcMD.Pairs("x-client-ip", viewerIP))
+		// Inject user identity and client IP into gRPC metadata context
+		mdPairs := []string{"x-client-ip", viewerIP}
+		if userID != "" {
+			mdPairs = append(mdPairs, "x-md-global-user-id", userID)
+		}
+		grpcCtx := grpcMD.NewIncomingContext(ctx, grpcMD.Pairs(mdPairs...))
 		grpcCtx = viewer.NewSystemViewerContext(grpcCtx)
 
 		resp, err := signingSessionSvc.GetAuthenticatedSigningSession(grpcCtx, &paperlessV1.GetSigningSessionRequest{
@@ -332,8 +340,13 @@ func handleSubmitAuthenticatedSigning(signingSessionSvc *service.SigningSessionS
 		submitReq.Token = token
 
 		viewerIP := getViewerIP(ctx)
+		userID := extractUserIDFromBearer(ctx)
 
-		grpcCtx := grpcMD.NewIncomingContext(ctx, grpcMD.Pairs("x-client-ip", viewerIP))
+		mdPairs := []string{"x-client-ip", viewerIP}
+		if userID != "" {
+			mdPairs = append(mdPairs, "x-md-global-user-id", userID)
+		}
+		grpcCtx := grpcMD.NewIncomingContext(ctx, grpcMD.Pairs(mdPairs...))
 		grpcCtx = viewer.NewSystemViewerContext(grpcCtx)
 
 		resp, err := signingSessionSvc.SubmitAuthenticatedSigning(grpcCtx, &submitReq)
@@ -356,7 +369,14 @@ func handleGetAuthenticatedDocument(signingSessionSvc *service.SigningSessionSer
 			return ctx.JSON(http.StatusBadRequest, errorResponse("token is required"))
 		}
 
-		grpcCtx := viewer.NewSystemViewerContext(ctx)
+		userID := extractUserIDFromBearer(ctx)
+
+		var mdPairs []string
+		if userID != "" {
+			mdPairs = append(mdPairs, "x-md-global-user-id", userID)
+		}
+		grpcCtx := grpcMD.NewIncomingContext(ctx, grpcMD.Pairs(mdPairs...))
+		grpcCtx = viewer.NewSystemViewerContext(grpcCtx)
 
 		pdfBytes, fileName, err := signingSessionSvc.GetAuthenticatedDocument(grpcCtx, token)
 		if err != nil {
@@ -371,6 +391,50 @@ func handleGetAuthenticatedDocument(signingSessionSvc *service.SigningSessionSer
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write(pdfBytes)
 		return nil
+	}
+}
+
+// extractUserIDFromBearer parses the JWT Bearer token from the Authorization header
+// and extracts the "uid" (user ID) claim. Returns the user ID as a string, or empty
+// if the token is missing/invalid. This does NOT verify the JWT signature — the trust
+// boundary is the same as admin-service gRPC metadata injection.
+func extractUserIDFromBearer(ctx kratosHttp.Context) string {
+	auth := ctx.Header().Get("Authorization")
+	if !strings.HasPrefix(auth, "Bearer ") {
+		return ""
+	}
+	tokenStr := strings.TrimPrefix(auth, "Bearer ")
+
+	// JWT is 3 base64-encoded segments separated by dots
+	parts := strings.SplitN(tokenStr, ".", 3)
+	if len(parts) < 2 {
+		return ""
+	}
+
+	// Decode the payload (second segment)
+	payload, err := base64.RawURLEncoding.DecodeString(parts[1])
+	if err != nil {
+		return ""
+	}
+
+	var claims map[string]interface{}
+	if err := json.Unmarshal(payload, &claims); err != nil {
+		return ""
+	}
+
+	uid, ok := claims["uid"]
+	if !ok {
+		return ""
+	}
+
+	// uid is a number in JWT claims
+	switch v := uid.(type) {
+	case float64:
+		return strconv.FormatUint(uint64(v), 10)
+	case string:
+		return v
+	default:
+		return ""
 	}
 }
 
@@ -391,7 +455,7 @@ func setCORSHeaders(ctx kratosHttp.Context) {
 	w := ctx.Response()
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 	w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-	w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+	w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
 }
 
 func corsHandler() kratosHttp.HandlerFunc {
