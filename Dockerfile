@@ -67,6 +67,8 @@ RUN apk --no-cache add ca-certificates tzdata
 
 # Set timezone
 ENV TZ=UTC
+# Workaround for buf.build/github.com proto namespace conflicts (dual registration)
+ENV GOLANG_PROTOBUF_REGISTRATION_CONFLICT=warn
 
 # Set working directory
 WORKDIR /app
