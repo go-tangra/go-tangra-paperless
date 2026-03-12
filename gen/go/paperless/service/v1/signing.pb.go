@@ -146,6 +146,56 @@ func (SigningRequestStatus) EnumDescriptor() ([]byte, []int) {
 	return file_paperless_service_v1_signing_proto_rawDescGZIP(), []int{1}
 }
 
+// Type of signing request (external = email-based, internal = user-based)
+type SigningRequestType int32
+
+const (
+	SigningRequestType_SIGNING_REQUEST_TYPE_UNSPECIFIED SigningRequestType = 0
+	SigningRequestType_SIGNING_REQUEST_TYPE_EXTERNAL    SigningRequestType = 1
+	SigningRequestType_SIGNING_REQUEST_TYPE_INTERNAL    SigningRequestType = 2
+)
+
+// Enum value maps for SigningRequestType.
+var (
+	SigningRequestType_name = map[int32]string{
+		0: "SIGNING_REQUEST_TYPE_UNSPECIFIED",
+		1: "SIGNING_REQUEST_TYPE_EXTERNAL",
+		2: "SIGNING_REQUEST_TYPE_INTERNAL",
+	}
+	SigningRequestType_value = map[string]int32{
+		"SIGNING_REQUEST_TYPE_UNSPECIFIED": 0,
+		"SIGNING_REQUEST_TYPE_EXTERNAL":    1,
+		"SIGNING_REQUEST_TYPE_INTERNAL":    2,
+	}
+)
+
+func (x SigningRequestType) Enum() *SigningRequestType {
+	p := new(SigningRequestType)
+	*p = x
+	return p
+}
+
+func (x SigningRequestType) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (SigningRequestType) Descriptor() protoreflect.EnumDescriptor {
+	return file_paperless_service_v1_signing_proto_enumTypes[2].Descriptor()
+}
+
+func (SigningRequestType) Type() protoreflect.EnumType {
+	return &file_paperless_service_v1_signing_proto_enumTypes[2]
+}
+
+func (x SigningRequestType) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use SigningRequestType.Descriptor instead.
+func (SigningRequestType) EnumDescriptor() ([]byte, []int) {
+	return file_paperless_service_v1_signing_proto_rawDescGZIP(), []int{2}
+}
+
 // Status of a signing recipient
 type SigningRecipientStatus int32
 
@@ -186,11 +236,11 @@ func (x SigningRecipientStatus) String() string {
 }
 
 func (SigningRecipientStatus) Descriptor() protoreflect.EnumDescriptor {
-	return file_paperless_service_v1_signing_proto_enumTypes[2].Descriptor()
+	return file_paperless_service_v1_signing_proto_enumTypes[3].Descriptor()
 }
 
 func (SigningRecipientStatus) Type() protoreflect.EnumType {
-	return &file_paperless_service_v1_signing_proto_enumTypes[2]
+	return &file_paperless_service_v1_signing_proto_enumTypes[3]
 }
 
 func (x SigningRecipientStatus) Number() protoreflect.EnumNumber {
@@ -199,7 +249,7 @@ func (x SigningRecipientStatus) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use SigningRecipientStatus.Descriptor instead.
 func (SigningRecipientStatus) EnumDescriptor() ([]byte, []int) {
-	return file_paperless_service_v1_signing_proto_rawDescGZIP(), []int{2}
+	return file_paperless_service_v1_signing_proto_rawDescGZIP(), []int{3}
 }
 
 // A field definition within a signing template
@@ -469,6 +519,7 @@ type SigningRecipient struct {
 	SigningOrder  int32                  `protobuf:"varint,4,opt,name=signing_order,json=signingOrder,proto3" json:"signing_order,omitempty"`
 	Status        SigningRecipientStatus `protobuf:"varint,5,opt,name=status,proto3,enum=paperless.service.v1.SigningRecipientStatus" json:"status,omitempty"`
 	SignedAt      *timestamppb.Timestamp `protobuf:"bytes,6,opt,name=signed_at,json=signedAt,proto3" json:"signed_at,omitempty"`
+	UserId        *uint32                `protobuf:"varint,7,opt,name=user_id,json=userId,proto3,oneof" json:"user_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -543,6 +594,13 @@ func (x *SigningRecipient) GetSignedAt() *timestamppb.Timestamp {
 		return x.SignedAt
 	}
 	return nil
+}
+
+func (x *SigningRecipient) GetUserId() uint32 {
+	if x != nil && x.UserId != nil {
+		return *x.UserId
+	}
+	return 0
 }
 
 // A field value filled during signing
@@ -632,6 +690,7 @@ type SigningRequest struct {
 	CreateTime      *timestamppb.Timestamp `protobuf:"bytes,13,opt,name=create_time,json=createTime,proto3" json:"create_time,omitempty"`
 	UpdateTime      *timestamppb.Timestamp `protobuf:"bytes,14,opt,name=update_time,json=updateTime,proto3" json:"update_time,omitempty"`
 	CreatedBy       *uint32                `protobuf:"varint,15,opt,name=created_by,json=createdBy,proto3,oneof" json:"created_by,omitempty"`
+	SigningType     SigningRequestType     `protobuf:"varint,16,opt,name=signing_type,json=signingType,proto3,enum=paperless.service.v1.SigningRequestType" json:"signing_type,omitempty"`
 	unknownFields   protoimpl.UnknownFields
 	sizeCache       protoimpl.SizeCache
 }
@@ -769,6 +828,13 @@ func (x *SigningRequest) GetCreatedBy() uint32 {
 		return *x.CreatedBy
 	}
 	return 0
+}
+
+func (x *SigningRequest) GetSigningType() SigningRequestType {
+	if x != nil {
+		return x.SigningType
+	}
+	return SigningRequestType_SIGNING_REQUEST_TYPE_UNSPECIFIED
 }
 
 type CreateSigningTemplateRequest struct {
@@ -1417,10 +1483,12 @@ func (x *GetTemplatePdfUrlResponse) GetUrl() string {
 
 // Recipient input for creating a signing request
 type SigningRecipientInput struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Email         string                 `protobuf:"bytes,1,opt,name=email,proto3" json:"email,omitempty"`
-	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
-	SigningOrder  int32                  `protobuf:"varint,3,opt,name=signing_order,json=signingOrder,proto3" json:"signing_order,omitempty"`
+	state        protoimpl.MessageState `protogen:"open.v1"`
+	Email        string                 `protobuf:"bytes,1,opt,name=email,proto3" json:"email,omitempty"`
+	Name         string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	SigningOrder int32                  `protobuf:"varint,3,opt,name=signing_order,json=signingOrder,proto3" json:"signing_order,omitempty"`
+	// For internal signing requests: the platform user ID (email/name auto-resolved)
+	UserId        *uint32 `protobuf:"varint,4,opt,name=user_id,json=userId,proto3,oneof" json:"user_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1472,6 +1540,13 @@ func (x *SigningRecipientInput) GetName() string {
 func (x *SigningRecipientInput) GetSigningOrder() int32 {
 	if x != nil {
 		return x.SigningOrder
+	}
+	return 0
+}
+
+func (x *SigningRecipientInput) GetUserId() uint32 {
+	if x != nil && x.UserId != nil {
+		return *x.UserId
 	}
 	return 0
 }
@@ -1530,13 +1605,15 @@ func (x *SigningFieldValueInput) GetValue() string {
 }
 
 type CreateSigningRequestRequest struct {
-	state         protoimpl.MessageState    `protogen:"open.v1"`
-	TemplateId    string                    `protobuf:"bytes,1,opt,name=template_id,json=templateId,proto3" json:"template_id,omitempty"`
-	Name          string                    `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
-	Recipients    []*SigningRecipientInput  `protobuf:"bytes,3,rep,name=recipients,proto3" json:"recipients,omitempty"`
-	FieldValues   []*SigningFieldValueInput `protobuf:"bytes,4,rep,name=field_values,json=fieldValues,proto3" json:"field_values,omitempty"`
-	Message       string                    `protobuf:"bytes,5,opt,name=message,proto3" json:"message,omitempty"`
-	ExpiresAt     *timestamppb.Timestamp    `protobuf:"bytes,6,opt,name=expires_at,json=expiresAt,proto3,oneof" json:"expires_at,omitempty"`
+	state       protoimpl.MessageState    `protogen:"open.v1"`
+	TemplateId  string                    `protobuf:"bytes,1,opt,name=template_id,json=templateId,proto3" json:"template_id,omitempty"`
+	Name        string                    `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	Recipients  []*SigningRecipientInput  `protobuf:"bytes,3,rep,name=recipients,proto3" json:"recipients,omitempty"`
+	FieldValues []*SigningFieldValueInput `protobuf:"bytes,4,rep,name=field_values,json=fieldValues,proto3" json:"field_values,omitempty"`
+	Message     string                    `protobuf:"bytes,5,opt,name=message,proto3" json:"message,omitempty"`
+	ExpiresAt   *timestamppb.Timestamp    `protobuf:"bytes,6,opt,name=expires_at,json=expiresAt,proto3,oneof" json:"expires_at,omitempty"`
+	// Type of signing request (defaults to EXTERNAL if not specified)
+	SigningType   SigningRequestType `protobuf:"varint,7,opt,name=signing_type,json=signingType,proto3,enum=paperless.service.v1.SigningRequestType" json:"signing_type,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1611,6 +1688,13 @@ func (x *CreateSigningRequestRequest) GetExpiresAt() *timestamppb.Timestamp {
 		return x.ExpiresAt
 	}
 	return nil
+}
+
+func (x *CreateSigningRequestRequest) GetSigningType() SigningRequestType {
+	if x != nil {
+		return x.SigningType
+	}
+	return SigningRequestType_SIGNING_REQUEST_TYPE_UNSPECIFIED
 }
 
 type CreateSigningRequestResponse struct {
@@ -2287,6 +2371,7 @@ type GetSigningSessionResponse struct {
 	Fields         []*SigningSessionField `protobuf:"bytes,5,rep,name=fields,proto3" json:"fields,omitempty"`
 	Message        string                 `protobuf:"bytes,6,opt,name=message,proto3" json:"message,omitempty"`
 	ExpiresAt      *timestamppb.Timestamp `protobuf:"bytes,7,opt,name=expires_at,json=expiresAt,proto3" json:"expires_at,omitempty"`
+	IsInternal     bool                   `protobuf:"varint,8,opt,name=is_internal,json=isInternal,proto3" json:"is_internal,omitempty"`
 	unknownFields  protoimpl.UnknownFields
 	sizeCache      protoimpl.SizeCache
 }
@@ -2368,6 +2453,13 @@ func (x *GetSigningSessionResponse) GetExpiresAt() *timestamppb.Timestamp {
 		return x.ExpiresAt
 	}
 	return nil
+}
+
+func (x *GetSigningSessionResponse) GetIsInternal() bool {
+	if x != nil {
+		return x.IsInternal
+	}
+	return false
 }
 
 // Field value submitted during signing
@@ -2656,20 +2748,23 @@ const file_paperless_service_v1_signing_proto_rawDesc = "" +
 	"\n" +
 	"updated_by\x18\f \x01(\rH\x01R\tupdatedBy\x88\x01\x01B\r\n" +
 	"\v_created_byB\r\n" +
-	"\v_updated_by\"\xf0\x01\n" +
+	"\v_updated_by\"\x9a\x02\n" +
 	"\x10SigningRecipient\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +
 	"\x05email\x18\x02 \x01(\tR\x05email\x12\x12\n" +
 	"\x04name\x18\x03 \x01(\tR\x04name\x12#\n" +
 	"\rsigning_order\x18\x04 \x01(\x05R\fsigningOrder\x12D\n" +
 	"\x06status\x18\x05 \x01(\x0e2,.paperless.service.v1.SigningRecipientStatusR\x06status\x127\n" +
-	"\tsigned_at\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\bsignedAt\"\x80\x01\n" +
+	"\tsigned_at\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\bsignedAt\x12\x1c\n" +
+	"\auser_id\x18\a \x01(\rH\x00R\x06userId\x88\x01\x01B\n" +
+	"\n" +
+	"\b_user_id\"\x80\x01\n" +
 	"\x11SigningFieldValue\x12\x19\n" +
 	"\bfield_id\x18\x01 \x01(\tR\afieldId\x12\x1d\n" +
 	"\n" +
 	"field_name\x18\x02 \x01(\tR\tfieldName\x12\x14\n" +
 	"\x05value\x18\x03 \x01(\tR\x05value\x12\x1b\n" +
-	"\tfilled_by\x18\x04 \x01(\tR\bfilledBy\"\xc5\x05\n" +
+	"\tfilled_by\x18\x04 \x01(\tR\bfilledBy\"\x92\x06\n" +
 	"\x0eSigningRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1b\n" +
 	"\ttenant_id\x18\x02 \x01(\rR\btenantId\x12\x1f\n" +
@@ -2693,7 +2788,8 @@ const file_paperless_service_v1_signing_proto_rawDesc = "" +
 	"\vupdate_time\x18\x0e \x01(\v2\x1a.google.protobuf.TimestampR\n" +
 	"updateTime\x12\"\n" +
 	"\n" +
-	"created_by\x18\x0f \x01(\rH\x00R\tcreatedBy\x88\x01\x01B\r\n" +
+	"created_by\x18\x0f \x01(\rH\x00R\tcreatedBy\x88\x01\x01\x12K\n" +
+	"\fsigning_type\x18\x10 \x01(\x0e2(.paperless.service.v1.SigningRequestTypeR\vsigningTypeB\r\n" +
 	"\v_created_by\"\xc1\x01\n" +
 	"\x1cCreateSigningTemplateRequest\x12!\n" +
 	"\x04name\x18\x01 \x01(\tB\r\xe0A\x02\xbaH\ar\x05\x10\x01\x18\xff\x01R\x04name\x12*\n" +
@@ -2737,14 +2833,17 @@ const file_paperless_service_v1_signing_proto_rawDesc = "" +
 	"\x18GetTemplatePdfUrlRequest\x12.\n" +
 	"\x02id\x18\x01 \x01(\tB\x1e\xe0A\x02\xbaH\x18r\x16\x10\x01\x18$2\x10^[a-fA-F0-9\\-]+$R\x02id\"-\n" +
 	"\x19GetTemplatePdfUrlResponse\x12\x10\n" +
-	"\x03url\x18\x01 \x01(\tR\x03url\"\x84\x01\n" +
-	"\x15SigningRecipientInput\x12#\n" +
-	"\x05email\x18\x01 \x01(\tB\r\xe0A\x02\xbaH\ar\x05\x10\x01\x18\xff\x01R\x05email\x12!\n" +
-	"\x04name\x18\x02 \x01(\tB\r\xe0A\x02\xbaH\ar\x05\x10\x01\x18\xff\x01R\x04name\x12#\n" +
-	"\rsigning_order\x18\x03 \x01(\x05R\fsigningOrder\"S\n" +
+	"\x03url\x18\x01 \x01(\tR\x03url\"\xa4\x01\n" +
+	"\x15SigningRecipientInput\x12\x1e\n" +
+	"\x05email\x18\x01 \x01(\tB\b\xbaH\x05r\x03\x18\xff\x01R\x05email\x12\x1c\n" +
+	"\x04name\x18\x02 \x01(\tB\b\xbaH\x05r\x03\x18\xff\x01R\x04name\x12#\n" +
+	"\rsigning_order\x18\x03 \x01(\x05R\fsigningOrder\x12\x1c\n" +
+	"\auser_id\x18\x04 \x01(\rH\x00R\x06userId\x88\x01\x01B\n" +
+	"\n" +
+	"\b_user_id\"S\n" +
 	"\x16SigningFieldValueInput\x12\x1e\n" +
 	"\bfield_id\x18\x01 \x01(\tB\x03\xe0A\x02R\afieldId\x12\x19\n" +
-	"\x05value\x18\x02 \x01(\tB\x03\xe0A\x02R\x05value\"\x9e\x03\n" +
+	"\x05value\x18\x02 \x01(\tB\x03\xe0A\x02R\x05value\"\xeb\x03\n" +
 	"\x1bCreateSigningRequestRequest\x12?\n" +
 	"\vtemplate_id\x18\x01 \x01(\tB\x1e\xe0A\x02\xbaH\x18r\x16\x10\x01\x18$2\x10^[a-fA-F0-9\\-]+$R\n" +
 	"templateId\x12!\n" +
@@ -2756,7 +2855,8 @@ const file_paperless_service_v1_signing_proto_rawDesc = "" +
 	"\ffield_values\x18\x04 \x03(\v2,.paperless.service.v1.SigningFieldValueInputR\vfieldValues\x12\"\n" +
 	"\amessage\x18\x05 \x01(\tB\b\xbaH\x05r\x03\x18\x80 R\amessage\x12>\n" +
 	"\n" +
-	"expires_at\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampH\x00R\texpiresAt\x88\x01\x01B\r\n" +
+	"expires_at\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampH\x00R\texpiresAt\x88\x01\x01\x12K\n" +
+	"\fsigning_type\x18\a \x01(\x0e2(.paperless.service.v1.SigningRequestTypeR\vsigningTypeB\r\n" +
 	"\v_expires_at\"^\n" +
 	"\x1cCreateSigningRequestResponse\x12>\n" +
 	"\arequest\x18\x01 \x01(\v2$.paperless.service.v1.SigningRequestR\arequest\"J\n" +
@@ -2793,9 +2893,9 @@ const file_paperless_service_v1_signing_proto_rawDesc = "" +
 	"\x1eDownloadSignedDocumentResponse\x12\x10\n" +
 	"\x03url\x18\x01 \x01(\tR\x03url\x129\n" +
 	"\n" +
-	"expires_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\texpiresAt\">\n" +
-	"\x18GetSigningSessionRequest\x12\"\n" +
-	"\x05token\x18\x01 \x01(\tB\f\xe0A\x02\xbaH\x06r\x04\x10@\x18@R\x05token\"\x95\x03\n" +
+	"expires_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\texpiresAt\"=\n" +
+	"\x18GetSigningSessionRequest\x12!\n" +
+	"\x05token\x18\x01 \x01(\tB\v\xe0A\x02\xbaH\x05r\x03\x98\x01@R\x05token\"\x95\x03\n" +
 	"\x13SigningSessionField\x12\x19\n" +
 	"\bfield_id\x18\x01 \x01(\tR\afieldId\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12:\n" +
@@ -2809,7 +2909,7 @@ const file_paperless_service_v1_signing_proto_rawDesc = "" +
 	"\ty_percent\x18\t \x01(\x01R\byPercent\x12#\n" +
 	"\rwidth_percent\x18\n" +
 	" \x01(\x01R\fwidthPercent\x12%\n" +
-	"\x0eheight_percent\x18\v \x01(\x01R\rheightPercent\"\xc9\x02\n" +
+	"\x0eheight_percent\x18\v \x01(\x01R\rheightPercent\"\xea\x02\n" +
 	"\x19GetSigningSessionResponse\x12!\n" +
 	"\frequest_name\x18\x01 \x01(\tR\vrequestName\x12!\n" +
 	"\fdocument_url\x18\x02 \x01(\tR\vdocumentUrl\x12%\n" +
@@ -2818,7 +2918,9 @@ const file_paperless_service_v1_signing_proto_rawDesc = "" +
 	"\x06fields\x18\x05 \x03(\v2).paperless.service.v1.SigningSessionFieldR\x06fields\x12\x18\n" +
 	"\amessage\x18\x06 \x01(\tR\amessage\x129\n" +
 	"\n" +
-	"expires_at\x18\a \x01(\v2\x1a.google.protobuf.TimestampR\texpiresAt\"\xf5\x01\n" +
+	"expires_at\x18\a \x01(\v2\x1a.google.protobuf.TimestampR\texpiresAt\x12\x1f\n" +
+	"\vis_internal\x18\b \x01(\bR\n" +
+	"isInternal\"\xf5\x01\n" +
 	"\x16SigningFieldSubmission\x12\x1e\n" +
 	"\bfield_id\x18\x01 \x01(\tB\x03\xe0A\x02R\afieldId\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value\x12\x1f\n" +
@@ -2827,9 +2929,9 @@ const file_paperless_service_v1_signing_proto_rawDesc = "" +
 	"\tx_percent\x18\x04 \x01(\x01R\bxPercent\x12\x1b\n" +
 	"\ty_percent\x18\x05 \x01(\x01R\byPercent\x12#\n" +
 	"\rwidth_percent\x18\x06 \x01(\x01R\fwidthPercent\x12%\n" +
-	"\x0eheight_percent\x18\a \x01(\x01R\rheightPercent\"\xba\x03\n" +
-	"\x14SubmitSigningRequest\x12\"\n" +
-	"\x05token\x18\x01 \x01(\tB\f\xe0A\x02\xbaH\x06r\x04\x10@\x18@R\x05token\x12O\n" +
+	"\x0eheight_percent\x18\a \x01(\x01R\rheightPercent\"\xb9\x03\n" +
+	"\x14SubmitSigningRequest\x12!\n" +
+	"\x05token\x18\x01 \x01(\tB\v\xe0A\x02\xbaH\x05r\x03\x98\x01@R\x05token\x12O\n" +
 	"\ffield_values\x18\x02 \x03(\v2,.paperless.service.v1.SigningFieldSubmissionR\vfieldValues\x12'\n" +
 	"\x0fsignature_image\x18\x03 \x01(\fR\x0esignatureImage\x122\n" +
 	"\x15signature_page_number\x18\x04 \x01(\x05R\x13signaturePageNumber\x12.\n" +
@@ -2854,7 +2956,11 @@ const file_paperless_service_v1_signing_proto_rawDesc = "" +
 	"\x1eSIGNING_REQUEST_STATUS_PENDING\x10\x02\x12$\n" +
 	" SIGNING_REQUEST_STATUS_COMPLETED\x10\x03\x12$\n" +
 	" SIGNING_REQUEST_STATUS_CANCELLED\x10\x04\x12\"\n" +
-	"\x1eSIGNING_REQUEST_STATUS_EXPIRED\x10\x05*\xdd\x01\n" +
+	"\x1eSIGNING_REQUEST_STATUS_EXPIRED\x10\x05*\x80\x01\n" +
+	"\x12SigningRequestType\x12$\n" +
+	" SIGNING_REQUEST_TYPE_UNSPECIFIED\x10\x00\x12!\n" +
+	"\x1dSIGNING_REQUEST_TYPE_EXTERNAL\x10\x01\x12!\n" +
+	"\x1dSIGNING_REQUEST_TYPE_INTERNAL\x10\x02*\xdd\x01\n" +
 	"\x16SigningRecipientStatus\x12(\n" +
 	"$SIGNING_RECIPIENT_STATUS_UNSPECIFIED\x10\x00\x12$\n" +
 	" SIGNING_RECIPIENT_STATUS_WAITING\x10\x01\x12$\n" +
@@ -2875,10 +2981,12 @@ const file_paperless_service_v1_signing_proto_rawDesc = "" +
 	"\x13ListSigningRequests\x120.paperless.service.v1.ListSigningRequestsRequest\x1a1.paperless.service.v1.ListSigningRequestsResponse\"\x1c\x82\xd3\xe4\x93\x02\x16\x12\x14/v1/signing/requests\x12\xaa\x01\n" +
 	"\x14CancelSigningRequest\x121.paperless.service.v1.CancelSigningRequestRequest\x1a2.paperless.service.v1.CancelSigningRequestResponse\"+\x82\xd3\xe4\x93\x02%:\x01*\" /v1/signing/requests/{id}/cancel\x12\x8a\x01\n" +
 	"\x12ResendSigningEmail\x12/.paperless.service.v1.ResendSigningEmailRequest\x1a\x16.google.protobuf.Empty\"+\x82\xd3\xe4\x93\x02%:\x01*\" /v1/signing/requests/{id}/resend\x12\xaf\x01\n" +
-	"\x16DownloadSignedDocument\x123.paperless.service.v1.DownloadSignedDocumentRequest\x1a4.paperless.service.v1.DownloadSignedDocumentResponse\"*\x82\xd3\xe4\x93\x02$\x12\"/v1/signing/requests/{id}/download2\xd8\x02\n" +
+	"\x16DownloadSignedDocument\x123.paperless.service.v1.DownloadSignedDocumentRequest\x1a4.paperless.service.v1.DownloadSignedDocumentResponse\"*\x82\xd3\xe4\x93\x02$\x12\"/v1/signing/requests/{id}/download2\xb4\x05\n" +
 	"\x1ePaperlessSigningSessionService\x12\x9a\x01\n" +
 	"\x11GetSigningSession\x12..paperless.service.v1.GetSigningSessionRequest\x1a/.paperless.service.v1.GetSigningSessionResponse\"$\x82\xd3\xe4\x93\x02\x1e\x12\x1c/v1/signing/sessions/{token}\x12\x98\x01\n" +
-	"\rSubmitSigning\x12*.paperless.service.v1.SubmitSigningRequest\x1a+.paperless.service.v1.SubmitSigningResponse\".\x82\xd3\xe4\x93\x02(:\x01*\"#/v1/signing/sessions/{token}/submitB\xec\x01\n" +
+	"\rSubmitSigning\x12*.paperless.service.v1.SubmitSigningRequest\x1a+.paperless.service.v1.SubmitSigningResponse\".\x82\xd3\xe4\x93\x02(:\x01*\"#/v1/signing/sessions/{token}/submit\x12\xac\x01\n" +
+	"\x1eGetAuthenticatedSigningSession\x12..paperless.service.v1.GetSigningSessionRequest\x1a/.paperless.service.v1.GetSigningSessionResponse\")\x82\xd3\xe4\x93\x02#\x12!/v1/signing/sessions/auth/{token}\x12\xaa\x01\n" +
+	"\x1aSubmitAuthenticatedSigning\x12*.paperless.service.v1.SubmitSigningRequest\x1a+.paperless.service.v1.SubmitSigningResponse\"3\x82\xd3\xe4\x93\x02-:\x01*\"(/v1/signing/sessions/auth/{token}/submitB\xec\x01\n" +
 	"\x18com.paperless.service.v1B\fSigningProtoP\x01ZPgithub.com/go-tangra/go-tangra-paperless/gen/go/paperless/service/v1;paperlesspb\xa2\x02\x03PSX\xaa\x02\x14Paperless.Service.V1\xca\x02\x14Paperless\\Service\\V1\xe2\x02 Paperless\\Service\\V1\\GPBMetadata\xea\x02\x16Paperless::Service::V1b\x06proto3"
 
 var (
@@ -2893,119 +3001,126 @@ func file_paperless_service_v1_signing_proto_rawDescGZIP() []byte {
 	return file_paperless_service_v1_signing_proto_rawDescData
 }
 
-var file_paperless_service_v1_signing_proto_enumTypes = make([]protoimpl.EnumInfo, 3)
+var file_paperless_service_v1_signing_proto_enumTypes = make([]protoimpl.EnumInfo, 4)
 var file_paperless_service_v1_signing_proto_msgTypes = make([]protoimpl.MessageInfo, 37)
 var file_paperless_service_v1_signing_proto_goTypes = []any{
 	(SigningFieldType)(0),                  // 0: paperless.service.v1.SigningFieldType
 	(SigningRequestStatus)(0),              // 1: paperless.service.v1.SigningRequestStatus
-	(SigningRecipientStatus)(0),            // 2: paperless.service.v1.SigningRecipientStatus
-	(*SigningTemplateField)(nil),           // 3: paperless.service.v1.SigningTemplateField
-	(*SigningTemplate)(nil),                // 4: paperless.service.v1.SigningTemplate
-	(*SigningRecipient)(nil),               // 5: paperless.service.v1.SigningRecipient
-	(*SigningFieldValue)(nil),              // 6: paperless.service.v1.SigningFieldValue
-	(*SigningRequest)(nil),                 // 7: paperless.service.v1.SigningRequest
-	(*CreateSigningTemplateRequest)(nil),   // 8: paperless.service.v1.CreateSigningTemplateRequest
-	(*CreateSigningTemplateResponse)(nil),  // 9: paperless.service.v1.CreateSigningTemplateResponse
-	(*GetSigningTemplateRequest)(nil),      // 10: paperless.service.v1.GetSigningTemplateRequest
-	(*GetSigningTemplateResponse)(nil),     // 11: paperless.service.v1.GetSigningTemplateResponse
-	(*ListSigningTemplatesRequest)(nil),    // 12: paperless.service.v1.ListSigningTemplatesRequest
-	(*ListSigningTemplatesResponse)(nil),   // 13: paperless.service.v1.ListSigningTemplatesResponse
-	(*UpdateSigningTemplateRequest)(nil),   // 14: paperless.service.v1.UpdateSigningTemplateRequest
-	(*UpdateSigningTemplateResponse)(nil),  // 15: paperless.service.v1.UpdateSigningTemplateResponse
-	(*DeleteSigningTemplateRequest)(nil),   // 16: paperless.service.v1.DeleteSigningTemplateRequest
-	(*UpdateTemplateFieldsRequest)(nil),    // 17: paperless.service.v1.UpdateTemplateFieldsRequest
-	(*UpdateTemplateFieldsResponse)(nil),   // 18: paperless.service.v1.UpdateTemplateFieldsResponse
-	(*GetTemplatePdfUrlRequest)(nil),       // 19: paperless.service.v1.GetTemplatePdfUrlRequest
-	(*GetTemplatePdfUrlResponse)(nil),      // 20: paperless.service.v1.GetTemplatePdfUrlResponse
-	(*SigningRecipientInput)(nil),          // 21: paperless.service.v1.SigningRecipientInput
-	(*SigningFieldValueInput)(nil),         // 22: paperless.service.v1.SigningFieldValueInput
-	(*CreateSigningRequestRequest)(nil),    // 23: paperless.service.v1.CreateSigningRequestRequest
-	(*CreateSigningRequestResponse)(nil),   // 24: paperless.service.v1.CreateSigningRequestResponse
-	(*GetSigningRequestRequest)(nil),       // 25: paperless.service.v1.GetSigningRequestRequest
-	(*GetSigningRequestResponse)(nil),      // 26: paperless.service.v1.GetSigningRequestResponse
-	(*ListSigningRequestsRequest)(nil),     // 27: paperless.service.v1.ListSigningRequestsRequest
-	(*ListSigningRequestsResponse)(nil),    // 28: paperless.service.v1.ListSigningRequestsResponse
-	(*CancelSigningRequestRequest)(nil),    // 29: paperless.service.v1.CancelSigningRequestRequest
-	(*CancelSigningRequestResponse)(nil),   // 30: paperless.service.v1.CancelSigningRequestResponse
-	(*ResendSigningEmailRequest)(nil),      // 31: paperless.service.v1.ResendSigningEmailRequest
-	(*DownloadSignedDocumentRequest)(nil),  // 32: paperless.service.v1.DownloadSignedDocumentRequest
-	(*DownloadSignedDocumentResponse)(nil), // 33: paperless.service.v1.DownloadSignedDocumentResponse
-	(*GetSigningSessionRequest)(nil),       // 34: paperless.service.v1.GetSigningSessionRequest
-	(*SigningSessionField)(nil),            // 35: paperless.service.v1.SigningSessionField
-	(*GetSigningSessionResponse)(nil),      // 36: paperless.service.v1.GetSigningSessionResponse
-	(*SigningFieldSubmission)(nil),         // 37: paperless.service.v1.SigningFieldSubmission
-	(*SubmitSigningRequest)(nil),           // 38: paperless.service.v1.SubmitSigningRequest
-	(*SubmitSigningResponse)(nil),          // 39: paperless.service.v1.SubmitSigningResponse
-	(*timestamppb.Timestamp)(nil),          // 40: google.protobuf.Timestamp
-	(*emptypb.Empty)(nil),                  // 41: google.protobuf.Empty
+	(SigningRequestType)(0),                // 2: paperless.service.v1.SigningRequestType
+	(SigningRecipientStatus)(0),            // 3: paperless.service.v1.SigningRecipientStatus
+	(*SigningTemplateField)(nil),           // 4: paperless.service.v1.SigningTemplateField
+	(*SigningTemplate)(nil),                // 5: paperless.service.v1.SigningTemplate
+	(*SigningRecipient)(nil),               // 6: paperless.service.v1.SigningRecipient
+	(*SigningFieldValue)(nil),              // 7: paperless.service.v1.SigningFieldValue
+	(*SigningRequest)(nil),                 // 8: paperless.service.v1.SigningRequest
+	(*CreateSigningTemplateRequest)(nil),   // 9: paperless.service.v1.CreateSigningTemplateRequest
+	(*CreateSigningTemplateResponse)(nil),  // 10: paperless.service.v1.CreateSigningTemplateResponse
+	(*GetSigningTemplateRequest)(nil),      // 11: paperless.service.v1.GetSigningTemplateRequest
+	(*GetSigningTemplateResponse)(nil),     // 12: paperless.service.v1.GetSigningTemplateResponse
+	(*ListSigningTemplatesRequest)(nil),    // 13: paperless.service.v1.ListSigningTemplatesRequest
+	(*ListSigningTemplatesResponse)(nil),   // 14: paperless.service.v1.ListSigningTemplatesResponse
+	(*UpdateSigningTemplateRequest)(nil),   // 15: paperless.service.v1.UpdateSigningTemplateRequest
+	(*UpdateSigningTemplateResponse)(nil),  // 16: paperless.service.v1.UpdateSigningTemplateResponse
+	(*DeleteSigningTemplateRequest)(nil),   // 17: paperless.service.v1.DeleteSigningTemplateRequest
+	(*UpdateTemplateFieldsRequest)(nil),    // 18: paperless.service.v1.UpdateTemplateFieldsRequest
+	(*UpdateTemplateFieldsResponse)(nil),   // 19: paperless.service.v1.UpdateTemplateFieldsResponse
+	(*GetTemplatePdfUrlRequest)(nil),       // 20: paperless.service.v1.GetTemplatePdfUrlRequest
+	(*GetTemplatePdfUrlResponse)(nil),      // 21: paperless.service.v1.GetTemplatePdfUrlResponse
+	(*SigningRecipientInput)(nil),          // 22: paperless.service.v1.SigningRecipientInput
+	(*SigningFieldValueInput)(nil),         // 23: paperless.service.v1.SigningFieldValueInput
+	(*CreateSigningRequestRequest)(nil),    // 24: paperless.service.v1.CreateSigningRequestRequest
+	(*CreateSigningRequestResponse)(nil),   // 25: paperless.service.v1.CreateSigningRequestResponse
+	(*GetSigningRequestRequest)(nil),       // 26: paperless.service.v1.GetSigningRequestRequest
+	(*GetSigningRequestResponse)(nil),      // 27: paperless.service.v1.GetSigningRequestResponse
+	(*ListSigningRequestsRequest)(nil),     // 28: paperless.service.v1.ListSigningRequestsRequest
+	(*ListSigningRequestsResponse)(nil),    // 29: paperless.service.v1.ListSigningRequestsResponse
+	(*CancelSigningRequestRequest)(nil),    // 30: paperless.service.v1.CancelSigningRequestRequest
+	(*CancelSigningRequestResponse)(nil),   // 31: paperless.service.v1.CancelSigningRequestResponse
+	(*ResendSigningEmailRequest)(nil),      // 32: paperless.service.v1.ResendSigningEmailRequest
+	(*DownloadSignedDocumentRequest)(nil),  // 33: paperless.service.v1.DownloadSignedDocumentRequest
+	(*DownloadSignedDocumentResponse)(nil), // 34: paperless.service.v1.DownloadSignedDocumentResponse
+	(*GetSigningSessionRequest)(nil),       // 35: paperless.service.v1.GetSigningSessionRequest
+	(*SigningSessionField)(nil),            // 36: paperless.service.v1.SigningSessionField
+	(*GetSigningSessionResponse)(nil),      // 37: paperless.service.v1.GetSigningSessionResponse
+	(*SigningFieldSubmission)(nil),         // 38: paperless.service.v1.SigningFieldSubmission
+	(*SubmitSigningRequest)(nil),           // 39: paperless.service.v1.SubmitSigningRequest
+	(*SubmitSigningResponse)(nil),          // 40: paperless.service.v1.SubmitSigningResponse
+	(*timestamppb.Timestamp)(nil),          // 41: google.protobuf.Timestamp
+	(*emptypb.Empty)(nil),                  // 42: google.protobuf.Empty
 }
 var file_paperless_service_v1_signing_proto_depIdxs = []int32{
 	0,  // 0: paperless.service.v1.SigningTemplateField.type:type_name -> paperless.service.v1.SigningFieldType
-	3,  // 1: paperless.service.v1.SigningTemplate.fields:type_name -> paperless.service.v1.SigningTemplateField
-	40, // 2: paperless.service.v1.SigningTemplate.create_time:type_name -> google.protobuf.Timestamp
-	40, // 3: paperless.service.v1.SigningTemplate.update_time:type_name -> google.protobuf.Timestamp
-	2,  // 4: paperless.service.v1.SigningRecipient.status:type_name -> paperless.service.v1.SigningRecipientStatus
-	40, // 5: paperless.service.v1.SigningRecipient.signed_at:type_name -> google.protobuf.Timestamp
+	4,  // 1: paperless.service.v1.SigningTemplate.fields:type_name -> paperless.service.v1.SigningTemplateField
+	41, // 2: paperless.service.v1.SigningTemplate.create_time:type_name -> google.protobuf.Timestamp
+	41, // 3: paperless.service.v1.SigningTemplate.update_time:type_name -> google.protobuf.Timestamp
+	3,  // 4: paperless.service.v1.SigningRecipient.status:type_name -> paperless.service.v1.SigningRecipientStatus
+	41, // 5: paperless.service.v1.SigningRecipient.signed_at:type_name -> google.protobuf.Timestamp
 	1,  // 6: paperless.service.v1.SigningRequest.status:type_name -> paperless.service.v1.SigningRequestStatus
-	5,  // 7: paperless.service.v1.SigningRequest.recipients:type_name -> paperless.service.v1.SigningRecipient
-	6,  // 8: paperless.service.v1.SigningRequest.field_values:type_name -> paperless.service.v1.SigningFieldValue
-	40, // 9: paperless.service.v1.SigningRequest.expires_at:type_name -> google.protobuf.Timestamp
-	40, // 10: paperless.service.v1.SigningRequest.create_time:type_name -> google.protobuf.Timestamp
-	40, // 11: paperless.service.v1.SigningRequest.update_time:type_name -> google.protobuf.Timestamp
-	4,  // 12: paperless.service.v1.CreateSigningTemplateResponse.template:type_name -> paperless.service.v1.SigningTemplate
-	4,  // 13: paperless.service.v1.GetSigningTemplateResponse.template:type_name -> paperless.service.v1.SigningTemplate
-	4,  // 14: paperless.service.v1.ListSigningTemplatesResponse.templates:type_name -> paperless.service.v1.SigningTemplate
-	4,  // 15: paperless.service.v1.UpdateSigningTemplateResponse.template:type_name -> paperless.service.v1.SigningTemplate
-	3,  // 16: paperless.service.v1.UpdateTemplateFieldsRequest.fields:type_name -> paperless.service.v1.SigningTemplateField
-	4,  // 17: paperless.service.v1.UpdateTemplateFieldsResponse.template:type_name -> paperless.service.v1.SigningTemplate
-	21, // 18: paperless.service.v1.CreateSigningRequestRequest.recipients:type_name -> paperless.service.v1.SigningRecipientInput
-	22, // 19: paperless.service.v1.CreateSigningRequestRequest.field_values:type_name -> paperless.service.v1.SigningFieldValueInput
-	40, // 20: paperless.service.v1.CreateSigningRequestRequest.expires_at:type_name -> google.protobuf.Timestamp
-	7,  // 21: paperless.service.v1.CreateSigningRequestResponse.request:type_name -> paperless.service.v1.SigningRequest
-	7,  // 22: paperless.service.v1.GetSigningRequestResponse.request:type_name -> paperless.service.v1.SigningRequest
-	1,  // 23: paperless.service.v1.ListSigningRequestsRequest.status:type_name -> paperless.service.v1.SigningRequestStatus
-	7,  // 24: paperless.service.v1.ListSigningRequestsResponse.requests:type_name -> paperless.service.v1.SigningRequest
-	7,  // 25: paperless.service.v1.CancelSigningRequestResponse.request:type_name -> paperless.service.v1.SigningRequest
-	40, // 26: paperless.service.v1.DownloadSignedDocumentResponse.expires_at:type_name -> google.protobuf.Timestamp
-	0,  // 27: paperless.service.v1.SigningSessionField.type:type_name -> paperless.service.v1.SigningFieldType
-	35, // 28: paperless.service.v1.GetSigningSessionResponse.fields:type_name -> paperless.service.v1.SigningSessionField
-	40, // 29: paperless.service.v1.GetSigningSessionResponse.expires_at:type_name -> google.protobuf.Timestamp
-	37, // 30: paperless.service.v1.SubmitSigningRequest.field_values:type_name -> paperless.service.v1.SigningFieldSubmission
-	8,  // 31: paperless.service.v1.PaperlessSigningTemplateService.CreateSigningTemplate:input_type -> paperless.service.v1.CreateSigningTemplateRequest
-	10, // 32: paperless.service.v1.PaperlessSigningTemplateService.GetSigningTemplate:input_type -> paperless.service.v1.GetSigningTemplateRequest
-	12, // 33: paperless.service.v1.PaperlessSigningTemplateService.ListSigningTemplates:input_type -> paperless.service.v1.ListSigningTemplatesRequest
-	14, // 34: paperless.service.v1.PaperlessSigningTemplateService.UpdateSigningTemplate:input_type -> paperless.service.v1.UpdateSigningTemplateRequest
-	16, // 35: paperless.service.v1.PaperlessSigningTemplateService.DeleteSigningTemplate:input_type -> paperless.service.v1.DeleteSigningTemplateRequest
-	17, // 36: paperless.service.v1.PaperlessSigningTemplateService.UpdateTemplateFields:input_type -> paperless.service.v1.UpdateTemplateFieldsRequest
-	19, // 37: paperless.service.v1.PaperlessSigningTemplateService.GetTemplatePdfUrl:input_type -> paperless.service.v1.GetTemplatePdfUrlRequest
-	23, // 38: paperless.service.v1.PaperlessSigningRequestService.CreateSigningRequest:input_type -> paperless.service.v1.CreateSigningRequestRequest
-	25, // 39: paperless.service.v1.PaperlessSigningRequestService.GetSigningRequest:input_type -> paperless.service.v1.GetSigningRequestRequest
-	27, // 40: paperless.service.v1.PaperlessSigningRequestService.ListSigningRequests:input_type -> paperless.service.v1.ListSigningRequestsRequest
-	29, // 41: paperless.service.v1.PaperlessSigningRequestService.CancelSigningRequest:input_type -> paperless.service.v1.CancelSigningRequestRequest
-	31, // 42: paperless.service.v1.PaperlessSigningRequestService.ResendSigningEmail:input_type -> paperless.service.v1.ResendSigningEmailRequest
-	32, // 43: paperless.service.v1.PaperlessSigningRequestService.DownloadSignedDocument:input_type -> paperless.service.v1.DownloadSignedDocumentRequest
-	34, // 44: paperless.service.v1.PaperlessSigningSessionService.GetSigningSession:input_type -> paperless.service.v1.GetSigningSessionRequest
-	38, // 45: paperless.service.v1.PaperlessSigningSessionService.SubmitSigning:input_type -> paperless.service.v1.SubmitSigningRequest
-	9,  // 46: paperless.service.v1.PaperlessSigningTemplateService.CreateSigningTemplate:output_type -> paperless.service.v1.CreateSigningTemplateResponse
-	11, // 47: paperless.service.v1.PaperlessSigningTemplateService.GetSigningTemplate:output_type -> paperless.service.v1.GetSigningTemplateResponse
-	13, // 48: paperless.service.v1.PaperlessSigningTemplateService.ListSigningTemplates:output_type -> paperless.service.v1.ListSigningTemplatesResponse
-	15, // 49: paperless.service.v1.PaperlessSigningTemplateService.UpdateSigningTemplate:output_type -> paperless.service.v1.UpdateSigningTemplateResponse
-	41, // 50: paperless.service.v1.PaperlessSigningTemplateService.DeleteSigningTemplate:output_type -> google.protobuf.Empty
-	18, // 51: paperless.service.v1.PaperlessSigningTemplateService.UpdateTemplateFields:output_type -> paperless.service.v1.UpdateTemplateFieldsResponse
-	20, // 52: paperless.service.v1.PaperlessSigningTemplateService.GetTemplatePdfUrl:output_type -> paperless.service.v1.GetTemplatePdfUrlResponse
-	24, // 53: paperless.service.v1.PaperlessSigningRequestService.CreateSigningRequest:output_type -> paperless.service.v1.CreateSigningRequestResponse
-	26, // 54: paperless.service.v1.PaperlessSigningRequestService.GetSigningRequest:output_type -> paperless.service.v1.GetSigningRequestResponse
-	28, // 55: paperless.service.v1.PaperlessSigningRequestService.ListSigningRequests:output_type -> paperless.service.v1.ListSigningRequestsResponse
-	30, // 56: paperless.service.v1.PaperlessSigningRequestService.CancelSigningRequest:output_type -> paperless.service.v1.CancelSigningRequestResponse
-	41, // 57: paperless.service.v1.PaperlessSigningRequestService.ResendSigningEmail:output_type -> google.protobuf.Empty
-	33, // 58: paperless.service.v1.PaperlessSigningRequestService.DownloadSignedDocument:output_type -> paperless.service.v1.DownloadSignedDocumentResponse
-	36, // 59: paperless.service.v1.PaperlessSigningSessionService.GetSigningSession:output_type -> paperless.service.v1.GetSigningSessionResponse
-	39, // 60: paperless.service.v1.PaperlessSigningSessionService.SubmitSigning:output_type -> paperless.service.v1.SubmitSigningResponse
-	46, // [46:61] is the sub-list for method output_type
-	31, // [31:46] is the sub-list for method input_type
-	31, // [31:31] is the sub-list for extension type_name
-	31, // [31:31] is the sub-list for extension extendee
-	0,  // [0:31] is the sub-list for field type_name
+	6,  // 7: paperless.service.v1.SigningRequest.recipients:type_name -> paperless.service.v1.SigningRecipient
+	7,  // 8: paperless.service.v1.SigningRequest.field_values:type_name -> paperless.service.v1.SigningFieldValue
+	41, // 9: paperless.service.v1.SigningRequest.expires_at:type_name -> google.protobuf.Timestamp
+	41, // 10: paperless.service.v1.SigningRequest.create_time:type_name -> google.protobuf.Timestamp
+	41, // 11: paperless.service.v1.SigningRequest.update_time:type_name -> google.protobuf.Timestamp
+	2,  // 12: paperless.service.v1.SigningRequest.signing_type:type_name -> paperless.service.v1.SigningRequestType
+	5,  // 13: paperless.service.v1.CreateSigningTemplateResponse.template:type_name -> paperless.service.v1.SigningTemplate
+	5,  // 14: paperless.service.v1.GetSigningTemplateResponse.template:type_name -> paperless.service.v1.SigningTemplate
+	5,  // 15: paperless.service.v1.ListSigningTemplatesResponse.templates:type_name -> paperless.service.v1.SigningTemplate
+	5,  // 16: paperless.service.v1.UpdateSigningTemplateResponse.template:type_name -> paperless.service.v1.SigningTemplate
+	4,  // 17: paperless.service.v1.UpdateTemplateFieldsRequest.fields:type_name -> paperless.service.v1.SigningTemplateField
+	5,  // 18: paperless.service.v1.UpdateTemplateFieldsResponse.template:type_name -> paperless.service.v1.SigningTemplate
+	22, // 19: paperless.service.v1.CreateSigningRequestRequest.recipients:type_name -> paperless.service.v1.SigningRecipientInput
+	23, // 20: paperless.service.v1.CreateSigningRequestRequest.field_values:type_name -> paperless.service.v1.SigningFieldValueInput
+	41, // 21: paperless.service.v1.CreateSigningRequestRequest.expires_at:type_name -> google.protobuf.Timestamp
+	2,  // 22: paperless.service.v1.CreateSigningRequestRequest.signing_type:type_name -> paperless.service.v1.SigningRequestType
+	8,  // 23: paperless.service.v1.CreateSigningRequestResponse.request:type_name -> paperless.service.v1.SigningRequest
+	8,  // 24: paperless.service.v1.GetSigningRequestResponse.request:type_name -> paperless.service.v1.SigningRequest
+	1,  // 25: paperless.service.v1.ListSigningRequestsRequest.status:type_name -> paperless.service.v1.SigningRequestStatus
+	8,  // 26: paperless.service.v1.ListSigningRequestsResponse.requests:type_name -> paperless.service.v1.SigningRequest
+	8,  // 27: paperless.service.v1.CancelSigningRequestResponse.request:type_name -> paperless.service.v1.SigningRequest
+	41, // 28: paperless.service.v1.DownloadSignedDocumentResponse.expires_at:type_name -> google.protobuf.Timestamp
+	0,  // 29: paperless.service.v1.SigningSessionField.type:type_name -> paperless.service.v1.SigningFieldType
+	36, // 30: paperless.service.v1.GetSigningSessionResponse.fields:type_name -> paperless.service.v1.SigningSessionField
+	41, // 31: paperless.service.v1.GetSigningSessionResponse.expires_at:type_name -> google.protobuf.Timestamp
+	38, // 32: paperless.service.v1.SubmitSigningRequest.field_values:type_name -> paperless.service.v1.SigningFieldSubmission
+	9,  // 33: paperless.service.v1.PaperlessSigningTemplateService.CreateSigningTemplate:input_type -> paperless.service.v1.CreateSigningTemplateRequest
+	11, // 34: paperless.service.v1.PaperlessSigningTemplateService.GetSigningTemplate:input_type -> paperless.service.v1.GetSigningTemplateRequest
+	13, // 35: paperless.service.v1.PaperlessSigningTemplateService.ListSigningTemplates:input_type -> paperless.service.v1.ListSigningTemplatesRequest
+	15, // 36: paperless.service.v1.PaperlessSigningTemplateService.UpdateSigningTemplate:input_type -> paperless.service.v1.UpdateSigningTemplateRequest
+	17, // 37: paperless.service.v1.PaperlessSigningTemplateService.DeleteSigningTemplate:input_type -> paperless.service.v1.DeleteSigningTemplateRequest
+	18, // 38: paperless.service.v1.PaperlessSigningTemplateService.UpdateTemplateFields:input_type -> paperless.service.v1.UpdateTemplateFieldsRequest
+	20, // 39: paperless.service.v1.PaperlessSigningTemplateService.GetTemplatePdfUrl:input_type -> paperless.service.v1.GetTemplatePdfUrlRequest
+	24, // 40: paperless.service.v1.PaperlessSigningRequestService.CreateSigningRequest:input_type -> paperless.service.v1.CreateSigningRequestRequest
+	26, // 41: paperless.service.v1.PaperlessSigningRequestService.GetSigningRequest:input_type -> paperless.service.v1.GetSigningRequestRequest
+	28, // 42: paperless.service.v1.PaperlessSigningRequestService.ListSigningRequests:input_type -> paperless.service.v1.ListSigningRequestsRequest
+	30, // 43: paperless.service.v1.PaperlessSigningRequestService.CancelSigningRequest:input_type -> paperless.service.v1.CancelSigningRequestRequest
+	32, // 44: paperless.service.v1.PaperlessSigningRequestService.ResendSigningEmail:input_type -> paperless.service.v1.ResendSigningEmailRequest
+	33, // 45: paperless.service.v1.PaperlessSigningRequestService.DownloadSignedDocument:input_type -> paperless.service.v1.DownloadSignedDocumentRequest
+	35, // 46: paperless.service.v1.PaperlessSigningSessionService.GetSigningSession:input_type -> paperless.service.v1.GetSigningSessionRequest
+	39, // 47: paperless.service.v1.PaperlessSigningSessionService.SubmitSigning:input_type -> paperless.service.v1.SubmitSigningRequest
+	35, // 48: paperless.service.v1.PaperlessSigningSessionService.GetAuthenticatedSigningSession:input_type -> paperless.service.v1.GetSigningSessionRequest
+	39, // 49: paperless.service.v1.PaperlessSigningSessionService.SubmitAuthenticatedSigning:input_type -> paperless.service.v1.SubmitSigningRequest
+	10, // 50: paperless.service.v1.PaperlessSigningTemplateService.CreateSigningTemplate:output_type -> paperless.service.v1.CreateSigningTemplateResponse
+	12, // 51: paperless.service.v1.PaperlessSigningTemplateService.GetSigningTemplate:output_type -> paperless.service.v1.GetSigningTemplateResponse
+	14, // 52: paperless.service.v1.PaperlessSigningTemplateService.ListSigningTemplates:output_type -> paperless.service.v1.ListSigningTemplatesResponse
+	16, // 53: paperless.service.v1.PaperlessSigningTemplateService.UpdateSigningTemplate:output_type -> paperless.service.v1.UpdateSigningTemplateResponse
+	42, // 54: paperless.service.v1.PaperlessSigningTemplateService.DeleteSigningTemplate:output_type -> google.protobuf.Empty
+	19, // 55: paperless.service.v1.PaperlessSigningTemplateService.UpdateTemplateFields:output_type -> paperless.service.v1.UpdateTemplateFieldsResponse
+	21, // 56: paperless.service.v1.PaperlessSigningTemplateService.GetTemplatePdfUrl:output_type -> paperless.service.v1.GetTemplatePdfUrlResponse
+	25, // 57: paperless.service.v1.PaperlessSigningRequestService.CreateSigningRequest:output_type -> paperless.service.v1.CreateSigningRequestResponse
+	27, // 58: paperless.service.v1.PaperlessSigningRequestService.GetSigningRequest:output_type -> paperless.service.v1.GetSigningRequestResponse
+	29, // 59: paperless.service.v1.PaperlessSigningRequestService.ListSigningRequests:output_type -> paperless.service.v1.ListSigningRequestsResponse
+	31, // 60: paperless.service.v1.PaperlessSigningRequestService.CancelSigningRequest:output_type -> paperless.service.v1.CancelSigningRequestResponse
+	42, // 61: paperless.service.v1.PaperlessSigningRequestService.ResendSigningEmail:output_type -> google.protobuf.Empty
+	34, // 62: paperless.service.v1.PaperlessSigningRequestService.DownloadSignedDocument:output_type -> paperless.service.v1.DownloadSignedDocumentResponse
+	37, // 63: paperless.service.v1.PaperlessSigningSessionService.GetSigningSession:output_type -> paperless.service.v1.GetSigningSessionResponse
+	40, // 64: paperless.service.v1.PaperlessSigningSessionService.SubmitSigning:output_type -> paperless.service.v1.SubmitSigningResponse
+	37, // 65: paperless.service.v1.PaperlessSigningSessionService.GetAuthenticatedSigningSession:output_type -> paperless.service.v1.GetSigningSessionResponse
+	40, // 66: paperless.service.v1.PaperlessSigningSessionService.SubmitAuthenticatedSigning:output_type -> paperless.service.v1.SubmitSigningResponse
+	50, // [50:67] is the sub-list for method output_type
+	33, // [33:50] is the sub-list for method input_type
+	33, // [33:33] is the sub-list for extension type_name
+	33, // [33:33] is the sub-list for extension extendee
+	0,  // [0:33] is the sub-list for field type_name
 }
 
 func init() { file_paperless_service_v1_signing_proto_init() }
@@ -3014,9 +3129,11 @@ func file_paperless_service_v1_signing_proto_init() {
 		return
 	}
 	file_paperless_service_v1_signing_proto_msgTypes[1].OneofWrappers = []any{}
+	file_paperless_service_v1_signing_proto_msgTypes[2].OneofWrappers = []any{}
 	file_paperless_service_v1_signing_proto_msgTypes[4].OneofWrappers = []any{}
 	file_paperless_service_v1_signing_proto_msgTypes[9].OneofWrappers = []any{}
 	file_paperless_service_v1_signing_proto_msgTypes[11].OneofWrappers = []any{}
+	file_paperless_service_v1_signing_proto_msgTypes[18].OneofWrappers = []any{}
 	file_paperless_service_v1_signing_proto_msgTypes[20].OneofWrappers = []any{}
 	file_paperless_service_v1_signing_proto_msgTypes[24].OneofWrappers = []any{}
 	type x struct{}
@@ -3024,7 +3141,7 @@ func file_paperless_service_v1_signing_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_paperless_service_v1_signing_proto_rawDesc), len(file_paperless_service_v1_signing_proto_rawDesc)),
-			NumEnums:      3,
+			NumEnums:      4,
 			NumMessages:   37,
 			NumExtensions: 0,
 			NumServices:   3,

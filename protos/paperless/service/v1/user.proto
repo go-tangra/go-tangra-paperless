@@ -1,0 +1,54 @@
+syntax = "proto3";
+
+package paperless.service.v1;
+
+import "google/api/annotations.proto";
+
+// Lightweight user representation for paperless module dropdowns
+message PaperlessUser {
+  uint32 id = 1 [json_name = "id"];
+  string username = 2 [json_name = "username"];
+  string realname = 3 [json_name = "realname"];
+  string email = 4 [json_name = "email"];
+}
+
+message ListPaperlessUsersRequest {
+  optional bool no_paging = 1 [json_name = "noPaging"];
+}
+
+message ListPaperlessUsersResponse {
+  repeated PaperlessUser items = 1 [json_name = "items"];
+  int32 total = 2 [json_name = "total"];
+}
+
+// Lightweight role representation for paperless module dropdowns
+message PaperlessRole {
+  uint32 id = 1 [json_name = "id"];
+  string name = 2 [json_name = "name"];
+  string code = 3 [json_name = "code"];
+  string description = 4 [json_name = "description"];
+}
+
+message ListPaperlessRolesRequest {
+  optional bool no_paging = 1 [json_name = "noPaging"];
+}
+
+message ListPaperlessRolesResponse {
+  repeated PaperlessRole items = 1 [json_name = "items"];
+  int32 total = 2 [json_name = "total"];
+}
+
+// PaperlessUserService provides user and role listing for permission management
+service PaperlessUserService {
+  rpc ListUsers(ListPaperlessUsersRequest) returns (ListPaperlessUsersResponse) {
+    option (google.api.http) = {
+      get: "/v1/users"
+    };
+  }
+
+  rpc ListRoles(ListPaperlessRolesRequest) returns (ListPaperlessRolesResponse) {
+    option (google.api.http) = {
+      get: "/v1/roles"
+    };
+  }
+}

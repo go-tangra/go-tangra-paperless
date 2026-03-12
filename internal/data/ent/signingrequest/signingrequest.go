@@ -33,6 +33,8 @@ const (
 	FieldName = "name"
 	// FieldStatus holds the string denoting the status field in the database.
 	FieldStatus = "status"
+	// FieldSigningType holds the string denoting the signing_type field in the database.
+	FieldSigningType = "signing_type"
 	// FieldOriginalFileKey holds the string denoting the original_file_key field in the database.
 	FieldOriginalFileKey = "original_file_key"
 	// FieldSignedFileKey holds the string denoting the signed_file_key field in the database.
@@ -68,6 +70,7 @@ var Columns = []string{
 	FieldTemplateID,
 	FieldName,
 	FieldStatus,
+	FieldSigningType,
 	FieldOriginalFileKey,
 	FieldSignedFileKey,
 	FieldFieldValues,
@@ -139,6 +142,33 @@ func StatusValidator(s Status) error {
 	}
 }
 
+// SigningType defines the type for the "signing_type" enum field.
+type SigningType string
+
+// SigningTypeSIGNING_REQUEST_TYPE_EXTERNAL is the default value of the SigningType enum.
+const DefaultSigningType = SigningTypeSIGNING_REQUEST_TYPE_EXTERNAL
+
+// SigningType values.
+const (
+	SigningTypeSIGNING_REQUEST_TYPE_UNSPECIFIED SigningType = "SIGNING_REQUEST_TYPE_UNSPECIFIED"
+	SigningTypeSIGNING_REQUEST_TYPE_EXTERNAL    SigningType = "SIGNING_REQUEST_TYPE_EXTERNAL"
+	SigningTypeSIGNING_REQUEST_TYPE_INTERNAL    SigningType = "SIGNING_REQUEST_TYPE_INTERNAL"
+)
+
+func (st SigningType) String() string {
+	return string(st)
+}
+
+// SigningTypeValidator is a validator for the "signing_type" field enum values. It is called by the builders before save.
+func SigningTypeValidator(st SigningType) error {
+	switch st {
+	case SigningTypeSIGNING_REQUEST_TYPE_UNSPECIFIED, SigningTypeSIGNING_REQUEST_TYPE_EXTERNAL, SigningTypeSIGNING_REQUEST_TYPE_INTERNAL:
+		return nil
+	default:
+		return fmt.Errorf("signingrequest: invalid enum value for signing_type field: %q", st)
+	}
+}
+
 // OrderOption defines the ordering options for the SigningRequest queries.
 type OrderOption func(*sql.Selector)
 
@@ -190,6 +220,11 @@ func ByName(opts ...sql.OrderTermOption) OrderOption {
 // ByStatus orders the results by the status field.
 func ByStatus(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldStatus, opts...).ToFunc()
+}
+
+// BySigningType orders the results by the signing_type field.
+func BySigningType(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldSigningType, opts...).ToFunc()
 }
 
 // ByOriginalFileKey orders the results by the original_file_key field.

@@ -6443,6 +6443,8 @@ type SigningRecipientMutation struct {
 	delete_time            *time.Time
 	email                  *string
 	name                   *string
+	user_id                *uint32
+	adduser_id             *int32
 	signing_order          *int32
 	addsigning_order       *int32
 	status                 *signingrecipient.Status
@@ -6817,6 +6819,76 @@ func (m *SigningRecipientMutation) ResetName() {
 	m.name = nil
 }
 
+// SetUserID sets the "user_id" field.
+func (m *SigningRecipientMutation) SetUserID(u uint32) {
+	m.user_id = &u
+	m.adduser_id = nil
+}
+
+// UserID returns the value of the "user_id" field in the mutation.
+func (m *SigningRecipientMutation) UserID() (r uint32, exists bool) {
+	v := m.user_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUserID returns the old "user_id" field's value of the SigningRecipient entity.
+// If the SigningRecipient object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SigningRecipientMutation) OldUserID(ctx context.Context) (v *uint32, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUserID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUserID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUserID: %w", err)
+	}
+	return oldValue.UserID, nil
+}
+
+// AddUserID adds u to the "user_id" field.
+func (m *SigningRecipientMutation) AddUserID(u int32) {
+	if m.adduser_id != nil {
+		*m.adduser_id += u
+	} else {
+		m.adduser_id = &u
+	}
+}
+
+// AddedUserID returns the value that was added to the "user_id" field in this mutation.
+func (m *SigningRecipientMutation) AddedUserID() (r int32, exists bool) {
+	v := m.adduser_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearUserID clears the value of the "user_id" field.
+func (m *SigningRecipientMutation) ClearUserID() {
+	m.user_id = nil
+	m.adduser_id = nil
+	m.clearedFields[signingrecipient.FieldUserID] = struct{}{}
+}
+
+// UserIDCleared returns if the "user_id" field was cleared in this mutation.
+func (m *SigningRecipientMutation) UserIDCleared() bool {
+	_, ok := m.clearedFields[signingrecipient.FieldUserID]
+	return ok
+}
+
+// ResetUserID resets all changes to the "user_id" field.
+func (m *SigningRecipientMutation) ResetUserID() {
+	m.user_id = nil
+	m.adduser_id = nil
+	delete(m.clearedFields, signingrecipient.FieldUserID)
+}
+
 // SetSigningOrder sets the "signing_order" field.
 func (m *SigningRecipientMutation) SetSigningOrder(i int32) {
 	m.signing_order = &i
@@ -7153,7 +7225,7 @@ func (m *SigningRecipientMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *SigningRecipientMutation) Fields() []string {
-	fields := make([]string, 0, 12)
+	fields := make([]string, 0, 13)
 	if m.create_time != nil {
 		fields = append(fields, signingrecipient.FieldCreateTime)
 	}
@@ -7171,6 +7243,9 @@ func (m *SigningRecipientMutation) Fields() []string {
 	}
 	if m.name != nil {
 		fields = append(fields, signingrecipient.FieldName)
+	}
+	if m.user_id != nil {
+		fields = append(fields, signingrecipient.FieldUserID)
 	}
 	if m.signing_order != nil {
 		fields = append(fields, signingrecipient.FieldSigningOrder)
@@ -7210,6 +7285,8 @@ func (m *SigningRecipientMutation) Field(name string) (ent.Value, bool) {
 		return m.Email()
 	case signingrecipient.FieldName:
 		return m.Name()
+	case signingrecipient.FieldUserID:
+		return m.UserID()
 	case signingrecipient.FieldSigningOrder:
 		return m.SigningOrder()
 	case signingrecipient.FieldStatus:
@@ -7243,6 +7320,8 @@ func (m *SigningRecipientMutation) OldField(ctx context.Context, name string) (e
 		return m.OldEmail(ctx)
 	case signingrecipient.FieldName:
 		return m.OldName(ctx)
+	case signingrecipient.FieldUserID:
+		return m.OldUserID(ctx)
 	case signingrecipient.FieldSigningOrder:
 		return m.OldSigningOrder(ctx)
 	case signingrecipient.FieldStatus:
@@ -7306,6 +7385,13 @@ func (m *SigningRecipientMutation) SetField(name string, value ent.Value) error 
 		}
 		m.SetName(v)
 		return nil
+	case signingrecipient.FieldUserID:
+		v, ok := value.(uint32)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUserID(v)
+		return nil
 	case signingrecipient.FieldSigningOrder:
 		v, ok := value.(int32)
 		if !ok {
@@ -7356,6 +7442,9 @@ func (m *SigningRecipientMutation) SetField(name string, value ent.Value) error 
 // this mutation.
 func (m *SigningRecipientMutation) AddedFields() []string {
 	var fields []string
+	if m.adduser_id != nil {
+		fields = append(fields, signingrecipient.FieldUserID)
+	}
 	if m.addsigning_order != nil {
 		fields = append(fields, signingrecipient.FieldSigningOrder)
 	}
@@ -7367,6 +7456,8 @@ func (m *SigningRecipientMutation) AddedFields() []string {
 // was not set, or was not defined in the schema.
 func (m *SigningRecipientMutation) AddedField(name string) (ent.Value, bool) {
 	switch name {
+	case signingrecipient.FieldUserID:
+		return m.AddedUserID()
 	case signingrecipient.FieldSigningOrder:
 		return m.AddedSigningOrder()
 	}
@@ -7378,6 +7469,13 @@ func (m *SigningRecipientMutation) AddedField(name string) (ent.Value, bool) {
 // type.
 func (m *SigningRecipientMutation) AddField(name string, value ent.Value) error {
 	switch name {
+	case signingrecipient.FieldUserID:
+		v, ok := value.(int32)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddUserID(v)
+		return nil
 	case signingrecipient.FieldSigningOrder:
 		v, ok := value.(int32)
 		if !ok {
@@ -7401,6 +7499,9 @@ func (m *SigningRecipientMutation) ClearedFields() []string {
 	}
 	if m.FieldCleared(signingrecipient.FieldDeleteTime) {
 		fields = append(fields, signingrecipient.FieldDeleteTime)
+	}
+	if m.FieldCleared(signingrecipient.FieldUserID) {
+		fields = append(fields, signingrecipient.FieldUserID)
 	}
 	if m.FieldCleared(signingrecipient.FieldSignedAt) {
 		fields = append(fields, signingrecipient.FieldSignedAt)
@@ -7433,6 +7534,9 @@ func (m *SigningRecipientMutation) ClearField(name string) error {
 		return nil
 	case signingrecipient.FieldDeleteTime:
 		m.ClearDeleteTime()
+		return nil
+	case signingrecipient.FieldUserID:
+		m.ClearUserID()
 		return nil
 	case signingrecipient.FieldSignedAt:
 		m.ClearSignedAt()
@@ -7468,6 +7572,9 @@ func (m *SigningRecipientMutation) ResetField(name string) error {
 		return nil
 	case signingrecipient.FieldName:
 		m.ResetName()
+		return nil
+	case signingrecipient.FieldUserID:
+		m.ResetUserID()
 		return nil
 	case signingrecipient.FieldSigningOrder:
 		m.ResetSigningOrder()
@@ -7583,6 +7690,7 @@ type SigningRequestMutation struct {
 	template_id        *string
 	name               *string
 	status             *signingrequest.Status
+	signing_type       *signingrequest.SigningType
 	original_file_key  *string
 	signed_file_key    *string
 	field_values       *[]schema.SigningFieldValueDef
@@ -8167,6 +8275,42 @@ func (m *SigningRequestMutation) ResetStatus() {
 	m.status = nil
 }
 
+// SetSigningType sets the "signing_type" field.
+func (m *SigningRequestMutation) SetSigningType(st signingrequest.SigningType) {
+	m.signing_type = &st
+}
+
+// SigningType returns the value of the "signing_type" field in the mutation.
+func (m *SigningRequestMutation) SigningType() (r signingrequest.SigningType, exists bool) {
+	v := m.signing_type
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSigningType returns the old "signing_type" field's value of the SigningRequest entity.
+// If the SigningRequest object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SigningRequestMutation) OldSigningType(ctx context.Context) (v signingrequest.SigningType, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSigningType is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSigningType requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSigningType: %w", err)
+	}
+	return oldValue.SigningType, nil
+}
+
+// ResetSigningType resets all changes to the "signing_type" field.
+func (m *SigningRequestMutation) ResetSigningType() {
+	m.signing_type = nil
+}
+
 // SetOriginalFileKey sets the "original_file_key" field.
 func (m *SigningRequestMutation) SetOriginalFileKey(s string) {
 	m.original_file_key = &s
@@ -8516,7 +8660,7 @@ func (m *SigningRequestMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *SigningRequestMutation) Fields() []string {
-	fields := make([]string, 0, 14)
+	fields := make([]string, 0, 15)
 	if m.create_by != nil {
 		fields = append(fields, signingrequest.FieldCreateBy)
 	}
@@ -8543,6 +8687,9 @@ func (m *SigningRequestMutation) Fields() []string {
 	}
 	if m.status != nil {
 		fields = append(fields, signingrequest.FieldStatus)
+	}
+	if m.signing_type != nil {
+		fields = append(fields, signingrequest.FieldSigningType)
 	}
 	if m.original_file_key != nil {
 		fields = append(fields, signingrequest.FieldOriginalFileKey)
@@ -8585,6 +8732,8 @@ func (m *SigningRequestMutation) Field(name string) (ent.Value, bool) {
 		return m.Name()
 	case signingrequest.FieldStatus:
 		return m.Status()
+	case signingrequest.FieldSigningType:
+		return m.SigningType()
 	case signingrequest.FieldOriginalFileKey:
 		return m.OriginalFileKey()
 	case signingrequest.FieldSignedFileKey:
@@ -8622,6 +8771,8 @@ func (m *SigningRequestMutation) OldField(ctx context.Context, name string) (ent
 		return m.OldName(ctx)
 	case signingrequest.FieldStatus:
 		return m.OldStatus(ctx)
+	case signingrequest.FieldSigningType:
+		return m.OldSigningType(ctx)
 	case signingrequest.FieldOriginalFileKey:
 		return m.OldOriginalFileKey(ctx)
 	case signingrequest.FieldSignedFileKey:
@@ -8703,6 +8854,13 @@ func (m *SigningRequestMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetStatus(v)
+		return nil
+	case signingrequest.FieldSigningType:
+		v, ok := value.(signingrequest.SigningType)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSigningType(v)
 		return nil
 	case signingrequest.FieldOriginalFileKey:
 		v, ok := value.(string)
@@ -8922,6 +9080,9 @@ func (m *SigningRequestMutation) ResetField(name string) error {
 		return nil
 	case signingrequest.FieldStatus:
 		m.ResetStatus()
+		return nil
+	case signingrequest.FieldSigningType:
+		m.ResetSigningType()
 		return nil
 	case signingrequest.FieldOriginalFileKey:
 		m.ResetOriginalFileKey()

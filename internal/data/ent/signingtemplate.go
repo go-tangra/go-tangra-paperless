@@ -42,7 +42,7 @@ type SigningTemplate struct {
 	FileName string `json:"file_name,omitempty"`
 	// File size in bytes
 	FileSize int64 `json:"file_size,omitempty"`
-	// Parsed placeholder field definitions
+	// Field definitions with positions from the visual builder
 	Fields       []schema.SigningTemplateFieldDef `json:"fields,omitempty"`
 	selectValues sql.SelectValues
 }

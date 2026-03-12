@@ -135,6 +135,20 @@ func (_c *SigningRequestCreate) SetNillableStatus(v *signingrequest.Status) *Sig
 	return _c
 }
 
+// SetSigningType sets the "signing_type" field.
+func (_c *SigningRequestCreate) SetSigningType(v signingrequest.SigningType) *SigningRequestCreate {
+	_c.mutation.SetSigningType(v)
+	return _c
+}
+
+// SetNillableSigningType sets the "signing_type" field if the given value is not nil.
+func (_c *SigningRequestCreate) SetNillableSigningType(v *signingrequest.SigningType) *SigningRequestCreate {
+	if v != nil {
+		_c.SetSigningType(*v)
+	}
+	return _c
+}
+
 // SetOriginalFileKey sets the "original_file_key" field.
 func (_c *SigningRequestCreate) SetOriginalFileKey(v string) *SigningRequestCreate {
 	_c.mutation.SetOriginalFileKey(v)
@@ -263,6 +277,10 @@ func (_c *SigningRequestCreate) defaults() error {
 		v := signingrequest.DefaultStatus
 		_c.mutation.SetStatus(v)
 	}
+	if _, ok := _c.mutation.SigningType(); !ok {
+		v := signingrequest.DefaultSigningType
+		_c.mutation.SetSigningType(v)
+	}
 	return nil
 }
 
@@ -290,6 +308,14 @@ func (_c *SigningRequestCreate) check() error {
 	if v, ok := _c.mutation.Status(); ok {
 		if err := signingrequest.StatusValidator(v); err != nil {
 			return &ValidationError{Name: "status", err: fmt.Errorf(`ent: validator failed for field "SigningRequest.status": %w`, err)}
+		}
+	}
+	if _, ok := _c.mutation.SigningType(); !ok {
+		return &ValidationError{Name: "signing_type", err: errors.New(`ent: missing required field "SigningRequest.signing_type"`)}
+	}
+	if v, ok := _c.mutation.SigningType(); ok {
+		if err := signingrequest.SigningTypeValidator(v); err != nil {
+			return &ValidationError{Name: "signing_type", err: fmt.Errorf(`ent: validator failed for field "SigningRequest.signing_type": %w`, err)}
 		}
 	}
 	if v, ok := _c.mutation.OriginalFileKey(); ok {
@@ -383,6 +409,10 @@ func (_c *SigningRequestCreate) createSpec() (*SigningRequest, *sqlgraph.CreateS
 	if value, ok := _c.mutation.Status(); ok {
 		_spec.SetField(signingrequest.FieldStatus, field.TypeEnum, value)
 		_node.Status = value
+	}
+	if value, ok := _c.mutation.SigningType(); ok {
+		_spec.SetField(signingrequest.FieldSigningType, field.TypeEnum, value)
+		_node.SigningType = value
 	}
 	if value, ok := _c.mutation.OriginalFileKey(); ok {
 		_spec.SetField(signingrequest.FieldOriginalFileKey, field.TypeString, value)
@@ -589,6 +619,18 @@ func (u *SigningRequestUpsert) SetStatus(v signingrequest.Status) *SigningReques
 // UpdateStatus sets the "status" field to the value that was provided on create.
 func (u *SigningRequestUpsert) UpdateStatus() *SigningRequestUpsert {
 	u.SetExcluded(signingrequest.FieldStatus)
+	return u
+}
+
+// SetSigningType sets the "signing_type" field.
+func (u *SigningRequestUpsert) SetSigningType(v signingrequest.SigningType) *SigningRequestUpsert {
+	u.Set(signingrequest.FieldSigningType, v)
+	return u
+}
+
+// UpdateSigningType sets the "signing_type" field to the value that was provided on create.
+func (u *SigningRequestUpsert) UpdateSigningType() *SigningRequestUpsert {
+	u.SetExcluded(signingrequest.FieldSigningType)
 	return u
 }
 
@@ -873,6 +915,20 @@ func (u *SigningRequestUpsertOne) SetStatus(v signingrequest.Status) *SigningReq
 func (u *SigningRequestUpsertOne) UpdateStatus() *SigningRequestUpsertOne {
 	return u.Update(func(s *SigningRequestUpsert) {
 		s.UpdateStatus()
+	})
+}
+
+// SetSigningType sets the "signing_type" field.
+func (u *SigningRequestUpsertOne) SetSigningType(v signingrequest.SigningType) *SigningRequestUpsertOne {
+	return u.Update(func(s *SigningRequestUpsert) {
+		s.SetSigningType(v)
+	})
+}
+
+// UpdateSigningType sets the "signing_type" field to the value that was provided on create.
+func (u *SigningRequestUpsertOne) UpdateSigningType() *SigningRequestUpsertOne {
+	return u.Update(func(s *SigningRequestUpsert) {
+		s.UpdateSigningType()
 	})
 }
 
@@ -1339,6 +1395,20 @@ func (u *SigningRequestUpsertBulk) SetStatus(v signingrequest.Status) *SigningRe
 func (u *SigningRequestUpsertBulk) UpdateStatus() *SigningRequestUpsertBulk {
 	return u.Update(func(s *SigningRequestUpsert) {
 		s.UpdateStatus()
+	})
+}
+
+// SetSigningType sets the "signing_type" field.
+func (u *SigningRequestUpsertBulk) SetSigningType(v signingrequest.SigningType) *SigningRequestUpsertBulk {
+	return u.Update(func(s *SigningRequestUpsert) {
+		s.SetSigningType(v)
+	})
+}
+
+// UpdateSigningType sets the "signing_type" field to the value that was provided on create.
+func (u *SigningRequestUpsertBulk) UpdateSigningType() *SigningRequestUpsertBulk {
+	return u.Update(func(s *SigningRequestUpsert) {
+		s.UpdateSigningType()
 	})
 }
 

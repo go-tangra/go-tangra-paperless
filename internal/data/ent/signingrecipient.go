@@ -31,6 +31,8 @@ type SigningRecipient struct {
 	Email string `json:"email,omitempty"`
 	// Recipient display name
 	Name string `json:"name,omitempty"`
+	// User ID for internal recipients (null for external)
+	UserID *uint32 `json:"user_id,omitempty"`
 	// Order in which recipients sign (1-based)
 	SigningOrder int32 `json:"signing_order,omitempty"`
 	// Recipient signing status
@@ -76,7 +78,7 @@ func (*SigningRecipient) scanValues(columns []string) ([]any, error) {
 		switch columns[i] {
 		case signingrecipient.FieldSignatureData:
 			values[i] = new([]byte)
-		case signingrecipient.FieldSigningOrder:
+		case signingrecipient.FieldUserID, signingrecipient.FieldSigningOrder:
 			values[i] = new(sql.NullInt64)
 		case signingrecipient.FieldID, signingrecipient.FieldSigningRequestID, signingrecipient.FieldEmail, signingrecipient.FieldName, signingrecipient.FieldStatus, signingrecipient.FieldToken, signingrecipient.FieldSignedIP:
 			values[i] = new(sql.NullString)
@@ -141,6 +143,13 @@ func (_m *SigningRecipient) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field name", values[i])
 			} else if value.Valid {
 				_m.Name = value.String
+			}
+		case signingrecipient.FieldUserID:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field user_id", values[i])
+			} else if value.Valid {
+				_m.UserID = new(uint32)
+				*_m.UserID = uint32(value.Int64)
 			}
 		case signingrecipient.FieldSigningOrder:
 			if value, ok := values[i].(*sql.NullInt64); !ok {
@@ -243,6 +252,11 @@ func (_m *SigningRecipient) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("name=")
 	builder.WriteString(_m.Name)
+	builder.WriteString(", ")
+	if v := _m.UserID; v != nil {
+		builder.WriteString("user_id=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
 	builder.WriteString(", ")
 	builder.WriteString("signing_order=")
 	builder.WriteString(fmt.Sprintf("%v", _m.SigningOrder))

@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"os"
+	"sync"
 	"time"
 
 	"github.com/go-kratos/kratos/v2/log"
@@ -13,25 +14,69 @@ import (
 	"google.golang.org/protobuf/types/known/emptypb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
+	"github.com/go-tangra/go-tangra-paperless/internal/client"
 	"github.com/go-tangra/go-tangra-paperless/internal/data"
 	"github.com/go-tangra/go-tangra-paperless/internal/data/ent/schema"
 	"github.com/go-tangra/go-tangra-paperless/internal/event"
 
 	paperlessV1 "github.com/go-tangra/go-tangra-paperless/gen/go/paperless/service/v1"
+	notificationv1 "buf.build/gen/go/go-tangra/notification/protocolbuffers/go/notification/service/v1"
+)
+
+const (
+	signingRequestTemplateName = "paperless-signing-request"
+	notificationChannelName    = "Default SMTP"
+
+	defaultSigningSubjectTemplate = `Document signing request: {{.RequestName}}`
+
+	defaultSigningBodyTemplate = `<!DOCTYPE html>
+<html>
+<head><meta charset="UTF-8"></head>
+<body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+  <div style="background: #f8f9fa; border-radius: 8px; padding: 30px;">
+    <h2 style="color: #333; margin-top: 0;">Document Signing Request</h2>
+    <p>Hello {{.RecipientName}},</p>
+    <p>You have been invited to sign the document: <strong>{{.RequestName}}</strong></p>
+    {{if .Message}}
+    <div style="background: #fff; border-left: 3px solid #1890ff; padding: 10px 15px; margin: 15px 0;">
+      <p style="margin: 0; color: #555;">{{.Message}}</p>
+    </div>
+    {{end}}
+    <div style="text-align: center; margin: 30px 0;">
+      <a href="{{.SigningLink}}" style="background: #1890ff; color: white; padding: 12px 30px; border-radius: 6px; text-decoration: none; font-weight: bold;">
+        Review and Sign
+      </a>
+    </div>
+    <p style="color: #666; font-size: 13px;">
+      If the button doesn't work, copy this link into your browser:<br>
+      <a href="{{.SigningLink}}">{{.SigningLink}}</a>
+    </p>
+    <hr style="border: none; border-top: 1px solid #e8e8e8; margin: 20px 0;">
+    <p style="color: #999; font-size: 12px;">
+      This is an automated message. Please do not reply to this email.
+    </p>
+  </div>
+</body>
+</html>`
 )
 
 type SigningRequestService struct {
 	paperlessV1.UnimplementedPaperlessSigningRequestServiceServer
 
-	log           *log.Helper
-	requestRepo   *data.SigningRequestRepo
-	templateRepo  *data.SigningTemplateRepo
-	recipientRepo *data.SigningRecipientRepo
-	storage       *data.StorageClient
-	processor     *PDFProcessor
-	smtp          *data.SMTPClient
-	publisher     *event.Publisher
-	appHost       string
+	log                *log.Helper
+	requestRepo        *data.SigningRequestRepo
+	templateRepo       *data.SigningTemplateRepo
+	recipientRepo      *data.SigningRecipientRepo
+	storage            *data.StorageClient
+	processor          *PDFProcessor
+	notificationClient *data.NotificationClient
+	adminClient        *client.AdminClient
+	publisher          *event.Publisher
+	appHost            string
+
+	notifTemplateMu   sync.Mutex
+	notifTemplateID   string
+	notifTemplateDone bool
 }
 
 func NewSigningRequestService(
@@ -41,7 +86,8 @@ func NewSigningRequestService(
 	recipientRepo *data.SigningRecipientRepo,
 	storage *data.StorageClient,
 	processor *PDFProcessor,
-	smtp *data.SMTPClient,
+	notificationClient *data.NotificationClient,
+	adminClient *client.AdminClient,
 	publisher *event.Publisher,
 ) *SigningRequestService {
 	appHost := os.Getenv("APP_HOST")
@@ -50,15 +96,16 @@ func NewSigningRequestService(
 	}
 
 	return &SigningRequestService{
-		log:           ctx.NewLoggerHelper("paperless/service/signing-request"),
-		requestRepo:   requestRepo,
-		templateRepo:  templateRepo,
-		recipientRepo: recipientRepo,
-		storage:       storage,
-		processor:     processor,
-		smtp:          smtp,
-		publisher:     publisher,
-		appHost:       appHost,
+		log:                ctx.NewLoggerHelper("paperless/service/signing-request"),
+		requestRepo:        requestRepo,
+		templateRepo:       templateRepo,
+		recipientRepo:      recipientRepo,
+		storage:            storage,
+		processor:          processor,
+		notificationClient: notificationClient,
+		adminClient:        adminClient,
+		publisher:          publisher,
+		appHost:            appHost,
 	}
 }
 
@@ -154,14 +201,78 @@ func (s *SigningRequestService) CreateSigningRequest(ctx context.Context, req *p
 		expiresAt = &t
 	}
 
+	// Determine signing type
+	isInternal := req.SigningType == paperlessV1.SigningRequestType_SIGNING_REQUEST_TYPE_INTERNAL
+	signingType := "SIGNING_REQUEST_TYPE_EXTERNAL"
+	if isInternal {
+		signingType = "SIGNING_REQUEST_TYPE_INTERNAL"
+	}
+
+	// For internal requests, resolve user_ids to email/name via admin-service
+	type resolvedRecipient struct {
+		Email  string
+		Name   string
+		Order  int32
+		UserID *uint32
+	}
+	recipients := make([]resolvedRecipient, 0, len(req.Recipients))
+
+	if isInternal {
+		// Collect user IDs for batch lookup
+		userIDs := make([]uint32, 0, len(req.Recipients))
+		for _, r := range req.Recipients {
+			if r.UserId == nil {
+				return nil, paperlessV1.ErrorBadRequest("internal signing requests require user_id for all recipients")
+			}
+			userIDs = append(userIDs, *r.UserId)
+		}
+
+		// Resolve users
+		usersMap, err := s.adminClient.GetUsersByIDs(ctx, userIDs)
+		if err != nil {
+			s.log.Errorf("failed to resolve users from admin-service: %v", err)
+			return nil, paperlessV1.ErrorInternalServerError("failed to resolve user information")
+		}
+
+		for _, r := range req.Recipients {
+			user, ok := usersMap[*r.UserId]
+			if !ok {
+				return nil, paperlessV1.ErrorBadRequest("user with ID %d not found", *r.UserId)
+			}
+			if user.GetEmail() == "" {
+				return nil, paperlessV1.ErrorBadRequest("user %q has no email address", user.GetUsername())
+			}
+			uid := *r.UserId
+			recipients = append(recipients, resolvedRecipient{
+				Email:  user.GetEmail(),
+				Name:   user.GetRealname(),
+				Order:  r.SigningOrder,
+				UserID: &uid,
+			})
+		}
+	} else {
+		// External: use provided email/name
+		for _, r := range req.Recipients {
+			if r.Email == "" || r.Name == "" {
+				return nil, paperlessV1.ErrorBadRequest("external signing requests require email and name for all recipients")
+			}
+			recipients = append(recipients, resolvedRecipient{
+				Email:  r.Email,
+				Name:   r.Name,
+				Order:  r.SigningOrder,
+				UserID: nil,
+			})
+		}
+	}
+
 	// Create request record
-	entity, err := s.requestRepo.Create(ctx, tenantID, req.TemplateId, req.Name, requestFileKey, req.Message, fieldValues, expiresAt, createdBy)
+	entity, err := s.requestRepo.Create(ctx, tenantID, req.TemplateId, req.Name, requestFileKey, req.Message, signingType, fieldValues, expiresAt, createdBy)
 	if err != nil {
 		return nil, err
 	}
 
 	// Create recipients and generate tokens
-	for _, recipientInput := range req.Recipients {
+	for _, recipient := range recipients {
 		token, err := generateSecureToken()
 		if err != nil {
 			s.log.Errorf("failed to generate token: %v", err)
@@ -170,23 +281,37 @@ func (s *SigningRequestService) CreateSigningRequest(ctx context.Context, req *p
 
 		// First recipient (order 1) gets PENDING, rest get WAITING
 		status := "SIGNING_RECIPIENT_STATUS_WAITING"
-		if recipientInput.SigningOrder <= 1 {
+		if recipient.Order <= 1 {
 			status = "SIGNING_RECIPIENT_STATUS_PENDING"
 		}
 
-		order := recipientInput.SigningOrder
+		order := recipient.Order
 		if order <= 0 {
 			order = 1
 		}
 
-		_, err = s.recipientRepo.Create(ctx, entity.ID, recipientInput.Email, recipientInput.Name, order, status, token)
+		_, err = s.recipientRepo.Create(ctx, entity.ID, recipient.Email, recipient.Name, order, status, token, recipient.UserID)
 		if err != nil {
 			return nil, err
 		}
 
 		// Send email to the first PENDING recipient
 		if status == "SIGNING_RECIPIENT_STATUS_PENDING" {
-			go s.sendSigningEmail(recipientInput.Email, recipientInput.Name, req.Name, req.Message, token)
+			sendCtx := data.DetachedMetadataContext(ctx, tenantID)
+			recipientEmail := recipient.Email
+			recipientName := recipient.Name
+			requestName := req.Name
+			message := req.Message
+			go func() {
+				defer func() {
+					if r := recover(); r != nil {
+						s.log.Errorf("Panic in signing email goroutine: %v", r)
+					}
+				}()
+				if err := s.sendSigningEmail(sendCtx, recipientEmail, recipientName, requestName, message, token, isInternal); err != nil {
+					s.log.Errorf("Failed to send signing email to %s: %v", recipientEmail, err)
+				}
+			}()
 		}
 	}
 
@@ -337,7 +462,19 @@ func (s *SigningRequestService) ResendSigningEmail(ctx context.Context, req *pap
 		return nil, paperlessV1.ErrorSigningSessionNotFound("recipient not found")
 	}
 
-	go s.sendSigningEmail(targetRecipient.Email, targetRecipient.Name, entity.Name, entity.Message, targetRecipient.Token)
+	isInternal := string(entity.SigningType) == "SIGNING_REQUEST_TYPE_INTERNAL"
+	tenantID := getTenantIDFromContext(ctx)
+	sendCtx := data.DetachedMetadataContext(ctx, tenantID)
+	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				s.log.Errorf("Panic in signing email goroutine: %v", r)
+			}
+		}()
+		if err := s.sendSigningEmail(sendCtx, targetRecipient.Email, targetRecipient.Name, entity.Name, entity.Message, targetRecipient.Token, isInternal); err != nil {
+			s.log.Errorf("Failed to resend signing email to %s: %v", targetRecipient.Email, err)
+		}
+	}()
 
 	return &emptypb.Empty{}, nil
 }
@@ -389,52 +526,79 @@ func (s *SigningRequestService) GetDocumentBytes(ctx context.Context, requestID 
 	return pdfBytes, entity.Name + ".pdf", nil
 }
 
-// sendSigningEmail sends a signing invitation email
-func (s *SigningRequestService) sendSigningEmail(email, name, requestName, message, token string) {
-	signingLink := fmt.Sprintf("%s/#/signing/%s", s.appHost, token)
+// ensureNotificationTemplate resolves (or creates) the signing request template in the notification service.
+func (s *SigningRequestService) ensureNotificationTemplate(ctx context.Context) (string, error) {
+	s.notifTemplateMu.Lock()
+	defer s.notifTemplateMu.Unlock()
 
-	subject := fmt.Sprintf("Document signing request: %s", requestName)
-
-	htmlBody := fmt.Sprintf(`<!DOCTYPE html>
-<html>
-<head><meta charset="UTF-8"></head>
-<body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-  <div style="background: #f8f9fa; border-radius: 8px; padding: 30px;">
-    <h2 style="color: #333; margin-top: 0;">Document Signing Request</h2>
-    <p>Hello %s,</p>
-    <p>You have been invited to sign the document: <strong>%s</strong></p>
-    %s
-    <div style="text-align: center; margin: 30px 0;">
-      <a href="%s" style="background: #1890ff; color: white; padding: 12px 30px; border-radius: 6px; text-decoration: none; font-weight: bold;">
-        Review and Sign
-      </a>
-    </div>
-    <p style="color: #666; font-size: 13px;">
-      If the button doesn't work, copy this link into your browser:<br>
-      <a href="%s">%s</a>
-    </p>
-    <hr style="border: none; border-top: 1px solid #e8e8e8; margin: 20px 0;">
-    <p style="color: #999; font-size: 12px;">
-      This is an automated message. Please do not reply to this email.
-    </p>
-  </div>
-</body>
-</html>`, name, requestName, formatMessage(message), signingLink, signingLink, signingLink)
-
-	if err := s.smtp.Send(email, subject, htmlBody); err != nil {
-		s.log.Errorf("failed to send signing email to %s: %v", email, err)
-	} else {
-		s.log.Infof("signing email sent to %s for request %s", email, requestName)
+	if s.notifTemplateDone {
+		return s.notifTemplateID, nil
 	}
+
+	s.log.Info("Resolving notification template for paperless signing requests...")
+
+	tmpl, err := s.notificationClient.FindTemplateByName(ctx, signingRequestTemplateName)
+	if err != nil {
+		return "", fmt.Errorf("search notification template: %w", err)
+	}
+	if tmpl != nil {
+		s.notifTemplateID = tmpl.GetId()
+		s.notifTemplateDone = true
+		s.log.Infof("Found existing notification template: %s", s.notifTemplateID)
+		return s.notifTemplateID, nil
+	}
+
+	channelID, err := s.notificationClient.FindChannelByName(ctx, notificationChannelName)
+	if err != nil {
+		return "", fmt.Errorf("find channel %q: %w", notificationChannelName, err)
+	}
+
+	createReq := &notificationv1.CreateTemplateRequest{
+		Name:      signingRequestTemplateName,
+		ChannelId: channelID,
+		Subject:   defaultSigningSubjectTemplate,
+		Body:      defaultSigningBodyTemplate,
+		Variables: "RecipientName,RequestName,Message,SigningLink",
+		IsDefault: false,
+	}
+	created, err := s.notificationClient.CreateTemplate(ctx, createReq)
+	if err != nil {
+		return "", fmt.Errorf("create notification template: %w", err)
+	}
+	s.notifTemplateID = created.GetId()
+	s.notifTemplateDone = true
+	s.log.Infof("Created notification template: %s", s.notifTemplateID)
+	return s.notifTemplateID, nil
 }
 
-func formatMessage(message string) string {
-	if message == "" {
-		return ""
+// sendSigningEmail sends a signing invitation email via the notification service.
+func (s *SigningRequestService) sendSigningEmail(ctx context.Context, email, name, requestName, message, token string, isInternal bool) error {
+	templateID, err := s.ensureNotificationTemplate(ctx)
+	if err != nil {
+		return fmt.Errorf("ensure notification template: %w", err)
 	}
-	return fmt.Sprintf(`<div style="background: #fff; border-left: 3px solid #1890ff; padding: 10px 15px; margin: 15px 0;">
-      <p style="margin: 0; color: #555;">%s</p>
-    </div>`, message)
+
+	var signingLink string
+	if isInternal {
+		signingLink = fmt.Sprintf("%s/#/signing/internal/%s", s.appHost, token)
+	} else {
+		signingLink = fmt.Sprintf("%s/#/signing/%s", s.appHost, token)
+	}
+
+	variables := map[string]string{
+		"RecipientName": name,
+		"RequestName":   requestName,
+		"Message":       message,
+		"SigningLink":   signingLink,
+	}
+
+	_, err = s.notificationClient.SendNotification(ctx, templateID, email, variables)
+	if err != nil {
+		return fmt.Errorf("send notification: %w", err)
+	}
+
+	s.log.Infof("signing email sent to %s for request %s", email, requestName)
+	return nil
 }
 
 // generateSecureToken generates a 64-character hex token

@@ -30,10 +30,10 @@ func NewSigningRecipientRepo(ctx *bootstrap.Context, entClient *entCrud.EntClien
 }
 
 // Create creates a new signing recipient
-func (r *SigningRecipientRepo) Create(ctx context.Context, signingRequestID, email, name string, signingOrder int32, status string, token string) (*ent.SigningRecipient, error) {
+func (r *SigningRecipientRepo) Create(ctx context.Context, signingRequestID, email, name string, signingOrder int32, status, token string, userID *uint32) (*ent.SigningRecipient, error) {
 	id := uuid.New().String()
 
-	entity, err := r.entClient.Client().SigningRecipient.Create().
+	builder := r.entClient.Client().SigningRecipient.Create().
 		SetID(id).
 		SetSigningRequestID(signingRequestID).
 		SetEmail(email).
@@ -41,8 +41,13 @@ func (r *SigningRecipientRepo) Create(ctx context.Context, signingRequestID, ema
 		SetSigningOrder(signingOrder).
 		SetStatus(signingrecipient.Status(status)).
 		SetToken(token).
-		SetCreateTime(time.Now()).
-		Save(ctx)
+		SetCreateTime(time.Now())
+
+	if userID != nil {
+		builder.SetUserID(*userID)
+	}
+
+	entity, err := builder.Save(ctx)
 	if err != nil {
 		r.log.Errorf("create signing recipient failed: %s", err.Error())
 		return nil, paperlessV1.ErrorInternalServerError("create signing recipient failed")
@@ -185,6 +190,10 @@ func (r *SigningRecipientRepo) ToProto(entity *ent.SigningRecipient) *paperlessV
 		Name:         entity.Name,
 		SigningOrder: entity.SigningOrder,
 		Status:       signingRecipientStatusToProto(string(entity.Status)),
+	}
+
+	if entity.UserID != nil {
+		proto.UserId = entity.UserID
 	}
 
 	if entity.SignedAt != nil {

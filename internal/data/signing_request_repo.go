@@ -35,7 +35,7 @@ func NewSigningRequestRepo(ctx *bootstrap.Context, entClient *entCrud.EntClient[
 }
 
 // Create creates a new signing request
-func (r *SigningRequestRepo) Create(ctx context.Context, tenantID uint32, templateID, name, originalFileKey, message string, fieldValues []schema.SigningFieldValueDef, expiresAt *time.Time, createdBy *uint32) (*ent.SigningRequest, error) {
+func (r *SigningRequestRepo) Create(ctx context.Context, tenantID uint32, templateID, name, originalFileKey, message, signingType string, fieldValues []schema.SigningFieldValueDef, expiresAt *time.Time, createdBy *uint32) (*ent.SigningRequest, error) {
 	id := uuid.New().String()
 
 	builder := r.entClient.Client().SigningRequest.Create().
@@ -46,6 +46,10 @@ func (r *SigningRequestRepo) Create(ctx context.Context, tenantID uint32, templa
 		SetStatus(signingrequest.StatusSIGNING_REQUEST_STATUS_PENDING).
 		SetOriginalFileKey(originalFileKey).
 		SetCreateTime(time.Now())
+
+	if signingType != "" {
+		builder.SetSigningType(signingrequest.SigningType(signingType))
+	}
 
 	if message != "" {
 		builder.SetMessage(message)
@@ -205,6 +209,7 @@ func (r *SigningRequestRepo) ToProto(ctx context.Context, entity *ent.SigningReq
 		OriginalFileKey: entity.OriginalFileKey,
 		SignedFileKey:    entity.SignedFileKey,
 		Message:         entity.Message,
+		SigningType:      signingRequestTypeToProto(string(entity.SigningType)),
 	}
 
 	// Get template name
@@ -244,6 +249,17 @@ func (r *SigningRequestRepo) ToProto(ctx context.Context, entity *ent.SigningReq
 	}
 
 	return proto
+}
+
+func signingRequestTypeToProto(signingType string) paperlessV1.SigningRequestType {
+	switch signingType {
+	case "SIGNING_REQUEST_TYPE_EXTERNAL":
+		return paperlessV1.SigningRequestType_SIGNING_REQUEST_TYPE_EXTERNAL
+	case "SIGNING_REQUEST_TYPE_INTERNAL":
+		return paperlessV1.SigningRequestType_SIGNING_REQUEST_TYPE_INTERNAL
+	default:
+		return paperlessV1.SigningRequestType_SIGNING_REQUEST_TYPE_UNSPECIFIED
+	}
 }
 
 func signingRequestStatusToProto(status string) paperlessV1.SigningRequestStatus {

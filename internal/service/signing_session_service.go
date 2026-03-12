@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"sync"
 	"time"
 
 	"github.com/go-kratos/kratos/v2/log"
@@ -17,19 +18,56 @@ import (
 	"github.com/go-tangra/go-tangra-paperless/internal/event"
 
 	paperlessV1 "github.com/go-tangra/go-tangra-paperless/gen/go/paperless/service/v1"
+	notificationv1 "buf.build/gen/go/go-tangra/notification/protocolbuffers/go/notification/service/v1"
+)
+
+const (
+	signingNextTemplateName = "paperless-signing-next"
+
+	defaultSigningNextSubjectTemplate = `Document signing request: {{.RequestName}}`
+
+	defaultSigningNextBodyTemplate = `<!DOCTYPE html>
+<html>
+<head><meta charset="UTF-8"></head>
+<body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+  <div style="background: #f8f9fa; border-radius: 8px; padding: 30px;">
+    <h2 style="color: #333; margin-top: 0;">Document Signing Request</h2>
+    <p>Hello {{.RecipientName}},</p>
+    <p>It is now your turn to sign the document: <strong>{{.RequestName}}</strong></p>
+    {{if .Message}}
+    <div style="background: #fff; border-left: 3px solid #1890ff; padding: 10px 15px; margin: 15px 0;">
+      <p style="margin: 0; color: #555;">{{.Message}}</p>
+    </div>
+    {{end}}
+    <div style="text-align: center; margin: 30px 0;">
+      <a href="{{.SigningLink}}" style="background: #1890ff; color: white; padding: 12px 30px; border-radius: 6px; text-decoration: none; font-weight: bold;">
+        Review and Sign
+      </a>
+    </div>
+    <p style="color: #666; font-size: 13px;">
+      If the button doesn't work, copy this link into your browser:<br>
+      <a href="{{.SigningLink}}">{{.SigningLink}}</a>
+    </p>
+  </div>
+</body>
+</html>`
 )
 
 type SigningSessionService struct {
 	paperlessV1.UnimplementedPaperlessSigningSessionServiceServer
 
-	log           *log.Helper
-	recipientRepo *data.SigningRecipientRepo
-	requestRepo   *data.SigningRequestRepo
-	templateRepo  *data.SigningTemplateRepo
-	storage       *data.StorageClient
-	processor     *PDFProcessor
-	smtp          *data.SMTPClient
-	publisher     *event.Publisher
+	log                *log.Helper
+	recipientRepo      *data.SigningRecipientRepo
+	requestRepo        *data.SigningRequestRepo
+	templateRepo       *data.SigningTemplateRepo
+	storage            *data.StorageClient
+	processor          *PDFProcessor
+	notificationClient *data.NotificationClient
+	publisher          *event.Publisher
+
+	notifTemplateMu   sync.Mutex
+	notifTemplateID   string
+	notifTemplateDone bool
 }
 
 func NewSigningSessionService(
@@ -39,18 +77,18 @@ func NewSigningSessionService(
 	templateRepo *data.SigningTemplateRepo,
 	storage *data.StorageClient,
 	processor *PDFProcessor,
-	smtp *data.SMTPClient,
+	notificationClient *data.NotificationClient,
 	publisher *event.Publisher,
 ) *SigningSessionService {
 	return &SigningSessionService{
-		log:           ctx.NewLoggerHelper("paperless/service/signing-session"),
-		recipientRepo: recipientRepo,
-		requestRepo:   requestRepo,
-		templateRepo:  templateRepo,
-		storage:       storage,
-		processor:     processor,
-		smtp:          smtp,
-		publisher:     publisher,
+		log:                ctx.NewLoggerHelper("paperless/service/signing-session"),
+		recipientRepo:      recipientRepo,
+		requestRepo:        requestRepo,
+		templateRepo:       templateRepo,
+		storage:            storage,
+		processor:          processor,
+		notificationClient: notificationClient,
+		publisher:          publisher,
 	}
 }
 
@@ -72,6 +110,11 @@ func (s *SigningSessionService) GetSigningSession(ctx context.Context, req *pape
 		if err != nil || signingRequest == nil {
 			return nil, paperlessV1.ErrorSigningSessionNotFound("signing request not found")
 		}
+	}
+
+	// If this is an internal signing request, reject public access
+	if string(signingRequest.SigningType) == "SIGNING_REQUEST_TYPE_INTERNAL" {
+		return nil, paperlessV1.ErrorUnauthorized("this is an internal signing request - please log in to sign")
 	}
 
 	// Check status
@@ -146,6 +189,7 @@ func (s *SigningSessionService) GetSigningSession(ctx context.Context, req *pape
 		RecipientEmail: recipient.Email,
 		Fields:         fields,
 		Message:        signingRequest.Message,
+		IsInternal:     string(signingRequest.SigningType) == "SIGNING_REQUEST_TYPE_INTERNAL",
 	}
 
 	if signingRequest.ExpiresAt != nil {
@@ -155,8 +199,9 @@ func (s *SigningSessionService) GetSigningSession(ctx context.Context, req *pape
 	return resp, nil
 }
 
-// GetDocument retrieves the PDF bytes for a signing session (proxied through HTTP server)
-func (s *SigningSessionService) GetDocument(ctx context.Context, token string) ([]byte, string, error) {
+// GetDocumentByToken retrieves the PDF bytes for a signing session.
+// If skipInternalCheck is true, internal request validation is bypassed (used with HMAC auth).
+func (s *SigningSessionService) GetDocumentByToken(ctx context.Context, token string, skipInternalCheck bool) ([]byte, string, error) {
 	recipient, err := s.recipientRepo.GetByToken(ctx, token)
 	if err != nil {
 		return nil, "", err
@@ -179,6 +224,11 @@ func (s *SigningSessionService) GetDocument(ctx context.Context, token string) (
 		if err != nil || signingRequest == nil {
 			return nil, "", paperlessV1.ErrorSigningSessionNotFound("signing request not found")
 		}
+	}
+
+	// Reject internal requests from public endpoint (unless HMAC-authenticated)
+	if !skipInternalCheck && string(signingRequest.SigningType) == "SIGNING_REQUEST_TYPE_INTERNAL" {
+		return nil, "", paperlessV1.ErrorUnauthorized("authentication required for internal documents")
 	}
 
 	// Check expiration
@@ -342,6 +392,8 @@ func (s *SigningSessionService) SubmitSigning(ctx context.Context, req *paperles
 		tenantID = *signingRequest.TenantID
 	}
 
+	isInternal := string(signingRequest.SigningType) == "SIGNING_REQUEST_TYPE_INTERNAL"
+
 	if nextRecipient != nil {
 		// Apply staged prefill values for the next recipient's stage
 		s.applyStagedPrefills(ctx, signingRequest, template, int(nextRecipient.SigningOrder))
@@ -350,7 +402,24 @@ func (s *SigningSessionService) SubmitSigning(ctx context.Context, req *paperles
 		if err := s.recipientRepo.UpdateStatus(ctx, nextRecipient.ID, "SIGNING_RECIPIENT_STATUS_PENDING"); err != nil {
 			s.log.Errorf("failed to update next recipient status: %v", err)
 		}
-		go s.sendNextSigningEmail(nextRecipient.Email, nextRecipient.Name, signingRequest.Name, signingRequest.Message, nextRecipient.Token)
+		// Use detached context with just tenant_id. The notification service authenticates
+		// via mTLS client cert (lcm-paperless) and uses client-based authz.
+		sendCtx := data.DetachedMetadataContext(ctx, tenantID)
+		recipientEmail := nextRecipient.Email
+		recipientName := nextRecipient.Name
+		requestName := signingRequest.Name
+		message := signingRequest.Message
+		token := nextRecipient.Token
+		go func() {
+			defer func() {
+				if r := recover(); r != nil {
+					s.log.Errorf("Panic in signing email goroutine: %v", r)
+				}
+			}()
+			if err := s.sendNextSigningEmail(sendCtx, recipientEmail, recipientName, requestName, message, token, isInternal); err != nil {
+				s.log.Errorf("Failed to send next signing email to %s: %v", recipientEmail, err)
+			}
+		}()
 
 		// Publish recipient signed event
 		s.publisher.PublishRecipientSigned(ctx, &event.SigningRecipientSignedData{
@@ -403,6 +472,189 @@ func (s *SigningSessionService) SubmitSigning(ctx context.Context, req *paperles
 	}, nil
 }
 
+// GetAuthenticatedSigningSession retrieves signing session info for an authenticated user.
+// Verifies the authenticated user_id matches the recipient's user_id for internal requests.
+func (s *SigningSessionService) GetAuthenticatedSigningSession(ctx context.Context, req *paperlessV1.GetSigningSessionRequest) (*paperlessV1.GetSigningSessionResponse, error) {
+	// Get the authenticated user ID from gRPC metadata
+	authUserID := getUserIDAsUint32(ctx)
+	if authUserID == nil {
+		return nil, paperlessV1.ErrorUnauthorized("authentication required for internal signing sessions")
+	}
+
+	// Look up recipient by token
+	recipient, err := s.recipientRepo.GetByToken(ctx, req.Token)
+	if err != nil {
+		return nil, err
+	}
+	if recipient == nil {
+		return nil, paperlessV1.ErrorSigningSessionNotFound("signing session not found")
+	}
+
+	// Load the signing request
+	signingRequest := recipient.Edges.SigningRequest
+	if signingRequest == nil {
+		signingRequest, err = s.requestRepo.GetByID(ctx, recipient.SigningRequestID)
+		if err != nil || signingRequest == nil {
+			return nil, paperlessV1.ErrorSigningSessionNotFound("signing request not found")
+		}
+	}
+
+	// For internal requests, verify user identity
+	if string(signingRequest.SigningType) == "SIGNING_REQUEST_TYPE_INTERNAL" {
+		if recipient.UserID == nil || *recipient.UserID != *authUserID {
+			return nil, paperlessV1.ErrorForbidden("you are not authorized to sign this document")
+		}
+	}
+
+	// Check recipient status
+	if string(recipient.Status) != "SIGNING_RECIPIENT_STATUS_PENDING" {
+		if string(recipient.Status) == "SIGNING_RECIPIENT_STATUS_COMPLETED" {
+			return nil, paperlessV1.ErrorSigningAlreadyCompleted("you have already signed this document")
+		}
+		return nil, paperlessV1.ErrorSigningSessionNotFound("signing session is not active")
+	}
+
+	// Check expiration
+	if signingRequest.ExpiresAt != nil && signingRequest.ExpiresAt.Before(time.Now()) {
+		return nil, paperlessV1.ErrorSigningSessionExpired("this signing request has expired")
+	}
+
+	if string(signingRequest.Status) == "SIGNING_REQUEST_STATUS_CANCELLED" {
+		return nil, paperlessV1.ErrorSigningSessionNotFound("this signing request has been cancelled")
+	}
+
+	// Load template for field definitions
+	template, err := s.templateRepo.GetByID(ctx, signingRequest.TemplateID)
+	if err != nil || template == nil {
+		return nil, paperlessV1.ErrorSigningTemplateNotFound("signing template not found")
+	}
+
+	// Apply staged prefills
+	s.applyStagedPrefills(ctx, signingRequest, template, int(recipient.SigningOrder))
+
+	// Generate an HMAC-protected document URL (since internal docs can't use the public endpoint)
+	expiresAt := time.Now().Add(2 * time.Hour)
+	docToken := GenerateDownloadToken(req.Token, expiresAt)
+	documentURL := fmt.Sprintf("/public/v1/signing/sessions/%s/document?token=%s&expires=%d", req.Token, docToken, expiresAt.Unix())
+
+	// Build fields list filtered by recipient
+	signingOrder := int(recipient.SigningOrder)
+	fields := make([]*paperlessV1.SigningSessionField, 0, len(template.Fields))
+	for _, tmplField := range template.Fields {
+		if tmplField.PrefillStage > 0 {
+			continue
+		}
+		if tmplField.RecipientIndex > 0 && tmplField.RecipientIndex != signingOrder {
+			continue
+		}
+
+		field := &paperlessV1.SigningSessionField{
+			FieldId:        tmplField.ID,
+			Name:           tmplField.Name,
+			Type:           fieldTypeToSessionProto(tmplField.Type),
+			Required:       tmplField.Required,
+			RecipientIndex: int32(tmplField.RecipientIndex),
+			PageNumber:     int32(tmplField.PageNumber),
+			XPercent:       tmplField.XPercent,
+			YPercent:       tmplField.YPercent,
+			WidthPercent:   tmplField.WidthPercent,
+			HeightPercent:  tmplField.HeightPercent,
+		}
+
+		for _, fv := range signingRequest.FieldValues {
+			if fv.FieldID == tmplField.ID || fv.FieldID == tmplField.Name {
+				field.PrefilledValue = fv.Value
+				break
+			}
+		}
+
+		fields = append(fields, field)
+	}
+
+	resp := &paperlessV1.GetSigningSessionResponse{
+		RequestName:    signingRequest.Name,
+		DocumentUrl:    documentURL,
+		RecipientName:  recipient.Name,
+		RecipientEmail: recipient.Email,
+		Fields:         fields,
+		Message:        signingRequest.Message,
+		IsInternal:     string(signingRequest.SigningType) == "SIGNING_REQUEST_TYPE_INTERNAL",
+	}
+
+	if signingRequest.ExpiresAt != nil {
+		resp.ExpiresAt = timestamppb.New(*signingRequest.ExpiresAt)
+	}
+
+	return resp, nil
+}
+
+// SubmitAuthenticatedSigning processes an authenticated user's signing submission.
+// Verifies the authenticated user_id matches the recipient's user_id for internal requests.
+func (s *SigningSessionService) SubmitAuthenticatedSigning(ctx context.Context, req *paperlessV1.SubmitSigningRequest) (*paperlessV1.SubmitSigningResponse, error) {
+	// Get the authenticated user ID from gRPC metadata
+	authUserID := getUserIDAsUint32(ctx)
+	if authUserID == nil {
+		return nil, paperlessV1.ErrorUnauthorized("authentication required for internal signing sessions")
+	}
+
+	// Look up recipient by token
+	recipient, err := s.recipientRepo.GetByToken(ctx, req.Token)
+	if err != nil {
+		return nil, err
+	}
+	if recipient == nil {
+		return nil, paperlessV1.ErrorSigningSessionNotFound("signing session not found")
+	}
+
+	// Load the signing request
+	signingRequest, err := s.requestRepo.GetByID(ctx, recipient.SigningRequestID)
+	if err != nil || signingRequest == nil {
+		return nil, paperlessV1.ErrorSigningRequestNotFound("signing request not found")
+	}
+
+	// For internal requests, verify user identity
+	if string(signingRequest.SigningType) == "SIGNING_REQUEST_TYPE_INTERNAL" {
+		if recipient.UserID == nil || *recipient.UserID != *authUserID {
+			return nil, paperlessV1.ErrorForbidden("you are not authorized to sign this document")
+		}
+	}
+
+	// Delegate to the standard SubmitSigning logic
+	return s.SubmitSigning(ctx, req)
+}
+
+// GetAuthenticatedDocument retrieves the PDF for an authenticated signing session.
+func (s *SigningSessionService) GetAuthenticatedDocument(ctx context.Context, token string) ([]byte, string, error) {
+	authUserID := getUserIDAsUint32(ctx)
+	if authUserID == nil {
+		return nil, "", paperlessV1.ErrorUnauthorized("authentication required")
+	}
+
+	recipient, err := s.recipientRepo.GetByToken(ctx, token)
+	if err != nil {
+		return nil, "", err
+	}
+	if recipient == nil {
+		return nil, "", paperlessV1.ErrorSigningSessionNotFound("signing session not found")
+	}
+
+	signingRequest := recipient.Edges.SigningRequest
+	if signingRequest == nil {
+		signingRequest, err = s.requestRepo.GetByID(ctx, recipient.SigningRequestID)
+		if err != nil || signingRequest == nil {
+			return nil, "", paperlessV1.ErrorSigningSessionNotFound("signing request not found")
+		}
+	}
+
+	if string(signingRequest.SigningType) == "SIGNING_REQUEST_TYPE_INTERNAL" {
+		if recipient.UserID == nil || *recipient.UserID != *authUserID {
+			return nil, "", paperlessV1.ErrorForbidden("you are not authorized to access this document")
+		}
+	}
+
+	return s.GetDocumentByToken(ctx, token, true)
+}
+
 // applyStagedPrefills applies prefill field values for a given stage to the PDF.
 // Stage N values are applied just before recipient N begins signing.
 func (s *SigningSessionService) applyStagedPrefills(ctx context.Context, signingRequest *ent.SigningRequest, template *ent.SigningTemplate, stage int) {
@@ -452,41 +704,84 @@ func (s *SigningSessionService) applyStagedPrefills(ctx context.Context, signing
 	}
 }
 
-// sendNextSigningEmail sends a signing email to the next recipient
-func (s *SigningSessionService) sendNextSigningEmail(email, name, requestName, message, token string) {
+// ensureNotificationTemplate resolves (or creates) the next-signer template in the notification service.
+// On transient failures it retries on the next call.
+func (s *SigningSessionService) ensureNotificationTemplate(ctx context.Context) (string, error) {
+	s.notifTemplateMu.Lock()
+	defer s.notifTemplateMu.Unlock()
+
+	if s.notifTemplateDone {
+		return s.notifTemplateID, nil
+	}
+
+	s.log.Info("Resolving notification template for paperless next-signer emails...")
+
+	tmpl, err := s.notificationClient.FindTemplateByName(ctx, signingNextTemplateName)
+	if err != nil {
+		return "", fmt.Errorf("search notification template: %w", err)
+	}
+	if tmpl != nil {
+		s.notifTemplateID = tmpl.GetId()
+		s.notifTemplateDone = true
+		s.log.Infof("Found existing notification template: %s", s.notifTemplateID)
+		return s.notifTemplateID, nil
+	}
+
+	channelID, err := s.notificationClient.FindChannelByName(ctx, notificationChannelName)
+	if err != nil {
+		return "", fmt.Errorf("find channel %q: %w", notificationChannelName, err)
+	}
+
+	createReq := &notificationv1.CreateTemplateRequest{
+		Name:      signingNextTemplateName,
+		ChannelId: channelID,
+		Subject:   defaultSigningNextSubjectTemplate,
+		Body:      defaultSigningNextBodyTemplate,
+		Variables: "RecipientName,RequestName,Message,SigningLink",
+		IsDefault: false,
+	}
+	created, err := s.notificationClient.CreateTemplate(ctx, createReq)
+	if err != nil {
+		return "", fmt.Errorf("create notification template: %w", err)
+	}
+	s.notifTemplateID = created.GetId()
+	s.notifTemplateDone = true
+	s.log.Infof("Created notification template: %s", s.notifTemplateID)
+	return s.notifTemplateID, nil
+}
+
+// sendNextSigningEmail sends a signing email to the next recipient via the notification service.
+func (s *SigningSessionService) sendNextSigningEmail(ctx context.Context, email, name, requestName, message, token string, isInternal bool) error {
+	templateID, err := s.ensureNotificationTemplate(ctx)
+	if err != nil {
+		return fmt.Errorf("ensure notification template: %w", err)
+	}
+
 	appHost := os.Getenv("APP_HOST")
 	if appHost == "" {
 		appHost = "http://localhost:8080"
 	}
-	signingLink := fmt.Sprintf("%s/#/signing/%s", appHost, token)
-
-	subject := fmt.Sprintf("Document signing request: %s", requestName)
-
-	htmlBody := fmt.Sprintf(`<!DOCTYPE html>
-<html>
-<head><meta charset="UTF-8"></head>
-<body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-  <div style="background: #f8f9fa; border-radius: 8px; padding: 30px;">
-    <h2 style="color: #333; margin-top: 0;">Document Signing Request</h2>
-    <p>Hello %s,</p>
-    <p>It is now your turn to sign the document: <strong>%s</strong></p>
-    %s
-    <div style="text-align: center; margin: 30px 0;">
-      <a href="%s" style="background: #1890ff; color: white; padding: 12px 30px; border-radius: 6px; text-decoration: none; font-weight: bold;">
-        Review and Sign
-      </a>
-    </div>
-    <p style="color: #666; font-size: 13px;">
-      If the button doesn't work, copy this link into your browser:<br>
-      <a href="%s">%s</a>
-    </p>
-  </div>
-</body>
-</html>`, name, requestName, formatMessage(message), signingLink, signingLink, signingLink)
-
-	if err := s.smtp.Send(email, subject, htmlBody); err != nil {
-		s.log.Errorf("failed to send signing email to %s: %v", email, err)
+	var signingLink string
+	if isInternal {
+		signingLink = fmt.Sprintf("%s/#/signing/internal/%s", appHost, token)
+	} else {
+		signingLink = fmt.Sprintf("%s/#/signing/%s", appHost, token)
 	}
+
+	variables := map[string]string{
+		"RecipientName": name,
+		"RequestName":   requestName,
+		"Message":       message,
+		"SigningLink":   signingLink,
+	}
+
+	_, err = s.notificationClient.SendNotification(ctx, templateID, email, variables)
+	if err != nil {
+		return fmt.Errorf("send notification: %w", err)
+	}
+
+	s.log.Infof("next-signer email sent to %s for request %s", email, requestName)
+	return nil
 }
 
 func fieldTypeToSessionProto(t string) paperlessV1.SigningFieldType {

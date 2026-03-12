@@ -12,6 +12,7 @@ import (
 
 	"github.com/go-tangra/go-tangra-paperless/internal/authz"
 	"github.com/go-tangra/go-tangra-paperless/internal/data"
+	"github.com/go-tangra/go-tangra-paperless/internal/metrics"
 	appViewer "github.com/go-tangra/go-tangra-common/viewer"
 
 	paperlessV1 "github.com/go-tangra/go-tangra-paperless/gen/go/paperless/service/v1"
@@ -27,6 +28,7 @@ type DocumentService struct {
 	storage      *data.StorageClient
 	processor    *DocumentProcessor
 	checker      *authz.Checker
+	metrics      *metrics.Collector
 }
 
 func NewDocumentService(
@@ -37,6 +39,7 @@ func NewDocumentService(
 	storage *data.StorageClient,
 	processor *DocumentProcessor,
 	checker *authz.Checker,
+	mc *metrics.Collector,
 ) *DocumentService {
 	return &DocumentService{
 		log:          ctx.NewLoggerHelper("paperless/service/document"),
@@ -46,6 +49,7 @@ func NewDocumentService(
 		storage:      storage,
 		processor:    processor,
 		checker:      checker,
+		metrics:      mc,
 	}
 }
 
@@ -109,6 +113,9 @@ func (s *DocumentService) CreateDocument(ctx context.Context, req *paperlessV1.C
 			s.log.Warnf("failed to grant owner permission: %v", err)
 		}
 	}
+
+	// Update Prometheus metrics
+	s.metrics.DocumentCreated(document.Status.String(), source, "PROCESSING_STATUS_PENDING", uploadResult.Size)
 
 	// Trigger async document processing for text extraction
 	go s.processor.ProcessDocument(appViewer.NewSystemViewerContext(context.Background()), document.ID, req.FileContent, mimeType)
@@ -219,9 +226,23 @@ func (s *DocumentService) UpdateDocument(ctx context.Context, req *paperlessV1.U
 		status = &s
 	}
 
+	// Get old status for metrics tracking
+	var oldStatus string
+	if status != nil {
+		oldDoc, _ := s.documentRepo.GetByID(ctx, req.Id)
+		if oldDoc != nil {
+			oldStatus = oldDoc.Status.String()
+		}
+	}
+
 	document, err := s.documentRepo.Update(ctx, req.Id, req.Name, req.Description, status, req.Tags, req.UpdateTags, updatedBy)
 	if err != nil {
 		return nil, err
+	}
+
+	// Update Prometheus metrics if status changed
+	if status != nil && oldStatus != "" && oldStatus != *status {
+		s.metrics.DocumentStatusChanged(oldStatus, *status)
 	}
 
 	proto, err := s.documentRepo.ToProtoWithCategoryPath(ctx, document)
@@ -257,6 +278,9 @@ func (s *DocumentService) DeleteDocument(ctx context.Context, req *paperlessV1.D
 	if err := s.documentRepo.Delete(ctx, req.Id, req.Permanent); err != nil {
 		return nil, err
 	}
+
+	// Update Prometheus metrics
+	s.metrics.DocumentDeleted(document.Status.String(), document.Source.String(), document.ProcessingStatus.String(), document.FileSize)
 
 	// If permanent delete, also delete from storage
 	if req.Permanent {

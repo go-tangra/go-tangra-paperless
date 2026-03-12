@@ -23,8 +23,10 @@ import {
 import { $t } from 'shell/locales';
 import { usePaperlessSigningRequestStore } from '../../../stores/paperless-signing-request.state';
 import { usePaperlessSigningTemplateStore } from '../../../stores/paperless-signing-template.state';
-import type { SigningRequest, SigningRecipient } from '../../../stores/paperless-signing-request.state';
+import type { SigningRequest, SigningRecipient, SigningRequestType } from '../../../stores/paperless-signing-request.state';
 import type { SigningTemplate } from '../../../stores/paperless-signing-template.state';
+import type { AdminUser } from '../../../types';
+import { listUsers } from '../../../api/admin-api';
 
 const requestStore = usePaperlessSigningRequestStore();
 const templateStore = usePaperlessSigningTemplateStore();
@@ -32,6 +34,7 @@ const templateStore = usePaperlessSigningTemplateStore();
 interface RecipientInput {
   email: string;
   name: string;
+  userId?: number;
   signingOrder: number;
 }
 
@@ -44,6 +47,10 @@ const templates = ref<Array<{ value: string; label: string }>>([]);
 const selectedTemplate = ref<SigningTemplate | null>(null);
 const recipients = ref<RecipientInput[]>([]);
 const prefillValues = ref<Record<string, string>>({});
+const availableUsers = ref<AdminUser[]>([]);
+const signingType = ref<SigningRequestType>('SIGNING_REQUEST_TYPE_EXTERNAL');
+
+const isInternalType = computed(() => signingType.value === 'SIGNING_REQUEST_TYPE_INTERNAL');
 
 const prefillFieldsByStage = computed(() => {
   const fields = selectedTemplate.value?.fields ?? [];
@@ -69,6 +76,18 @@ const formState = ref<{
   message: '',
   expiresAt: undefined,
 });
+
+const signingTypeOptions = [
+  { value: 'SIGNING_REQUEST_TYPE_EXTERNAL', label: $t('paperless.page.signingRequest.signingTypeExternal') },
+  { value: 'SIGNING_REQUEST_TYPE_INTERNAL', label: $t('paperless.page.signingRequest.signingTypeInternal') },
+];
+
+const userSelectOptions = computed(() =>
+  availableUsers.value.map((u) => ({
+    value: u.id,
+    label: `${u.realname || u.username} (${u.email || '-'})`,
+  })),
+);
 
 const title = computed(() => {
   return data.value?.mode === 'create'
@@ -131,6 +150,22 @@ async function loadTemplates() {
   }
 }
 
+async function loadUsers() {
+  try {
+    const resp = await listUsers({ status: 'NORMAL' });
+    availableUsers.value = resp.items ?? [];
+  } catch (e) {
+    console.error('Failed to load users:', e);
+    availableUsers.value = [];
+  }
+}
+
+function handleSigningTypeChange(value: SigningRequestType) {
+  signingType.value = value;
+  // Clear recipients when switching types
+  recipients.value = [];
+}
+
 async function handleTemplateChange(templateId: string) {
   try {
     const resp = await templateStore.getSigningTemplate(templateId);
@@ -147,8 +182,21 @@ function addRecipient() {
   recipients.value.push({
     email: '',
     name: '',
+    userId: undefined,
     signingOrder: nextOrder,
   });
+}
+
+function handleUserSelect(index: number, userId: number) {
+  const user = availableUsers.value.find((u) => u.id === userId);
+  if (user) {
+    recipients.value[index] = {
+      ...recipients.value[index]!,
+      userId,
+      email: user.email ?? '',
+      name: user.realname ?? user.username ?? '',
+    };
+  }
 }
 
 function removeRecipient(index: number) {
@@ -191,12 +239,22 @@ async function handleSubmit() {
 
   // Validate recipients
   for (const r of recipients.value) {
-    if (!r.email.trim() || !r.name.trim()) {
-      notification.error({
-        message: $t('ui.formRules.required'),
-        description: `${$t('paperless.page.signingRequest.recipientEmail')} / ${$t('paperless.page.signingRequest.recipientName')}`,
-      });
-      return;
+    if (isInternalType.value) {
+      if (!r.userId) {
+        notification.error({
+          message: $t('ui.formRules.required'),
+          description: $t('paperless.page.signingRequest.selectUser'),
+        });
+        return;
+      }
+    } else {
+      if (!r.email.trim() || !r.name.trim()) {
+        notification.error({
+          message: $t('ui.formRules.required'),
+          description: `${$t('paperless.page.signingRequest.recipientEmail')} / ${$t('paperless.page.signingRequest.recipientName')}`,
+        });
+        return;
+      }
     }
   }
 
@@ -213,11 +271,12 @@ async function handleSubmit() {
     await requestStore.createSigningRequest({
       templateId: formState.value.templateId,
       name: formState.value.name,
-      recipients: recipients.value.map((r) => ({
-        email: r.email,
-        name: r.name,
-        signingOrder: r.signingOrder,
-      })),
+      signingType: signingType.value,
+      recipients: recipients.value.map((r) =>
+        isInternalType.value
+          ? { userId: r.userId, signingOrder: r.signingOrder }
+          : { email: r.email, name: r.name, signingOrder: r.signingOrder },
+      ),
       fieldValues: fieldValues.length > 0 ? fieldValues : undefined,
       message: formState.value.message || undefined,
       expiresAt: formState.value.expiresAt || undefined,
@@ -255,6 +314,7 @@ function resetForm() {
   recipients.value = [];
   selectedTemplate.value = null;
   prefillValues.value = {};
+  signingType.value = 'SIGNING_REQUEST_TYPE_EXTERNAL';
 }
 
 const [Drawer, drawerApi] = useVbenDrawer({
@@ -270,7 +330,7 @@ const [Drawer, drawerApi] = useVbenDrawer({
 
       if (data.value?.mode === 'create') {
         resetForm();
-        await loadTemplates();
+        await Promise.all([loadTemplates(), loadUsers()]);
       }
     }
   },
@@ -290,6 +350,17 @@ const [Drawer, drawerApi] = useVbenDrawer({
           v-model:value="formState.name"
           :placeholder="$t('ui.placeholder.input')"
           :maxlength="255"
+        />
+      </FormItem>
+
+      <FormItem
+        :label="$t('paperless.page.signingRequest.signingType')"
+        name="signingType"
+      >
+        <Select
+          :value="signingType"
+          :options="signingTypeOptions"
+          @change="handleSigningTypeChange"
         />
       </FormItem>
 
@@ -382,19 +453,35 @@ const [Drawer, drawerApi] = useVbenDrawer({
             size="small"
             style="width: 60px"
           />
-          <Input
-            v-model:value="recipient.name"
-            :placeholder="$t('paperless.page.signingRequest.recipientName')"
-            size="small"
-            style="flex: 1"
-          />
-          <Input
-            v-model:value="recipient.email"
-            :placeholder="$t('paperless.page.signingRequest.recipientEmail')"
-            size="small"
-            type="email"
-            style="flex: 1"
-          />
+          <!-- Internal: user selector -->
+          <template v-if="isInternalType">
+            <Select
+              :value="recipient.userId"
+              :options="userSelectOptions"
+              :placeholder="$t('paperless.page.signingRequest.selectUser')"
+              size="small"
+              show-search
+              :filter-option="(input: string, option: any) => option.label.toLowerCase().includes(input.toLowerCase())"
+              style="flex: 2"
+              @change="(val: number) => handleUserSelect(index, val)"
+            />
+          </template>
+          <!-- External: name + email -->
+          <template v-else>
+            <Input
+              v-model:value="recipient.name"
+              :placeholder="$t('paperless.page.signingRequest.recipientName')"
+              size="small"
+              style="flex: 1"
+            />
+            <Input
+              v-model:value="recipient.email"
+              :placeholder="$t('paperless.page.signingRequest.recipientEmail')"
+              size="small"
+              type="email"
+              style="flex: 1"
+            />
+          </template>
           <Button
             type="text"
             size="small"
@@ -441,6 +528,16 @@ const [Drawer, drawerApi] = useVbenDrawer({
             <div>
               <span class="text-gray-500">{{ $t('paperless.page.signingRequest.template') }}:</span>
               <p>{{ data.row.templateName || '-' }}</p>
+            </div>
+            <div>
+              <span class="text-gray-500">{{ $t('paperless.page.signingRequest.signingType') }}:</span>
+              <p>
+                <Tag :color="data.row.signingType === 'SIGNING_REQUEST_TYPE_INTERNAL' ? 'blue' : 'green'">
+                  {{ data.row.signingType === 'SIGNING_REQUEST_TYPE_INTERNAL'
+                    ? $t('paperless.page.signingRequest.signingTypeInternal')
+                    : $t('paperless.page.signingRequest.signingTypeExternal') }}
+                </Tag>
+              </p>
             </div>
             <div>
               <span class="text-gray-500">{{ $t('paperless.page.signingRequest.expiresAt') }}:</span>

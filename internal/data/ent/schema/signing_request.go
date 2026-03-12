@@ -62,6 +62,15 @@ func (SigningRequest) Fields() []ent.Field {
 			Default("SIGNING_REQUEST_STATUS_DRAFT").
 			Comment("Request status"),
 
+		field.Enum("signing_type").
+			Values(
+				"SIGNING_REQUEST_TYPE_UNSPECIFIED",
+				"SIGNING_REQUEST_TYPE_EXTERNAL",
+				"SIGNING_REQUEST_TYPE_INTERNAL",
+			).
+			Default("SIGNING_REQUEST_TYPE_EXTERNAL").
+			Comment("Request type: external (email-based) or internal (user-based)"),
+
 		field.String("original_file_key").
 			Optional().
 			MaxLen(512).

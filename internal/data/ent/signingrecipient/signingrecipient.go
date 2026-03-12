@@ -26,6 +26,8 @@ const (
 	FieldEmail = "email"
 	// FieldName holds the string denoting the name field in the database.
 	FieldName = "name"
+	// FieldUserID holds the string denoting the user_id field in the database.
+	FieldUserID = "user_id"
 	// FieldSigningOrder holds the string denoting the signing_order field in the database.
 	FieldSigningOrder = "signing_order"
 	// FieldStatus holds the string denoting the status field in the database.
@@ -60,6 +62,7 @@ var Columns = []string{
 	FieldSigningRequestID,
 	FieldEmail,
 	FieldName,
+	FieldUserID,
 	FieldSigningOrder,
 	FieldStatus,
 	FieldToken,
@@ -160,6 +163,11 @@ func ByEmail(opts ...sql.OrderTermOption) OrderOption {
 // ByName orders the results by the name field.
 func ByName(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldName, opts...).ToFunc()
+}
+
+// ByUserID orders the results by the user_id field.
+func ByUserID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldUserID, opts...).ToFunc()
 }
 
 // BySigningOrder orders the results by the signing_order field.

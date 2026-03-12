@@ -58,6 +58,15 @@ func NewHTTPServer(
 	// Template PDF proxy (token-authenticated)
 	route.GET("/api/v1/signing/templates/{id}/pdf", handleGetTemplatePdf(signingTemplateSvc))
 
+	// Authenticated signing session endpoints (for internal signing requests)
+	// These are accessed via the admin-service gateway which injects auth metadata
+	route.Handle("OPTIONS", "/api/v1/signing/sessions/auth/{token}", corsHandler())
+	route.Handle("OPTIONS", "/api/v1/signing/sessions/auth/{token}/submit", corsHandler())
+	route.Handle("OPTIONS", "/api/v1/signing/sessions/auth/{token}/document", corsHandler())
+	route.GET("/api/v1/signing/sessions/auth/{token}", handleGetAuthenticatedSigningSession(signingSessionSvc))
+	route.POST("/api/v1/signing/sessions/auth/{token}/submit", handleSubmitAuthenticatedSigning(signingSessionSvc))
+	route.GET("/api/v1/signing/sessions/auth/{token}/document", handleGetAuthenticatedDocument(signingSessionSvc))
+
 	// Health check
 	route.GET("/health", func(ctx kratosHttp.Context) error {
 		return ctx.JSON(http.StatusOK, map[string]string{"status": "ok"})
@@ -188,7 +197,8 @@ func handleDownloadSignedDocument(signingRequestSvc *service.SigningRequestServi
 	}
 }
 
-// handleGetDocument proxies the signing document PDF from S3 to the browser
+// handleGetDocument proxies the signing document PDF from S3 to the browser.
+// For external requests: no auth needed. For internal requests: requires HMAC token query param.
 func handleGetDocument(signingSessionSvc *service.SigningSessionService) kratosHttp.HandlerFunc {
 	return func(ctx kratosHttp.Context) error {
 		setCORSHeaders(ctx)
@@ -198,9 +208,22 @@ func handleGetDocument(signingSessionSvc *service.SigningSessionService) kratosH
 			return ctx.JSON(http.StatusBadRequest, errorResponse("token is required"))
 		}
 
+		// Check for HMAC token (used by authenticated internal signing sessions)
+		hmacToken := ctx.Request().URL.Query().Get("token")
+		expiresStr := ctx.Request().URL.Query().Get("expires")
+		hmacAuthenticated := false
+		if hmacToken != "" && expiresStr != "" {
+			var expiresUnix int64
+			if _, err := fmt.Sscanf(expiresStr, "%d", &expiresUnix); err == nil {
+				if service.ValidateDownloadToken(token, hmacToken, expiresUnix) {
+					hmacAuthenticated = true
+				}
+			}
+		}
+
 		grpcCtx := viewer.NewSystemViewerContext(ctx)
 
-		pdfBytes, fileName, err := signingSessionSvc.GetDocument(grpcCtx, token)
+		pdfBytes, fileName, err := signingSessionSvc.GetDocumentByToken(grpcCtx, token, hmacAuthenticated)
 		if err != nil {
 			code, msg := mapSigningError(err)
 			return ctx.JSON(code, errorResponse(msg))
@@ -259,6 +282,98 @@ func handleGetTemplatePdf(signingTemplateSvc *service.SigningTemplateService) kr
 	}
 }
 
+// handleGetAuthenticatedSigningSession returns signing session info for authenticated users
+func handleGetAuthenticatedSigningSession(signingSessionSvc *service.SigningSessionService) kratosHttp.HandlerFunc {
+	return func(ctx kratosHttp.Context) error {
+		setCORSHeaders(ctx)
+
+		token := ctx.Vars().Get("token")
+		if token == "" {
+			return ctx.JSON(http.StatusBadRequest, errorResponse("token is required"))
+		}
+
+		viewerIP := getViewerIP(ctx)
+
+		// For authenticated endpoints, pass through all incoming metadata (including auth headers)
+		grpcCtx := grpcMD.NewIncomingContext(ctx, grpcMD.Pairs("x-client-ip", viewerIP))
+		grpcCtx = viewer.NewSystemViewerContext(grpcCtx)
+
+		resp, err := signingSessionSvc.GetAuthenticatedSigningSession(grpcCtx, &paperlessV1.GetSigningSessionRequest{
+			Token: token,
+		})
+		if err != nil {
+			code, msg := mapSigningError(err)
+			return ctx.JSON(code, errorResponse(msg))
+		}
+
+		return writeProtoJSON(ctx, http.StatusOK, resp)
+	}
+}
+
+// handleSubmitAuthenticatedSigning processes an authenticated signing submission
+func handleSubmitAuthenticatedSigning(signingSessionSvc *service.SigningSessionService) kratosHttp.HandlerFunc {
+	return func(ctx kratosHttp.Context) error {
+		setCORSHeaders(ctx)
+
+		token := ctx.Vars().Get("token")
+		if token == "" {
+			return ctx.JSON(http.StatusBadRequest, errorResponse("token is required"))
+		}
+
+		body, err := io.ReadAll(ctx.Request().Body)
+		if err != nil {
+			return ctx.JSON(http.StatusBadRequest, errorResponse("failed to read request body"))
+		}
+
+		var submitReq paperlessV1.SubmitSigningRequest
+		if err := protojson.Unmarshal(body, &submitReq); err != nil {
+			return ctx.JSON(http.StatusBadRequest, errorResponse("invalid request body"))
+		}
+		submitReq.Token = token
+
+		viewerIP := getViewerIP(ctx)
+
+		grpcCtx := grpcMD.NewIncomingContext(ctx, grpcMD.Pairs("x-client-ip", viewerIP))
+		grpcCtx = viewer.NewSystemViewerContext(grpcCtx)
+
+		resp, err := signingSessionSvc.SubmitAuthenticatedSigning(grpcCtx, &submitReq)
+		if err != nil {
+			code, msg := mapSigningError(err)
+			return ctx.JSON(code, errorResponse(msg))
+		}
+
+		return writeProtoJSON(ctx, http.StatusOK, resp)
+	}
+}
+
+// handleGetAuthenticatedDocument proxies the PDF for authenticated signing sessions
+func handleGetAuthenticatedDocument(signingSessionSvc *service.SigningSessionService) kratosHttp.HandlerFunc {
+	return func(ctx kratosHttp.Context) error {
+		setCORSHeaders(ctx)
+
+		token := ctx.Vars().Get("token")
+		if token == "" {
+			return ctx.JSON(http.StatusBadRequest, errorResponse("token is required"))
+		}
+
+		grpcCtx := viewer.NewSystemViewerContext(ctx)
+
+		pdfBytes, fileName, err := signingSessionSvc.GetAuthenticatedDocument(grpcCtx, token)
+		if err != nil {
+			code, msg := mapSigningError(err)
+			return ctx.JSON(code, errorResponse(msg))
+		}
+
+		w := ctx.Response()
+		w.Header().Set("Content-Type", "application/pdf")
+		w.Header().Set("Content-Disposition", fmt.Sprintf(`inline; filename="%s"`, fileName))
+		w.Header().Set("Content-Length", fmt.Sprintf("%d", len(pdfBytes)))
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write(pdfBytes)
+		return nil
+	}
+}
+
 func getViewerIP(ctx kratosHttp.Context) string {
 	viewerIP := ctx.Header().Get("X-Real-IP")
 	if viewerIP == "" {
@@ -290,6 +405,10 @@ func corsHandler() kratosHttp.HandlerFunc {
 func mapSigningError(err error) (int, string) {
 	errMsg := err.Error()
 	switch {
+	case strings.Contains(errMsg, "authentication required") || strings.Contains(errMsg, "please log in"):
+		return http.StatusUnauthorized, errMsg
+	case strings.Contains(errMsg, "not authorized") || strings.Contains(errMsg, "forbidden"):
+		return http.StatusForbidden, errMsg
 	case strings.Contains(errMsg, "not found") || strings.Contains(errMsg, "not active"):
 		return http.StatusNotFound, "signing session not found or invalid token"
 	case strings.Contains(errMsg, "already") || strings.Contains(errMsg, "completed"):

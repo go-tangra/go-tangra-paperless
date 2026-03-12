@@ -128,6 +128,22 @@ service PaperlessSigningSessionService {
       body: "*"
     };
   }
+
+  // Get signing session info (authenticated, for internal signing requests)
+  // Routed through admin-service gateway which injects user_id in metadata
+  rpc GetAuthenticatedSigningSession(GetSigningSessionRequest) returns (GetSigningSessionResponse) {
+    option (google.api.http) = {
+      get: "/v1/signing/sessions/auth/{token}"
+    };
+  }
+
+  // Submit signing (authenticated, for internal signing requests)
+  rpc SubmitAuthenticatedSigning(SubmitSigningRequest) returns (SubmitSigningResponse) {
+    option (google.api.http) = {
+      post: "/v1/signing/sessions/auth/{token}/submit"
+      body: "*"
+    };
+  }
 }
 
 // ============================================================================
@@ -153,6 +169,13 @@ enum SigningRequestStatus {
   SIGNING_REQUEST_STATUS_COMPLETED = 3;
   SIGNING_REQUEST_STATUS_CANCELLED = 4;
   SIGNING_REQUEST_STATUS_EXPIRED = 5;
+}
+
+// Type of signing request (external = email-based, internal = user-based)
+enum SigningRequestType {
+  SIGNING_REQUEST_TYPE_UNSPECIFIED = 0;
+  SIGNING_REQUEST_TYPE_EXTERNAL = 1;
+  SIGNING_REQUEST_TYPE_INTERNAL = 2;
 }
 
 // Status of a signing recipient
@@ -207,6 +230,7 @@ message SigningRecipient {
   int32 signing_order = 4 [json_name = "signingOrder"];
   SigningRecipientStatus status = 5 [json_name = "status"];
   google.protobuf.Timestamp signed_at = 6 [json_name = "signedAt"];
+  optional uint32 user_id = 7 [json_name = "userId"];
 }
 
 // A field value filled during signing
@@ -234,6 +258,7 @@ message SigningRequest {
   google.protobuf.Timestamp create_time = 13 [json_name = "createTime"];
   google.protobuf.Timestamp update_time = 14 [json_name = "updateTime"];
   optional uint32 created_by = 15 [json_name = "createdBy"];
+  SigningRequestType signing_type = 16 [json_name = "signingType"];
 }
 
 // ============================================================================
@@ -384,23 +409,22 @@ message GetTemplatePdfUrlResponse {
 message SigningRecipientInput {
   string email = 1 [
     json_name = "email",
-    (google.api.field_behavior) = REQUIRED,
     (buf.validate.field).string = {
-      min_len: 1
       max_len: 255
     }
   ];
 
   string name = 2 [
     json_name = "name",
-    (google.api.field_behavior) = REQUIRED,
     (buf.validate.field).string = {
-      min_len: 1
       max_len: 255
     }
   ];
 
   int32 signing_order = 3 [json_name = "signingOrder"];
+
+  // For internal signing requests: the platform user ID (email/name auto-resolved)
+  optional uint32 user_id = 4 [json_name = "userId"];
 }
 
 // Pre-filled field value for creating a signing request
@@ -452,6 +476,9 @@ message CreateSigningRequestRequest {
   ];
 
   optional google.protobuf.Timestamp expires_at = 6 [json_name = "expiresAt"];
+
+  // Type of signing request (defaults to EXTERNAL if not specified)
+  SigningRequestType signing_type = 7 [json_name = "signingType"];
 }
 
 message CreateSigningRequestResponse {
@@ -583,6 +610,7 @@ message GetSigningSessionResponse {
   repeated SigningSessionField fields = 5 [json_name = "fields"];
   string message = 6 [json_name = "message"];
   google.protobuf.Timestamp expires_at = 7 [json_name = "expiresAt"];
+  bool is_internal = 8 [json_name = "isInternal"];
 }
 
 // Field value submitted during signing

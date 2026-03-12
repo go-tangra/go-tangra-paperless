@@ -9,6 +9,7 @@ import (
 
 	"github.com/go-tangra/go-tangra-paperless/internal/authz"
 	"github.com/go-tangra/go-tangra-paperless/internal/data"
+	"github.com/go-tangra/go-tangra-paperless/internal/metrics"
 
 	paperlessV1 "github.com/go-tangra/go-tangra-paperless/gen/go/paperless/service/v1"
 )
@@ -20,6 +21,7 @@ type CategoryService struct {
 	categoryRepo *data.CategoryRepo
 	permRepo     *data.PermissionRepo
 	checker      *authz.Checker
+	metrics      *metrics.Collector
 }
 
 func NewCategoryService(
@@ -27,12 +29,14 @@ func NewCategoryService(
 	categoryRepo *data.CategoryRepo,
 	permRepo *data.PermissionRepo,
 	checker *authz.Checker,
+	mc *metrics.Collector,
 ) *CategoryService {
 	return &CategoryService{
 		log:          ctx.NewLoggerHelper("paperless/service/category"),
 		categoryRepo: categoryRepo,
 		permRepo:     permRepo,
 		checker:      checker,
+		metrics:      mc,
 	}
 }
 
@@ -62,6 +66,8 @@ func (s *CategoryService) CreateCategory(ctx context.Context, req *paperlessV1.C
 			s.log.Warnf("failed to grant owner permission: %v", err)
 		}
 	}
+
+	s.metrics.CategoryCreated()
 
 	return &paperlessV1.CreateCategoryResponse{
 		Category: s.categoryRepo.ToProto(category),
@@ -175,6 +181,8 @@ func (s *CategoryService) DeleteCategory(ctx context.Context, req *paperlessV1.D
 	if err := s.categoryRepo.Delete(ctx, req.Id, req.Force); err != nil {
 		return nil, err
 	}
+
+	s.metrics.CategoryDeleted()
 
 	// Delete associated permissions
 	if err := s.permRepo.DeleteByResource(ctx, tenantID, "RESOURCE_TYPE_CATEGORY", req.Id); err != nil {

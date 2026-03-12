@@ -8,6 +8,8 @@ package providers
 import (
 	"github.com/google/wire"
 
+	"github.com/go-tangra/go-tangra-paperless/internal/client"
+	"github.com/go-tangra/go-tangra-paperless/internal/metrics"
 	"github.com/go-tangra/go-tangra-paperless/internal/service"
 )
 
@@ -23,6 +25,9 @@ var ProviderSet = wire.NewSet(
 	service.NewSigningTemplateService,
 	service.NewSigningRequestService,
 	service.NewSigningSessionService,
+	service.NewUserService,
+	client.NewAdminClient,
+	metrics.NewCollector,
 	ProvideResourceLookup,
 	ProvidePermissionStore,
 	ProvideAuthzEngine,

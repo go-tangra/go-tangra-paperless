@@ -434,6 +434,10 @@ func (m *SigningRecipient) validate(all bool) error {
 		}
 	}
 
+	if m.UserId != nil {
+		// no validation rules for UserId
+	}
+
 	if len(errors) > 0 {
 		return SigningRecipientMultiError(errors)
 	}
@@ -816,6 +820,8 @@ func (m *SigningRequest) validate(all bool) error {
 			}
 		}
 	}
+
+	// no validation rules for SigningType
 
 	if m.CreatedBy != nil {
 		// no validation rules for CreatedBy
@@ -2488,6 +2494,10 @@ func (m *SigningRecipientInput) validate(all bool) error {
 
 	// no validation rules for SigningOrder
 
+	if m.UserId != nil {
+		// no validation rules for UserId
+	}
+
 	if len(errors) > 0 {
 		return SigningRecipientInputMultiError(errors)
 	}
@@ -2769,6 +2779,8 @@ func (m *CreateSigningRequestRequest) validate(all bool) error {
 	}
 
 	// no validation rules for Message
+
+	// no validation rules for SigningType
 
 	if m.ExpiresAt != nil {
 
@@ -4416,6 +4428,8 @@ func (m *GetSigningSessionResponse) validate(all bool) error {
 			}
 		}
 	}
+
+	// no validation rules for IsInternal
 
 	if len(errors) > 0 {
 		return GetSigningSessionResponseMultiError(errors)

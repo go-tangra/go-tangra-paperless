@@ -291,6 +291,7 @@ var (
 		{Name: "delete_time", Type: field.TypeTime, Nullable: true, Comment: "删除时间"},
 		{Name: "email", Type: field.TypeString, Size: 255, Comment: "Recipient email address"},
 		{Name: "name", Type: field.TypeString, Size: 255, Comment: "Recipient display name"},
+		{Name: "user_id", Type: field.TypeUint32, Nullable: true, Comment: "User ID for internal recipients (null for external)"},
 		{Name: "signing_order", Type: field.TypeInt32, Comment: "Order in which recipients sign (1-based)", Default: 1},
 		{Name: "status", Type: field.TypeEnum, Comment: "Recipient signing status", Enums: []string{"SIGNING_RECIPIENT_STATUS_UNSPECIFIED", "SIGNING_RECIPIENT_STATUS_WAITING", "SIGNING_RECIPIENT_STATUS_PENDING", "SIGNING_RECIPIENT_STATUS_COMPLETED", "SIGNING_RECIPIENT_STATUS_DECLINED"}, Default: "SIGNING_RECIPIENT_STATUS_WAITING"},
 		{Name: "token", Type: field.TypeString, Unique: true, Size: 64, Comment: "Unique signing token (64-char hex)"},
@@ -307,7 +308,7 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "paperless_signing_recipients_paperless_signing_requests_recipients",
-				Columns:    []*schema.Column{PaperlessSigningRecipientsColumns[12]},
+				Columns:    []*schema.Column{PaperlessSigningRecipientsColumns[13]},
 				RefColumns: []*schema.Column{PaperlessSigningRequestsColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
@@ -316,17 +317,22 @@ var (
 			{
 				Name:    "signingrecipient_token",
 				Unique:  true,
-				Columns: []*schema.Column{PaperlessSigningRecipientsColumns[8]},
+				Columns: []*schema.Column{PaperlessSigningRecipientsColumns[9]},
 			},
 			{
 				Name:    "signingrecipient_signing_request_id_signing_order",
 				Unique:  false,
-				Columns: []*schema.Column{PaperlessSigningRecipientsColumns[12], PaperlessSigningRecipientsColumns[6]},
+				Columns: []*schema.Column{PaperlessSigningRecipientsColumns[13], PaperlessSigningRecipientsColumns[7]},
 			},
 			{
 				Name:    "signingrecipient_signing_request_id",
 				Unique:  false,
-				Columns: []*schema.Column{PaperlessSigningRecipientsColumns[12]},
+				Columns: []*schema.Column{PaperlessSigningRecipientsColumns[13]},
+			},
+			{
+				Name:    "signingrecipient_user_id",
+				Unique:  false,
+				Columns: []*schema.Column{PaperlessSigningRecipientsColumns[6]},
 			},
 		},
 	}
@@ -342,6 +348,7 @@ var (
 		{Name: "template_id", Type: field.TypeString, Size: 36, Comment: "Reference to signing template"},
 		{Name: "name", Type: field.TypeString, Size: 255, Comment: "Request display name"},
 		{Name: "status", Type: field.TypeEnum, Comment: "Request status", Enums: []string{"SIGNING_REQUEST_STATUS_UNSPECIFIED", "SIGNING_REQUEST_STATUS_DRAFT", "SIGNING_REQUEST_STATUS_PENDING", "SIGNING_REQUEST_STATUS_COMPLETED", "SIGNING_REQUEST_STATUS_CANCELLED", "SIGNING_REQUEST_STATUS_EXPIRED"}, Default: "SIGNING_REQUEST_STATUS_DRAFT"},
+		{Name: "signing_type", Type: field.TypeEnum, Comment: "Request type: external (email-based) or internal (user-based)", Enums: []string{"SIGNING_REQUEST_TYPE_UNSPECIFIED", "SIGNING_REQUEST_TYPE_EXTERNAL", "SIGNING_REQUEST_TYPE_INTERNAL"}, Default: "SIGNING_REQUEST_TYPE_EXTERNAL"},
 		{Name: "original_file_key", Type: field.TypeString, Nullable: true, Size: 512, Comment: "Storage key for the original PDF copy"},
 		{Name: "signed_file_key", Type: field.TypeString, Nullable: true, Size: 512, Comment: "Storage key for the signed/completed PDF"},
 		{Name: "field_values", Type: field.TypeJSON, Nullable: true, Comment: "Filled field values from all signers"},
@@ -390,7 +397,7 @@ var (
 		{Name: "file_key", Type: field.TypeString, Size: 512, Comment: "Storage key in RustFS/S3"},
 		{Name: "file_name", Type: field.TypeString, Size: 255, Comment: "Original file name"},
 		{Name: "file_size", Type: field.TypeInt64, Comment: "File size in bytes", Default: 0},
-		{Name: "fields", Type: field.TypeJSON, Nullable: true, Comment: "Parsed placeholder field definitions"},
+		{Name: "fields", Type: field.TypeJSON, Nullable: true, Comment: "Field definitions with positions from the visual builder"},
 	}
 	// PaperlessSigningTemplatesTable holds the schema information for the "paperless_signing_templates" table.
 	PaperlessSigningTemplatesTable = &schema.Table{

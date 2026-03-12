@@ -38,6 +38,8 @@ type SigningRequest struct {
 	Name string `json:"name,omitempty"`
 	// Request status
 	Status signingrequest.Status `json:"status,omitempty"`
+	// Request type: external (email-based) or internal (user-based)
+	SigningType signingrequest.SigningType `json:"signing_type,omitempty"`
 	// Storage key for the original PDF copy
 	OriginalFileKey string `json:"original_file_key,omitempty"`
 	// Storage key for the signed/completed PDF
@@ -81,7 +83,7 @@ func (*SigningRequest) scanValues(columns []string) ([]any, error) {
 			values[i] = new([]byte)
 		case signingrequest.FieldCreateBy, signingrequest.FieldUpdateBy, signingrequest.FieldTenantID:
 			values[i] = new(sql.NullInt64)
-		case signingrequest.FieldID, signingrequest.FieldTemplateID, signingrequest.FieldName, signingrequest.FieldStatus, signingrequest.FieldOriginalFileKey, signingrequest.FieldSignedFileKey, signingrequest.FieldMessage:
+		case signingrequest.FieldID, signingrequest.FieldTemplateID, signingrequest.FieldName, signingrequest.FieldStatus, signingrequest.FieldSigningType, signingrequest.FieldOriginalFileKey, signingrequest.FieldSignedFileKey, signingrequest.FieldMessage:
 			values[i] = new(sql.NullString)
 		case signingrequest.FieldCreateTime, signingrequest.FieldUpdateTime, signingrequest.FieldDeleteTime, signingrequest.FieldExpiresAt:
 			values[i] = new(sql.NullTime)
@@ -165,6 +167,12 @@ func (_m *SigningRequest) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field status", values[i])
 			} else if value.Valid {
 				_m.Status = signingrequest.Status(value.String)
+			}
+		case signingrequest.FieldSigningType:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field signing_type", values[i])
+			} else if value.Valid {
+				_m.SigningType = signingrequest.SigningType(value.String)
 			}
 		case signingrequest.FieldOriginalFileKey:
 			if value, ok := values[i].(*sql.NullString); !ok {
@@ -278,6 +286,9 @@ func (_m *SigningRequest) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("status=")
 	builder.WriteString(fmt.Sprintf("%v", _m.Status))
+	builder.WriteString(", ")
+	builder.WriteString("signing_type=")
+	builder.WriteString(fmt.Sprintf("%v", _m.SigningType))
 	builder.WriteString(", ")
 	builder.WriteString("original_file_key=")
 	builder.WriteString(_m.OriginalFileKey)

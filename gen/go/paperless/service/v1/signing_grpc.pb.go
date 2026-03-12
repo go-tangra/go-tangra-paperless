@@ -678,8 +678,10 @@ var PaperlessSigningRequestService_ServiceDesc = grpc.ServiceDesc{
 }
 
 const (
-	PaperlessSigningSessionService_GetSigningSession_FullMethodName = "/paperless.service.v1.PaperlessSigningSessionService/GetSigningSession"
-	PaperlessSigningSessionService_SubmitSigning_FullMethodName     = "/paperless.service.v1.PaperlessSigningSessionService/SubmitSigning"
+	PaperlessSigningSessionService_GetSigningSession_FullMethodName              = "/paperless.service.v1.PaperlessSigningSessionService/GetSigningSession"
+	PaperlessSigningSessionService_SubmitSigning_FullMethodName                  = "/paperless.service.v1.PaperlessSigningSessionService/SubmitSigning"
+	PaperlessSigningSessionService_GetAuthenticatedSigningSession_FullMethodName = "/paperless.service.v1.PaperlessSigningSessionService/GetAuthenticatedSigningSession"
+	PaperlessSigningSessionService_SubmitAuthenticatedSigning_FullMethodName     = "/paperless.service.v1.PaperlessSigningSessionService/SubmitAuthenticatedSigning"
 )
 
 // PaperlessSigningSessionServiceClient is the client API for PaperlessSigningSessionService service.
@@ -693,6 +695,11 @@ type PaperlessSigningSessionServiceClient interface {
 	GetSigningSession(ctx context.Context, in *GetSigningSessionRequest, opts ...grpc.CallOption) (*GetSigningSessionResponse, error)
 	// Submit signing (public, token-based)
 	SubmitSigning(ctx context.Context, in *SubmitSigningRequest, opts ...grpc.CallOption) (*SubmitSigningResponse, error)
+	// Get signing session info (authenticated, for internal signing requests)
+	// Routed through admin-service gateway which injects user_id in metadata
+	GetAuthenticatedSigningSession(ctx context.Context, in *GetSigningSessionRequest, opts ...grpc.CallOption) (*GetSigningSessionResponse, error)
+	// Submit signing (authenticated, for internal signing requests)
+	SubmitAuthenticatedSigning(ctx context.Context, in *SubmitSigningRequest, opts ...grpc.CallOption) (*SubmitSigningResponse, error)
 }
 
 type paperlessSigningSessionServiceClient struct {
@@ -723,6 +730,26 @@ func (c *paperlessSigningSessionServiceClient) SubmitSigning(ctx context.Context
 	return out, nil
 }
 
+func (c *paperlessSigningSessionServiceClient) GetAuthenticatedSigningSession(ctx context.Context, in *GetSigningSessionRequest, opts ...grpc.CallOption) (*GetSigningSessionResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetSigningSessionResponse)
+	err := c.cc.Invoke(ctx, PaperlessSigningSessionService_GetAuthenticatedSigningSession_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *paperlessSigningSessionServiceClient) SubmitAuthenticatedSigning(ctx context.Context, in *SubmitSigningRequest, opts ...grpc.CallOption) (*SubmitSigningResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(SubmitSigningResponse)
+	err := c.cc.Invoke(ctx, PaperlessSigningSessionService_SubmitAuthenticatedSigning_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // PaperlessSigningSessionServiceServer is the server API for PaperlessSigningSessionService service.
 // All implementations must embed UnimplementedPaperlessSigningSessionServiceServer
 // for forward compatibility.
@@ -734,6 +761,11 @@ type PaperlessSigningSessionServiceServer interface {
 	GetSigningSession(context.Context, *GetSigningSessionRequest) (*GetSigningSessionResponse, error)
 	// Submit signing (public, token-based)
 	SubmitSigning(context.Context, *SubmitSigningRequest) (*SubmitSigningResponse, error)
+	// Get signing session info (authenticated, for internal signing requests)
+	// Routed through admin-service gateway which injects user_id in metadata
+	GetAuthenticatedSigningSession(context.Context, *GetSigningSessionRequest) (*GetSigningSessionResponse, error)
+	// Submit signing (authenticated, for internal signing requests)
+	SubmitAuthenticatedSigning(context.Context, *SubmitSigningRequest) (*SubmitSigningResponse, error)
 	mustEmbedUnimplementedPaperlessSigningSessionServiceServer()
 }
 
@@ -749,6 +781,12 @@ func (UnimplementedPaperlessSigningSessionServiceServer) GetSigningSession(conte
 }
 func (UnimplementedPaperlessSigningSessionServiceServer) SubmitSigning(context.Context, *SubmitSigningRequest) (*SubmitSigningResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method SubmitSigning not implemented")
+}
+func (UnimplementedPaperlessSigningSessionServiceServer) GetAuthenticatedSigningSession(context.Context, *GetSigningSessionRequest) (*GetSigningSessionResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetAuthenticatedSigningSession not implemented")
+}
+func (UnimplementedPaperlessSigningSessionServiceServer) SubmitAuthenticatedSigning(context.Context, *SubmitSigningRequest) (*SubmitSigningResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method SubmitAuthenticatedSigning not implemented")
 }
 func (UnimplementedPaperlessSigningSessionServiceServer) mustEmbedUnimplementedPaperlessSigningSessionServiceServer() {
 }
@@ -808,6 +846,42 @@ func _PaperlessSigningSessionService_SubmitSigning_Handler(srv interface{}, ctx 
 	return interceptor(ctx, in, info, handler)
 }
 
+func _PaperlessSigningSessionService_GetAuthenticatedSigningSession_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetSigningSessionRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(PaperlessSigningSessionServiceServer).GetAuthenticatedSigningSession(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: PaperlessSigningSessionService_GetAuthenticatedSigningSession_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(PaperlessSigningSessionServiceServer).GetAuthenticatedSigningSession(ctx, req.(*GetSigningSessionRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _PaperlessSigningSessionService_SubmitAuthenticatedSigning_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SubmitSigningRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(PaperlessSigningSessionServiceServer).SubmitAuthenticatedSigning(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: PaperlessSigningSessionService_SubmitAuthenticatedSigning_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(PaperlessSigningSessionServiceServer).SubmitAuthenticatedSigning(ctx, req.(*SubmitSigningRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // PaperlessSigningSessionService_ServiceDesc is the grpc.ServiceDesc for PaperlessSigningSessionService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -822,6 +896,14 @@ var PaperlessSigningSessionService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "SubmitSigning",
 			Handler:    _PaperlessSigningSessionService_SubmitSigning_Handler,
+		},
+		{
+			MethodName: "GetAuthenticatedSigningSession",
+			Handler:    _PaperlessSigningSessionService_GetAuthenticatedSigningSession_Handler,
+		},
+		{
+			MethodName: "SubmitAuthenticatedSigning",
+			Handler:    _PaperlessSigningSessionService_SubmitAuthenticatedSigning_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

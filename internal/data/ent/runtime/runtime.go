@@ -343,15 +343,15 @@ func init() {
 		}
 	}()
 	// signingrecipientDescSigningOrder is the schema descriptor for signing_order field.
-	signingrecipientDescSigningOrder := signingrecipientFields[4].Descriptor()
+	signingrecipientDescSigningOrder := signingrecipientFields[5].Descriptor()
 	// signingrecipient.DefaultSigningOrder holds the default value on creation for the signing_order field.
 	signingrecipient.DefaultSigningOrder = signingrecipientDescSigningOrder.Default.(int32)
 	// signingrecipientDescToken is the schema descriptor for token field.
-	signingrecipientDescToken := signingrecipientFields[6].Descriptor()
+	signingrecipientDescToken := signingrecipientFields[7].Descriptor()
 	// signingrecipient.TokenValidator is a validator for the "token" field. It is called by the builders before save.
 	signingrecipient.TokenValidator = signingrecipientDescToken.Validators[0].(func(string) error)
 	// signingrecipientDescSignedIP is the schema descriptor for signed_ip field.
-	signingrecipientDescSignedIP := signingrecipientFields[8].Descriptor()
+	signingrecipientDescSignedIP := signingrecipientFields[9].Descriptor()
 	// signingrecipient.SignedIPValidator is a validator for the "signed_ip" field. It is called by the builders before save.
 	signingrecipient.SignedIPValidator = signingrecipientDescSignedIP.Validators[0].(func(string) error)
 	// signingrecipientDescID is the schema descriptor for id field.
@@ -413,15 +413,15 @@ func init() {
 		}
 	}()
 	// signingrequestDescOriginalFileKey is the schema descriptor for original_file_key field.
-	signingrequestDescOriginalFileKey := signingrequestFields[4].Descriptor()
+	signingrequestDescOriginalFileKey := signingrequestFields[5].Descriptor()
 	// signingrequest.OriginalFileKeyValidator is a validator for the "original_file_key" field. It is called by the builders before save.
 	signingrequest.OriginalFileKeyValidator = signingrequestDescOriginalFileKey.Validators[0].(func(string) error)
 	// signingrequestDescSignedFileKey is the schema descriptor for signed_file_key field.
-	signingrequestDescSignedFileKey := signingrequestFields[5].Descriptor()
+	signingrequestDescSignedFileKey := signingrequestFields[6].Descriptor()
 	// signingrequest.SignedFileKeyValidator is a validator for the "signed_file_key" field. It is called by the builders before save.
 	signingrequest.SignedFileKeyValidator = signingrequestDescSignedFileKey.Validators[0].(func(string) error)
 	// signingrequestDescMessage is the schema descriptor for message field.
-	signingrequestDescMessage := signingrequestFields[7].Descriptor()
+	signingrequestDescMessage := signingrequestFields[8].Descriptor()
 	// signingrequest.MessageValidator is a validator for the "message" field. It is called by the builders before save.
 	signingrequest.MessageValidator = signingrequestDescMessage.Validators[0].(func(string) error)
 	// signingrequestDescID is the schema descriptor for id field.

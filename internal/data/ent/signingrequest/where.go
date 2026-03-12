@@ -575,6 +575,26 @@ func StatusNotIn(vs ...Status) predicate.SigningRequest {
 	return predicate.SigningRequest(sql.FieldNotIn(FieldStatus, vs...))
 }
 
+// SigningTypeEQ applies the EQ predicate on the "signing_type" field.
+func SigningTypeEQ(v SigningType) predicate.SigningRequest {
+	return predicate.SigningRequest(sql.FieldEQ(FieldSigningType, v))
+}
+
+// SigningTypeNEQ applies the NEQ predicate on the "signing_type" field.
+func SigningTypeNEQ(v SigningType) predicate.SigningRequest {
+	return predicate.SigningRequest(sql.FieldNEQ(FieldSigningType, v))
+}
+
+// SigningTypeIn applies the In predicate on the "signing_type" field.
+func SigningTypeIn(vs ...SigningType) predicate.SigningRequest {
+	return predicate.SigningRequest(sql.FieldIn(FieldSigningType, vs...))
+}
+
+// SigningTypeNotIn applies the NotIn predicate on the "signing_type" field.
+func SigningTypeNotIn(vs ...SigningType) predicate.SigningRequest {
+	return predicate.SigningRequest(sql.FieldNotIn(FieldSigningType, vs...))
+}
+
 // OriginalFileKeyEQ applies the EQ predicate on the "original_file_key" field.
 func OriginalFileKeyEQ(v string) predicate.SigningRequest {
 	return predicate.SigningRequest(sql.FieldEQ(FieldOriginalFileKey, v))

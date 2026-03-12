@@ -47,6 +47,11 @@ func (SigningRecipient) Fields() []ent.Field {
 			MaxLen(255).
 			Comment("Recipient display name"),
 
+		field.Uint32("user_id").
+			Optional().
+			Nillable().
+			Comment("User ID for internal recipients (null for external)"),
+
 		field.Int32("signing_order").
 			Default(1).
 			Comment("Order in which recipients sign (1-based)"),
@@ -108,5 +113,6 @@ func (SigningRecipient) Indexes() []ent.Index {
 		index.Fields("token").Unique(),
 		index.Fields("signing_request_id", "signing_order"),
 		index.Fields("signing_request_id"),
+		index.Fields("user_id"),
 	}
 }

@@ -19,10 +19,16 @@ export type SigningRecipientStatus =
   | 'SIGNING_RECIPIENT_STATUS_COMPLETED'
   | 'SIGNING_RECIPIENT_STATUS_DECLINED';
 
+export type SigningRequestType =
+  | 'SIGNING_REQUEST_TYPE_UNSPECIFIED'
+  | 'SIGNING_REQUEST_TYPE_EXTERNAL'
+  | 'SIGNING_REQUEST_TYPE_INTERNAL';
+
 export interface SigningRecipient {
   id?: string;
   email?: string;
   name?: string;
+  userId?: number;
   signingOrder?: number;
   status?: SigningRecipientStatus;
   signedAt?: string;
@@ -41,6 +47,7 @@ export interface SigningRequest {
   templateName?: string;
   name?: string;
   status?: SigningRequestStatus;
+  signingType?: SigningRequestType;
   originalFileKey?: string;
   signedFileKey?: string;
   recipients?: SigningRecipient[];
@@ -102,7 +109,8 @@ export const usePaperlessSigningRequestStore = defineStore('paperless-signing-re
   async function createSigningRequest(data: {
     templateId: string;
     name: string;
-    recipients: Array<{ email: string; name: string; signingOrder: number }>;
+    signingType?: SigningRequestType;
+    recipients: Array<{ email?: string; name?: string; userId?: number; signingOrder: number }>;
     fieldValues?: Array<{ fieldId: string; value: string }>;
     message?: string;
     expiresAt?: string;

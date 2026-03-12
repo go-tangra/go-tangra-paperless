@@ -247,6 +247,28 @@ func (s *redactedPaperlessSigningSessionServiceServer) SubmitSigning(ctx context
 	return res, err
 }
 
+// GetAuthenticatedSigningSession is the redacted wrapper for the actual PaperlessSigningSessionServiceServer.GetAuthenticatedSigningSession method
+// Unary RPC
+func (s *redactedPaperlessSigningSessionServiceServer) GetAuthenticatedSigningSession(ctx context.Context, in *GetSigningSessionRequest) (*GetSigningSessionResponse, error) {
+	res, err := s.srv.GetAuthenticatedSigningSession(ctx, in)
+	if !s.bypass.CheckInternal(ctx) {
+		// Apply redaction to the response
+		redact.Apply(res)
+	}
+	return res, err
+}
+
+// SubmitAuthenticatedSigning is the redacted wrapper for the actual PaperlessSigningSessionServiceServer.SubmitAuthenticatedSigning method
+// Unary RPC
+func (s *redactedPaperlessSigningSessionServiceServer) SubmitAuthenticatedSigning(ctx context.Context, in *SubmitSigningRequest) (*SubmitSigningResponse, error) {
+	res, err := s.srv.SubmitAuthenticatedSigning(ctx, in)
+	if !s.bypass.CheckInternal(ctx) {
+		// Apply redaction to the response
+		redact.Apply(res)
+	}
+	return res, err
+}
+
 // Redact method implementation for SigningTemplateField
 func (x *SigningTemplateField) Redact() string {
 	if x == nil {
@@ -326,6 +348,8 @@ func (x *SigningRecipient) Redact() string {
 	// Safe field: Status
 
 	// Safe field: SignedAt
+
+	// Safe field: UserId
 	return x.String()
 }
 
@@ -380,6 +404,8 @@ func (x *SigningRequest) Redact() string {
 	// Safe field: UpdateTime
 
 	// Safe field: CreatedBy
+
+	// Safe field: SigningType
 	return x.String()
 }
 
@@ -542,6 +568,8 @@ func (x *SigningRecipientInput) Redact() string {
 	// Safe field: Name
 
 	// Safe field: SigningOrder
+
+	// Safe field: UserId
 	return x.String()
 }
 
@@ -574,6 +602,8 @@ func (x *CreateSigningRequestRequest) Redact() string {
 	// Safe field: Message
 
 	// Safe field: ExpiresAt
+
+	// Safe field: SigningType
 	return x.String()
 }
 
@@ -750,6 +780,8 @@ func (x *GetSigningSessionResponse) Redact() string {
 	// Safe field: Message
 
 	// Safe field: ExpiresAt
+
+	// Safe field: IsInternal
 	return x.String()
 }
 

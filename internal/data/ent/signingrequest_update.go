@@ -168,6 +168,20 @@ func (_u *SigningRequestUpdate) SetNillableStatus(v *signingrequest.Status) *Sig
 	return _u
 }
 
+// SetSigningType sets the "signing_type" field.
+func (_u *SigningRequestUpdate) SetSigningType(v signingrequest.SigningType) *SigningRequestUpdate {
+	_u.mutation.SetSigningType(v)
+	return _u
+}
+
+// SetNillableSigningType sets the "signing_type" field if the given value is not nil.
+func (_u *SigningRequestUpdate) SetNillableSigningType(v *signingrequest.SigningType) *SigningRequestUpdate {
+	if v != nil {
+		_u.SetSigningType(*v)
+	}
+	return _u
+}
+
 // SetOriginalFileKey sets the "original_file_key" field.
 func (_u *SigningRequestUpdate) SetOriginalFileKey(v string) *SigningRequestUpdate {
 	_u.mutation.SetOriginalFileKey(v)
@@ -351,6 +365,11 @@ func (_u *SigningRequestUpdate) check() error {
 			return &ValidationError{Name: "status", err: fmt.Errorf(`ent: validator failed for field "SigningRequest.status": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.SigningType(); ok {
+		if err := signingrequest.SigningTypeValidator(v); err != nil {
+			return &ValidationError{Name: "signing_type", err: fmt.Errorf(`ent: validator failed for field "SigningRequest.signing_type": %w`, err)}
+		}
+	}
 	if v, ok := _u.mutation.OriginalFileKey(); ok {
 		if err := signingrequest.OriginalFileKeyValidator(v); err != nil {
 			return &ValidationError{Name: "original_file_key", err: fmt.Errorf(`ent: validator failed for field "SigningRequest.original_file_key": %w`, err)}
@@ -431,6 +450,9 @@ func (_u *SigningRequestUpdate) sqlSave(ctx context.Context) (_node int, err err
 	}
 	if value, ok := _u.mutation.Status(); ok {
 		_spec.SetField(signingrequest.FieldStatus, field.TypeEnum, value)
+	}
+	if value, ok := _u.mutation.SigningType(); ok {
+		_spec.SetField(signingrequest.FieldSigningType, field.TypeEnum, value)
 	}
 	if value, ok := _u.mutation.OriginalFileKey(); ok {
 		_spec.SetField(signingrequest.FieldOriginalFileKey, field.TypeString, value)
@@ -670,6 +692,20 @@ func (_u *SigningRequestUpdateOne) SetNillableStatus(v *signingrequest.Status) *
 	return _u
 }
 
+// SetSigningType sets the "signing_type" field.
+func (_u *SigningRequestUpdateOne) SetSigningType(v signingrequest.SigningType) *SigningRequestUpdateOne {
+	_u.mutation.SetSigningType(v)
+	return _u
+}
+
+// SetNillableSigningType sets the "signing_type" field if the given value is not nil.
+func (_u *SigningRequestUpdateOne) SetNillableSigningType(v *signingrequest.SigningType) *SigningRequestUpdateOne {
+	if v != nil {
+		_u.SetSigningType(*v)
+	}
+	return _u
+}
+
 // SetOriginalFileKey sets the "original_file_key" field.
 func (_u *SigningRequestUpdateOne) SetOriginalFileKey(v string) *SigningRequestUpdateOne {
 	_u.mutation.SetOriginalFileKey(v)
@@ -866,6 +902,11 @@ func (_u *SigningRequestUpdateOne) check() error {
 			return &ValidationError{Name: "status", err: fmt.Errorf(`ent: validator failed for field "SigningRequest.status": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.SigningType(); ok {
+		if err := signingrequest.SigningTypeValidator(v); err != nil {
+			return &ValidationError{Name: "signing_type", err: fmt.Errorf(`ent: validator failed for field "SigningRequest.signing_type": %w`, err)}
+		}
+	}
 	if v, ok := _u.mutation.OriginalFileKey(); ok {
 		if err := signingrequest.OriginalFileKeyValidator(v); err != nil {
 			return &ValidationError{Name: "original_file_key", err: fmt.Errorf(`ent: validator failed for field "SigningRequest.original_file_key": %w`, err)}
@@ -963,6 +1004,9 @@ func (_u *SigningRequestUpdateOne) sqlSave(ctx context.Context) (_node *SigningR
 	}
 	if value, ok := _u.mutation.Status(); ok {
 		_spec.SetField(signingrequest.FieldStatus, field.TypeEnum, value)
+	}
+	if value, ok := _u.mutation.SigningType(); ok {
+		_spec.SetField(signingrequest.FieldSigningType, field.TypeEnum, value)
 	}
 	if value, ok := _u.mutation.OriginalFileKey(); ok {
 		_spec.SetField(signingrequest.FieldOriginalFileKey, field.TypeString, value)

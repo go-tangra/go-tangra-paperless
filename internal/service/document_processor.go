@@ -7,6 +7,7 @@ import (
 	"github.com/tx7do/kratos-bootstrap/bootstrap"
 
 	"github.com/go-tangra/go-tangra-paperless/internal/data"
+	"github.com/go-tangra/go-tangra-paperless/internal/metrics"
 )
 
 const (
@@ -14,6 +15,7 @@ const (
 	mimeTypeDOC  = "application/msword"
 	mimeTypeDOCX = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
 
+	statusPending    = "PROCESSING_STATUS_PENDING"
 	statusProcessing = "PROCESSING_STATUS_PROCESSING"
 	statusCompleted  = "PROCESSING_STATUS_COMPLETED"
 	statusFailed     = "PROCESSING_STATUS_FAILED"
@@ -26,6 +28,7 @@ type DocumentProcessor struct {
 	tika         *data.TikaClient
 	gotenberg    *data.GotenbergClient
 	documentRepo *data.DocumentRepo
+	metrics      *metrics.Collector
 }
 
 // NewDocumentProcessor creates a new DocumentProcessor
@@ -34,12 +37,14 @@ func NewDocumentProcessor(
 	tika *data.TikaClient,
 	gotenberg *data.GotenbergClient,
 	documentRepo *data.DocumentRepo,
+	mc *metrics.Collector,
 ) *DocumentProcessor {
 	return &DocumentProcessor{
 		log:          ctx.NewLoggerHelper("paperless/service/document-processor"),
 		tika:         tika,
 		gotenberg:    gotenberg,
 		documentRepo: documentRepo,
+		metrics:      mc,
 	}
 }
 
@@ -52,6 +57,7 @@ func (p *DocumentProcessor) ProcessDocument(ctx context.Context, documentID stri
 		p.log.Errorf("failed to set processing status: %v", err)
 		return
 	}
+	p.metrics.DocumentProcessingStatusChanged(statusPending, statusProcessing)
 
 	var pdfContent []byte
 
@@ -71,6 +77,7 @@ func (p *DocumentProcessor) ProcessDocument(ctx context.Context, documentID stri
 			if updateErr := p.documentRepo.UpdateProcessingResult(ctx, documentID, "", nil, statusFailed); updateErr != nil {
 				p.log.Errorf("failed to set processing status to FAILED for document %s: %v", documentID, updateErr)
 			}
+			p.metrics.DocumentProcessingStatusChanged(statusProcessing, statusFailed)
 			return
 		}
 		pdfContent = converted
@@ -79,6 +86,7 @@ func (p *DocumentProcessor) ProcessDocument(ctx context.Context, documentID stri
 		if updateErr := p.documentRepo.UpdateProcessingResult(ctx, documentID, "", nil, statusSkipped); updateErr != nil {
 			p.log.Errorf("failed to set processing status to SKIPPED for document %s: %v", documentID, updateErr)
 		}
+		p.metrics.DocumentProcessingStatusChanged(statusProcessing, statusSkipped)
 		return
 	}
 
@@ -89,6 +97,7 @@ func (p *DocumentProcessor) ProcessDocument(ctx context.Context, documentID stri
 		if updateErr := p.documentRepo.UpdateProcessingResult(ctx, documentID, "", nil, statusFailed); updateErr != nil {
 			p.log.Errorf("failed to set processing status to FAILED for document %s: %v", documentID, updateErr)
 		}
+		p.metrics.DocumentProcessingStatusChanged(statusProcessing, statusFailed)
 		return
 	}
 
@@ -105,6 +114,7 @@ func (p *DocumentProcessor) ProcessDocument(ctx context.Context, documentID stri
 		p.log.Errorf("failed to update processing result for document %s: %v", documentID, err)
 		return
 	}
+	p.metrics.DocumentProcessingStatusChanged(statusProcessing, statusCompleted)
 
 	p.log.Infof("document processing completed: id=%s, textLen=%d", documentID, len(text))
 }

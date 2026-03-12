@@ -112,6 +112,33 @@ func (_u *SigningRecipientUpdate) SetNillableName(v *string) *SigningRecipientUp
 	return _u
 }
 
+// SetUserID sets the "user_id" field.
+func (_u *SigningRecipientUpdate) SetUserID(v uint32) *SigningRecipientUpdate {
+	_u.mutation.ResetUserID()
+	_u.mutation.SetUserID(v)
+	return _u
+}
+
+// SetNillableUserID sets the "user_id" field if the given value is not nil.
+func (_u *SigningRecipientUpdate) SetNillableUserID(v *uint32) *SigningRecipientUpdate {
+	if v != nil {
+		_u.SetUserID(*v)
+	}
+	return _u
+}
+
+// AddUserID adds value to the "user_id" field.
+func (_u *SigningRecipientUpdate) AddUserID(v int32) *SigningRecipientUpdate {
+	_u.mutation.AddUserID(v)
+	return _u
+}
+
+// ClearUserID clears the value of the "user_id" field.
+func (_u *SigningRecipientUpdate) ClearUserID() *SigningRecipientUpdate {
+	_u.mutation.ClearUserID()
+	return _u
+}
+
 // SetSigningOrder sets the "signing_order" field.
 func (_u *SigningRecipientUpdate) SetSigningOrder(v int32) *SigningRecipientUpdate {
 	_u.mutation.ResetSigningOrder()
@@ -333,6 +360,15 @@ func (_u *SigningRecipientUpdate) sqlSave(ctx context.Context) (_node int, err e
 	if value, ok := _u.mutation.Name(); ok {
 		_spec.SetField(signingrecipient.FieldName, field.TypeString, value)
 	}
+	if value, ok := _u.mutation.UserID(); ok {
+		_spec.SetField(signingrecipient.FieldUserID, field.TypeUint32, value)
+	}
+	if value, ok := _u.mutation.AddedUserID(); ok {
+		_spec.AddField(signingrecipient.FieldUserID, field.TypeUint32, value)
+	}
+	if _u.mutation.UserIDCleared() {
+		_spec.ClearField(signingrecipient.FieldUserID, field.TypeUint32)
+	}
 	if value, ok := _u.mutation.SigningOrder(); ok {
 		_spec.SetField(signingrecipient.FieldSigningOrder, field.TypeInt32, value)
 	}
@@ -493,6 +529,33 @@ func (_u *SigningRecipientUpdateOne) SetNillableName(v *string) *SigningRecipien
 	if v != nil {
 		_u.SetName(*v)
 	}
+	return _u
+}
+
+// SetUserID sets the "user_id" field.
+func (_u *SigningRecipientUpdateOne) SetUserID(v uint32) *SigningRecipientUpdateOne {
+	_u.mutation.ResetUserID()
+	_u.mutation.SetUserID(v)
+	return _u
+}
+
+// SetNillableUserID sets the "user_id" field if the given value is not nil.
+func (_u *SigningRecipientUpdateOne) SetNillableUserID(v *uint32) *SigningRecipientUpdateOne {
+	if v != nil {
+		_u.SetUserID(*v)
+	}
+	return _u
+}
+
+// AddUserID adds value to the "user_id" field.
+func (_u *SigningRecipientUpdateOne) AddUserID(v int32) *SigningRecipientUpdateOne {
+	_u.mutation.AddUserID(v)
+	return _u
+}
+
+// ClearUserID clears the value of the "user_id" field.
+func (_u *SigningRecipientUpdateOne) ClearUserID() *SigningRecipientUpdateOne {
+	_u.mutation.ClearUserID()
 	return _u
 }
 
@@ -746,6 +809,15 @@ func (_u *SigningRecipientUpdateOne) sqlSave(ctx context.Context) (_node *Signin
 	}
 	if value, ok := _u.mutation.Name(); ok {
 		_spec.SetField(signingrecipient.FieldName, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.UserID(); ok {
+		_spec.SetField(signingrecipient.FieldUserID, field.TypeUint32, value)
+	}
+	if value, ok := _u.mutation.AddedUserID(); ok {
+		_spec.AddField(signingrecipient.FieldUserID, field.TypeUint32, value)
+	}
+	if _u.mutation.UserIDCleared() {
+		_spec.ClearField(signingrecipient.FieldUserID, field.TypeUint32)
 	}
 	if value, ok := _u.mutation.SigningOrder(); ok {
 		_spec.SetField(signingrecipient.FieldSigningOrder, field.TypeInt32, value)

@@ -84,6 +84,20 @@ func (_c *SigningRecipientCreate) SetName(v string) *SigningRecipientCreate {
 	return _c
 }
 
+// SetUserID sets the "user_id" field.
+func (_c *SigningRecipientCreate) SetUserID(v uint32) *SigningRecipientCreate {
+	_c.mutation.SetUserID(v)
+	return _c
+}
+
+// SetNillableUserID sets the "user_id" field if the given value is not nil.
+func (_c *SigningRecipientCreate) SetNillableUserID(v *uint32) *SigningRecipientCreate {
+	if v != nil {
+		_c.SetUserID(*v)
+	}
+	return _c
+}
+
 // SetSigningOrder sets the "signing_order" field.
 func (_c *SigningRecipientCreate) SetSigningOrder(v int32) *SigningRecipientCreate {
 	_c.mutation.SetSigningOrder(v)
@@ -322,6 +336,10 @@ func (_c *SigningRecipientCreate) createSpec() (*SigningRecipient, *sqlgraph.Cre
 		_spec.SetField(signingrecipient.FieldName, field.TypeString, value)
 		_node.Name = value
 	}
+	if value, ok := _c.mutation.UserID(); ok {
+		_spec.SetField(signingrecipient.FieldUserID, field.TypeUint32, value)
+		_node.UserID = &value
+	}
 	if value, ok := _c.mutation.SigningOrder(); ok {
 		_spec.SetField(signingrecipient.FieldSigningOrder, field.TypeInt32, value)
 		_node.SigningOrder = value
@@ -484,6 +502,30 @@ func (u *SigningRecipientUpsert) SetName(v string) *SigningRecipientUpsert {
 // UpdateName sets the "name" field to the value that was provided on create.
 func (u *SigningRecipientUpsert) UpdateName() *SigningRecipientUpsert {
 	u.SetExcluded(signingrecipient.FieldName)
+	return u
+}
+
+// SetUserID sets the "user_id" field.
+func (u *SigningRecipientUpsert) SetUserID(v uint32) *SigningRecipientUpsert {
+	u.Set(signingrecipient.FieldUserID, v)
+	return u
+}
+
+// UpdateUserID sets the "user_id" field to the value that was provided on create.
+func (u *SigningRecipientUpsert) UpdateUserID() *SigningRecipientUpsert {
+	u.SetExcluded(signingrecipient.FieldUserID)
+	return u
+}
+
+// AddUserID adds v to the "user_id" field.
+func (u *SigningRecipientUpsert) AddUserID(v uint32) *SigningRecipientUpsert {
+	u.Add(signingrecipient.FieldUserID, v)
+	return u
+}
+
+// ClearUserID clears the value of the "user_id" field.
+func (u *SigningRecipientUpsert) ClearUserID() *SigningRecipientUpsert {
+	u.SetNull(signingrecipient.FieldUserID)
 	return u
 }
 
@@ -715,6 +757,34 @@ func (u *SigningRecipientUpsertOne) SetName(v string) *SigningRecipientUpsertOne
 func (u *SigningRecipientUpsertOne) UpdateName() *SigningRecipientUpsertOne {
 	return u.Update(func(s *SigningRecipientUpsert) {
 		s.UpdateName()
+	})
+}
+
+// SetUserID sets the "user_id" field.
+func (u *SigningRecipientUpsertOne) SetUserID(v uint32) *SigningRecipientUpsertOne {
+	return u.Update(func(s *SigningRecipientUpsert) {
+		s.SetUserID(v)
+	})
+}
+
+// AddUserID adds v to the "user_id" field.
+func (u *SigningRecipientUpsertOne) AddUserID(v uint32) *SigningRecipientUpsertOne {
+	return u.Update(func(s *SigningRecipientUpsert) {
+		s.AddUserID(v)
+	})
+}
+
+// UpdateUserID sets the "user_id" field to the value that was provided on create.
+func (u *SigningRecipientUpsertOne) UpdateUserID() *SigningRecipientUpsertOne {
+	return u.Update(func(s *SigningRecipientUpsert) {
+		s.UpdateUserID()
+	})
+}
+
+// ClearUserID clears the value of the "user_id" field.
+func (u *SigningRecipientUpsertOne) ClearUserID() *SigningRecipientUpsertOne {
+	return u.Update(func(s *SigningRecipientUpsert) {
+		s.ClearUserID()
 	})
 }
 
@@ -1129,6 +1199,34 @@ func (u *SigningRecipientUpsertBulk) SetName(v string) *SigningRecipientUpsertBu
 func (u *SigningRecipientUpsertBulk) UpdateName() *SigningRecipientUpsertBulk {
 	return u.Update(func(s *SigningRecipientUpsert) {
 		s.UpdateName()
+	})
+}
+
+// SetUserID sets the "user_id" field.
+func (u *SigningRecipientUpsertBulk) SetUserID(v uint32) *SigningRecipientUpsertBulk {
+	return u.Update(func(s *SigningRecipientUpsert) {
+		s.SetUserID(v)
+	})
+}
+
+// AddUserID adds v to the "user_id" field.
+func (u *SigningRecipientUpsertBulk) AddUserID(v uint32) *SigningRecipientUpsertBulk {
+	return u.Update(func(s *SigningRecipientUpsert) {
+		s.AddUserID(v)
+	})
+}
+
+// UpdateUserID sets the "user_id" field to the value that was provided on create.
+func (u *SigningRecipientUpsertBulk) UpdateUserID() *SigningRecipientUpsertBulk {
+	return u.Update(func(s *SigningRecipientUpsert) {
+		s.UpdateUserID()
+	})
+}
+
+// ClearUserID clears the value of the "user_id" field.
+func (u *SigningRecipientUpsertBulk) ClearUserID() *SigningRecipientUpsertBulk {
+	return u.Update(func(s *SigningRecipientUpsert) {
+		s.ClearUserID()
 	})
 }
 

@@ -101,6 +101,12 @@ const gridOptions: VxeGridProps<SigningRequest> = {
       slots: { default: 'status' },
     },
     {
+      title: $t('paperless.page.signingRequest.signingType'),
+      field: 'signingType',
+      width: 140,
+      slots: { default: 'signingType' },
+    },
+    {
       title: $t('paperless.page.signingRequest.recipients'),
       field: 'recipients',
       width: 140,
@@ -235,6 +241,13 @@ async function handleDownload(row: SigningRequest) {
       <template #status="{ row }">
         <Tag :color="getStatusColor(row.status)">
           {{ getStatusLabel(row.status) }}
+        </Tag>
+      </template>
+      <template #signingType="{ row }">
+        <Tag :color="row.signingType === 'SIGNING_REQUEST_TYPE_INTERNAL' ? 'blue' : 'green'">
+          {{ row.signingType === 'SIGNING_REQUEST_TYPE_INTERNAL'
+            ? $t('paperless.page.signingRequest.signingTypeInternal')
+            : $t('paperless.page.signingRequest.signingTypeExternal') }}
         </Tag>
       </template>
       <template #recipients="{ row }">

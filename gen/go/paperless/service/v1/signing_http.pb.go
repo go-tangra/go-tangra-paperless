@@ -610,12 +610,19 @@ func (c *PaperlessSigningRequestServiceHTTPClientImpl) ResendSigningEmail(ctx co
 	return &out, nil
 }
 
+const OperationPaperlessSigningSessionServiceGetAuthenticatedSigningSession = "/paperless.service.v1.PaperlessSigningSessionService/GetAuthenticatedSigningSession"
 const OperationPaperlessSigningSessionServiceGetSigningSession = "/paperless.service.v1.PaperlessSigningSessionService/GetSigningSession"
+const OperationPaperlessSigningSessionServiceSubmitAuthenticatedSigning = "/paperless.service.v1.PaperlessSigningSessionService/SubmitAuthenticatedSigning"
 const OperationPaperlessSigningSessionServiceSubmitSigning = "/paperless.service.v1.PaperlessSigningSessionService/SubmitSigning"
 
 type PaperlessSigningSessionServiceHTTPServer interface {
+	// GetAuthenticatedSigningSession Get signing session info (authenticated, for internal signing requests)
+	// Routed through admin-service gateway which injects user_id in metadata
+	GetAuthenticatedSigningSession(context.Context, *GetSigningSessionRequest) (*GetSigningSessionResponse, error)
 	// GetSigningSession Get signing session info (public, token-based)
 	GetSigningSession(context.Context, *GetSigningSessionRequest) (*GetSigningSessionResponse, error)
+	// SubmitAuthenticatedSigning Submit signing (authenticated, for internal signing requests)
+	SubmitAuthenticatedSigning(context.Context, *SubmitSigningRequest) (*SubmitSigningResponse, error)
 	// SubmitSigning Submit signing (public, token-based)
 	SubmitSigning(context.Context, *SubmitSigningRequest) (*SubmitSigningResponse, error)
 }
@@ -624,6 +631,8 @@ func RegisterPaperlessSigningSessionServiceHTTPServer(s *http.Server, srv Paperl
 	r := s.Route("/")
 	r.GET("/v1/signing/sessions/{token}", _PaperlessSigningSessionService_GetSigningSession0_HTTP_Handler(srv))
 	r.POST("/v1/signing/sessions/{token}/submit", _PaperlessSigningSessionService_SubmitSigning0_HTTP_Handler(srv))
+	r.GET("/v1/signing/sessions/auth/{token}", _PaperlessSigningSessionService_GetAuthenticatedSigningSession0_HTTP_Handler(srv))
+	r.POST("/v1/signing/sessions/auth/{token}/submit", _PaperlessSigningSessionService_SubmitAuthenticatedSigning0_HTTP_Handler(srv))
 }
 
 func _PaperlessSigningSessionService_GetSigningSession0_HTTP_Handler(srv PaperlessSigningSessionServiceHTTPServer) func(ctx http.Context) error {
@@ -673,9 +682,61 @@ func _PaperlessSigningSessionService_SubmitSigning0_HTTP_Handler(srv PaperlessSi
 	}
 }
 
+func _PaperlessSigningSessionService_GetAuthenticatedSigningSession0_HTTP_Handler(srv PaperlessSigningSessionServiceHTTPServer) func(ctx http.Context) error {
+	return func(ctx http.Context) error {
+		var in GetSigningSessionRequest
+		if err := ctx.BindQuery(&in); err != nil {
+			return err
+		}
+		if err := ctx.BindVars(&in); err != nil {
+			return err
+		}
+		http.SetOperation(ctx, OperationPaperlessSigningSessionServiceGetAuthenticatedSigningSession)
+		h := ctx.Middleware(func(ctx context.Context, req interface{}) (interface{}, error) {
+			return srv.GetAuthenticatedSigningSession(ctx, req.(*GetSigningSessionRequest))
+		})
+		out, err := h(ctx, &in)
+		if err != nil {
+			return err
+		}
+		reply := out.(*GetSigningSessionResponse)
+		return ctx.Result(200, reply)
+	}
+}
+
+func _PaperlessSigningSessionService_SubmitAuthenticatedSigning0_HTTP_Handler(srv PaperlessSigningSessionServiceHTTPServer) func(ctx http.Context) error {
+	return func(ctx http.Context) error {
+		var in SubmitSigningRequest
+		if err := ctx.Bind(&in); err != nil {
+			return err
+		}
+		if err := ctx.BindQuery(&in); err != nil {
+			return err
+		}
+		if err := ctx.BindVars(&in); err != nil {
+			return err
+		}
+		http.SetOperation(ctx, OperationPaperlessSigningSessionServiceSubmitAuthenticatedSigning)
+		h := ctx.Middleware(func(ctx context.Context, req interface{}) (interface{}, error) {
+			return srv.SubmitAuthenticatedSigning(ctx, req.(*SubmitSigningRequest))
+		})
+		out, err := h(ctx, &in)
+		if err != nil {
+			return err
+		}
+		reply := out.(*SubmitSigningResponse)
+		return ctx.Result(200, reply)
+	}
+}
+
 type PaperlessSigningSessionServiceHTTPClient interface {
+	// GetAuthenticatedSigningSession Get signing session info (authenticated, for internal signing requests)
+	// Routed through admin-service gateway which injects user_id in metadata
+	GetAuthenticatedSigningSession(ctx context.Context, req *GetSigningSessionRequest, opts ...http.CallOption) (rsp *GetSigningSessionResponse, err error)
 	// GetSigningSession Get signing session info (public, token-based)
 	GetSigningSession(ctx context.Context, req *GetSigningSessionRequest, opts ...http.CallOption) (rsp *GetSigningSessionResponse, err error)
+	// SubmitAuthenticatedSigning Submit signing (authenticated, for internal signing requests)
+	SubmitAuthenticatedSigning(ctx context.Context, req *SubmitSigningRequest, opts ...http.CallOption) (rsp *SubmitSigningResponse, err error)
 	// SubmitSigning Submit signing (public, token-based)
 	SubmitSigning(ctx context.Context, req *SubmitSigningRequest, opts ...http.CallOption) (rsp *SubmitSigningResponse, err error)
 }
@@ -688,6 +749,21 @@ func NewPaperlessSigningSessionServiceHTTPClient(client *http.Client) PaperlessS
 	return &PaperlessSigningSessionServiceHTTPClientImpl{client}
 }
 
+// GetAuthenticatedSigningSession Get signing session info (authenticated, for internal signing requests)
+// Routed through admin-service gateway which injects user_id in metadata
+func (c *PaperlessSigningSessionServiceHTTPClientImpl) GetAuthenticatedSigningSession(ctx context.Context, in *GetSigningSessionRequest, opts ...http.CallOption) (*GetSigningSessionResponse, error) {
+	var out GetSigningSessionResponse
+	pattern := "/v1/signing/sessions/auth/{token}"
+	path := binding.EncodeURL(pattern, in, true)
+	opts = append(opts, http.Operation(OperationPaperlessSigningSessionServiceGetAuthenticatedSigningSession))
+	opts = append(opts, http.PathTemplate(pattern))
+	err := c.cc.Invoke(ctx, "GET", path, nil, &out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return &out, nil
+}
+
 // GetSigningSession Get signing session info (public, token-based)
 func (c *PaperlessSigningSessionServiceHTTPClientImpl) GetSigningSession(ctx context.Context, in *GetSigningSessionRequest, opts ...http.CallOption) (*GetSigningSessionResponse, error) {
 	var out GetSigningSessionResponse
@@ -696,6 +772,20 @@ func (c *PaperlessSigningSessionServiceHTTPClientImpl) GetSigningSession(ctx con
 	opts = append(opts, http.Operation(OperationPaperlessSigningSessionServiceGetSigningSession))
 	opts = append(opts, http.PathTemplate(pattern))
 	err := c.cc.Invoke(ctx, "GET", path, nil, &out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return &out, nil
+}
+
+// SubmitAuthenticatedSigning Submit signing (authenticated, for internal signing requests)
+func (c *PaperlessSigningSessionServiceHTTPClientImpl) SubmitAuthenticatedSigning(ctx context.Context, in *SubmitSigningRequest, opts ...http.CallOption) (*SubmitSigningResponse, error) {
+	var out SubmitSigningResponse
+	pattern := "/v1/signing/sessions/auth/{token}/submit"
+	path := binding.EncodeURL(pattern, in, false)
+	opts = append(opts, http.Operation(OperationPaperlessSigningSessionServiceSubmitAuthenticatedSigning))
+	opts = append(opts, http.PathTemplate(pattern))
+	err := c.cc.Invoke(ctx, "POST", path, in, &out, opts...)
 	if err != nil {
 		return nil, err
 	}
