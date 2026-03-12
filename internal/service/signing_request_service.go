@@ -538,7 +538,10 @@ func (s *SigningRequestService) ensureNotificationTemplate(ctx context.Context) 
 
 	s.log.Info("Resolving notification template for paperless signing requests...")
 
-	tmpl, err := s.notificationClient.FindTemplateByName(ctx, signingRequestTemplateName)
+	// Use platform admin context (tenant 0) — notification channels/templates are platform-level resources
+	platformCtx := data.DetachedMetadataContext(ctx, 0)
+
+	tmpl, err := s.notificationClient.FindTemplateByName(platformCtx, signingRequestTemplateName)
 	if err != nil {
 		return "", fmt.Errorf("search notification template: %w", err)
 	}
@@ -549,7 +552,7 @@ func (s *SigningRequestService) ensureNotificationTemplate(ctx context.Context) 
 		return s.notifTemplateID, nil
 	}
 
-	channelID, err := s.notificationClient.FindChannelByName(ctx, notificationChannelName)
+	channelID, err := s.notificationClient.FindChannelByName(platformCtx, notificationChannelName)
 	if err != nil {
 		return "", fmt.Errorf("find channel %q: %w", notificationChannelName, err)
 	}
@@ -562,12 +565,12 @@ func (s *SigningRequestService) ensureNotificationTemplate(ctx context.Context) 
 		Variables: "RecipientName,RequestName,Message,SigningLink",
 		IsDefault: false,
 	}
-	created, err := s.notificationClient.CreateTemplate(ctx, createReq)
+	created, err := s.notificationClient.CreateTemplate(platformCtx, createReq)
 	if err != nil {
 		// Template may already exist (cross-tenant or race condition) — retry lookup
 		if strings.Contains(err.Error(), "already exists") {
 			s.log.Info("Template already exists, retrying lookup...")
-			tmpl2, findErr := s.notificationClient.FindTemplateByName(ctx, signingRequestTemplateName)
+			tmpl2, findErr := s.notificationClient.FindTemplateByName(platformCtx, signingRequestTemplateName)
 			if findErr != nil {
 				return "", fmt.Errorf("retry find template after conflict: %w", findErr)
 			}
@@ -607,7 +610,9 @@ func (s *SigningRequestService) sendSigningEmail(ctx context.Context, email, nam
 		"SigningLink":   signingLink,
 	}
 
-	_, err = s.notificationClient.SendNotification(ctx, templateID, email, variables)
+	// Use platform admin context (tenant 0) for notification service calls
+	platformCtx := data.DetachedMetadataContext(ctx, 0)
+	_, err = s.notificationClient.SendNotification(platformCtx, templateID, email, variables)
 	if err != nil {
 		return fmt.Errorf("send notification: %w", err)
 	}

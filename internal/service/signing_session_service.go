@@ -716,7 +716,10 @@ func (s *SigningSessionService) ensureNotificationTemplate(ctx context.Context) 
 
 	s.log.Info("Resolving notification template for paperless next-signer emails...")
 
-	tmpl, err := s.notificationClient.FindTemplateByName(ctx, signingNextTemplateName)
+	// Use platform admin context (tenant 0) — notification channels/templates are platform-level resources
+	platformCtx := data.DetachedMetadataContext(ctx, 0)
+
+	tmpl, err := s.notificationClient.FindTemplateByName(platformCtx, signingNextTemplateName)
 	if err != nil {
 		return "", fmt.Errorf("search notification template: %w", err)
 	}
@@ -727,7 +730,7 @@ func (s *SigningSessionService) ensureNotificationTemplate(ctx context.Context) 
 		return s.notifTemplateID, nil
 	}
 
-	channelID, err := s.notificationClient.FindChannelByName(ctx, notificationChannelName)
+	channelID, err := s.notificationClient.FindChannelByName(platformCtx, notificationChannelName)
 	if err != nil {
 		return "", fmt.Errorf("find channel %q: %w", notificationChannelName, err)
 	}
@@ -740,7 +743,7 @@ func (s *SigningSessionService) ensureNotificationTemplate(ctx context.Context) 
 		Variables: "RecipientName,RequestName,Message,SigningLink",
 		IsDefault: false,
 	}
-	created, err := s.notificationClient.CreateTemplate(ctx, createReq)
+	created, err := s.notificationClient.CreateTemplate(platformCtx, createReq)
 	if err != nil {
 		return "", fmt.Errorf("create notification template: %w", err)
 	}
@@ -775,7 +778,9 @@ func (s *SigningSessionService) sendNextSigningEmail(ctx context.Context, email,
 		"SigningLink":   signingLink,
 	}
 
-	_, err = s.notificationClient.SendNotification(ctx, templateID, email, variables)
+	// Use platform admin context (tenant 0) for notification service calls
+	platformCtx := data.DetachedMetadataContext(ctx, 0)
+	_, err = s.notificationClient.SendNotification(platformCtx, templateID, email, variables)
 	if err != nil {
 		return fmt.Errorf("send notification: %w", err)
 	}
