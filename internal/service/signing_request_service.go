@@ -17,6 +17,7 @@ import (
 
 	"github.com/go-tangra/go-tangra-paperless/internal/client"
 	"github.com/go-tangra/go-tangra-paperless/internal/data"
+	"github.com/go-tangra/go-tangra-paperless/internal/data/ent"
 	"github.com/go-tangra/go-tangra-paperless/internal/data/ent/schema"
 	"github.com/go-tangra/go-tangra-paperless/internal/event"
 
@@ -475,6 +476,11 @@ func (s *SigningRequestService) RevokeSigningRequest(ctx context.Context, req *p
 		return nil, paperlessV1.ErrorBadRequest("only completed signing requests can be revoked")
 	}
 
+	// Authorization: platform admin, paperless admin, or internal recipient
+	if err := s.authorizeRevocation(ctx, entity); err != nil {
+		return nil, err
+	}
+
 	// Get the template to read the configurable stamp text
 	template, err := s.templateRepo.GetByID(ctx, entity.TemplateID)
 	if err != nil {
@@ -529,6 +535,41 @@ func (s *SigningRequestService) RevokeSigningRequest(ctx context.Context, req *p
 	return &paperlessV1.RevokeSigningRequestResponse{
 		Request: s.requestRepo.ToProto(ctx, entity),
 	}, nil
+}
+
+// authorizeRevocation checks whether the current user is allowed to revoke a signing request.
+// Allowed: platform admins, paperless admins, or (for internal requests) any recipient.
+func (s *SigningRequestService) authorizeRevocation(ctx context.Context, entity *ent.SigningRequest) error {
+	// Platform admin can always revoke
+	if isPlatformAdmin(ctx) {
+		return nil
+	}
+
+	// Paperless admin can always revoke
+	roles := getRolesFromContext(ctx)
+	for _, role := range roles {
+		if role == "paperless.admin" {
+			return nil
+		}
+	}
+
+	// For internal requests, any recipient can revoke
+	if string(entity.SigningType) == "SIGNING_REQUEST_TYPE_INTERNAL" {
+		userID := getUserIDAsUint32(ctx)
+		if userID != nil {
+			recipients, err := s.recipientRepo.ListByRequestID(ctx, entity.ID)
+			if err != nil {
+				return fmt.Errorf("check recipients: %w", err)
+			}
+			for _, r := range recipients {
+				if r.UserID != nil && *r.UserID == *userID {
+					return nil
+				}
+			}
+		}
+	}
+
+	return paperlessV1.ErrorForbidden("you do not have permission to revoke this signing request")
 }
 
 // ResendSigningEmail resends the signing email to a specific recipient

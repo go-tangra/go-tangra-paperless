@@ -7,4 +7,5 @@ var (
 	getUserIDFromContext   = grpcx.GetUserIDFromContext
 	getUserIDAsUint32     = grpcx.GetUserIDAsUint32
 	getRolesFromContext   = grpcx.GetRolesFromContext
+	isPlatformAdmin       = grpcx.IsPlatformAdmin
 )
