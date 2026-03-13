@@ -31,6 +31,7 @@ export interface SigningTemplate {
   id?: string;
   name?: string;
   description?: string;
+  revocationStampText?: string;
   fileKey?: string;
   fileName?: string;
   fileSize?: number;
@@ -95,13 +96,14 @@ export const usePaperlessSigningTemplateStore = defineStore('paperless-signing-t
   }
 
   async function createSigningTemplate(
-    metadata: { name: string; description?: string },
+    metadata: { name: string; description?: string; revocationStampText?: string },
     file: File,
   ): Promise<CreateSigningTemplateResponse> {
     const fileContent = await fileToBase64(file);
     return await paperlessApi.post<CreateSigningTemplateResponse>('/signing/templates', {
       name: metadata.name,
       description: metadata.description,
+      revocationStampText: metadata.revocationStampText,
       fileName: file.name,
       fileContent,
     });
@@ -109,7 +111,7 @@ export const usePaperlessSigningTemplateStore = defineStore('paperless-signing-t
 
   async function updateSigningTemplate(
     id: string,
-    data: { name?: string; description?: string },
+    data: { name?: string; description?: string; revocationStampText?: string },
   ): Promise<UpdateSigningTemplateResponse> {
     return await paperlessApi.put<UpdateSigningTemplateResponse>(`/signing/templates/${id}`, data);
   }

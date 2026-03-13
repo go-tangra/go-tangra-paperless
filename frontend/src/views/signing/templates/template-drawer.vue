@@ -34,9 +34,11 @@ const isDragOver = ref(false);
 const formState = ref<{
   name: string;
   description: string;
+  revocationStampText: string;
 }>({
   name: '',
   description: '',
+  revocationStampText: '',
 });
 
 const title = computed(() => {
@@ -83,6 +85,7 @@ async function handleSubmit() {
         {
           name: formState.value.name,
           description: formState.value.description || undefined,
+          revocationStampText: formState.value.revocationStampText || undefined,
         },
         file,
       );
@@ -96,6 +99,7 @@ async function handleSubmit() {
       await templateStore.updateSigningTemplate(data.value.row.id, {
         name: formState.value.name,
         description: formState.value.description || undefined,
+        revocationStampText: formState.value.revocationStampText || undefined,
       });
       notification.success({ message: $t('paperless.page.signingTemplate.updateSuccess') });
     }
@@ -114,7 +118,7 @@ async function handleSubmit() {
 }
 
 function resetForm() {
-  formState.value = { name: '', description: '' };
+  formState.value = { name: '', description: '', revocationStampText: '' };
   fileList.value = [];
 }
 
@@ -199,6 +203,7 @@ const [Drawer, drawerApi] = useVbenDrawer({
         formState.value = {
           name: data.value.row.name ?? '',
           description: data.value.row.description ?? '',
+          revocationStampText: data.value.row.revocationStampText ?? '',
         };
         fileList.value = [];
       }
@@ -229,6 +234,15 @@ const [Drawer, drawerApi] = useVbenDrawer({
           :rows="3"
           :maxlength="1024"
           :placeholder="$t('ui.placeholder.input')"
+          :disabled="isViewMode"
+        />
+      </FormItem>
+
+      <FormItem :label="$t('paperless.page.signingTemplate.revocationStampText')" name="revocationStampText">
+        <Input
+          v-model:value="formState.revocationStampText"
+          :placeholder="$t('paperless.page.signingTemplate.revocationStampTextPlaceholder')"
+          :maxlength="255"
           :disabled="isViewMode"
         />
       </FormItem>

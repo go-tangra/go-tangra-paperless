@@ -10,7 +10,8 @@ export type SigningRequestStatus =
   | 'SIGNING_REQUEST_STATUS_PENDING'
   | 'SIGNING_REQUEST_STATUS_COMPLETED'
   | 'SIGNING_REQUEST_STATUS_CANCELLED'
-  | 'SIGNING_REQUEST_STATUS_EXPIRED';
+  | 'SIGNING_REQUEST_STATUS_EXPIRED'
+  | 'SIGNING_REQUEST_STATUS_REVOKED';
 
 export type SigningRecipientStatus =
   | 'SIGNING_RECIPIENT_STATUS_UNSPECIFIED'
@@ -122,6 +123,10 @@ export const usePaperlessSigningRequestStore = defineStore('paperless-signing-re
     return await paperlessApi.post<void>(`/signing/requests/${id}/cancel`, {});
   }
 
+  async function revokeSigningRequest(id: string, reason?: string): Promise<void> {
+    return await paperlessApi.post<void>(`/signing/requests/${id}/revoke`, { reason });
+  }
+
   async function resendSigningEmail(id: string, recipientId: string): Promise<void> {
     return await paperlessApi.post<void>(`/signing/requests/${id}/resend`, { recipientId });
   }
@@ -138,6 +143,7 @@ export const usePaperlessSigningRequestStore = defineStore('paperless-signing-re
     getSigningRequest,
     createSigningRequest,
     cancelSigningRequest,
+    revokeSigningRequest,
     resendSigningEmail,
     downloadSignedDocument,
   };

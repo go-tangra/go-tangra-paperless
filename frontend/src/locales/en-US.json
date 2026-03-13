@@ -151,7 +151,9 @@
       "typeCheckbox": "Checkbox",
       "typeEmail": "Email",
       "editFields": "Edit Fields",
-      "noFields": "No fields configured"
+      "noFields": "No fields configured",
+      "revocationStampText": "Revocation Stamp Text",
+      "revocationStampTextPlaceholder": "e.g. VOID, REVOKED, CANCELLED (default: АНУЛИРАНО)"
     },
     "builder": {
       "title": "Field Builder",
@@ -211,7 +213,11 @@
       "noTemplate": "Please select a template",
       "prefillValues": "Pre-fill Values",
       "prefillAtCreation": "Applied at creation",
-      "prefillBeforeRecipient": "Applied before recipient #{n}"
+      "prefillBeforeRecipient": "Applied before recipient #{n}",
+      "revoke": "Revoke Document",
+      "confirmRevoke": "Are you sure you want to revoke this completed signing request? This will stamp the signed document as revoked.",
+      "revokeSuccess": "Signing request revoked successfully",
+      "statusRevoked": "Revoked"
     },
     "signingSession": {
       "title": "Document Signing",

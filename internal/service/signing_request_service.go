@@ -30,6 +30,33 @@ const (
 
 	defaultSigningSubjectTemplate = `Document signing request: {{.RequestName}}`
 
+	revocationTemplateName = "paperless-signing-revocation"
+
+	defaultRevocationSubjectTemplate = `Document revoked: {{.RequestName}}`
+
+	defaultRevocationBodyTemplate = `<!DOCTYPE html>
+<html>
+<head><meta charset="UTF-8"></head>
+<body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+  <div style="background: #f8f9fa; border-radius: 8px; padding: 30px;">
+    <h2 style="color: #c00; margin-top: 0;">Document Signing Revoked</h2>
+    <p>Hello {{.RecipientName}},</p>
+    <p>The previously signed document <strong>{{.RequestName}}</strong> has been <span style="color: #c00; font-weight: bold;">revoked</span>.</p>
+    {{if .Reason}}
+    <div style="background: #fff; border-left: 3px solid #c00; padding: 10px 15px; margin: 15px 0;">
+      <p style="margin: 0; color: #555;"><strong>Reason:</strong> {{.Reason}}</p>
+    </div>
+    {{end}}
+    <p>The signed document is no longer valid. A revocation stamp has been applied to the document.</p>
+    <p style="color: #666; font-size: 13px;">If you have any questions, please contact the document owner.</p>
+    <hr style="border: none; border-top: 1px solid #e8e8e8; margin: 20px 0;">
+    <p style="color: #999; font-size: 12px;">
+      This is an automated message. Please do not reply to this email.
+    </p>
+  </div>
+</body>
+</html>`
+
 	defaultSigningBodyTemplate = `<!DOCTYPE html>
 <html>
 <head><meta charset="UTF-8"></head>
@@ -78,6 +105,10 @@ type SigningRequestService struct {
 	notifTemplateMu   sync.Mutex
 	notifTemplateID   string
 	notifTemplateDone bool
+
+	revokeTemplateMu   sync.Mutex
+	revokeTemplateID   string
+	revokeTemplateDone bool
 }
 
 func NewSigningRequestService(
@@ -484,6 +515,9 @@ func (s *SigningRequestService) RevokeSigningRequest(ctx context.Context, req *p
 		return nil, err
 	}
 
+	// Notify all recipients about the revocation
+	go s.sendRevocationEmails(ctx, req.Id, entity.Name, req.Reason)
+
 	// Re-fetch updated entity
 	entity, err = s.requestRepo.GetByID(ctx, req.Id)
 	if err != nil {
@@ -687,6 +721,110 @@ func (s *SigningRequestService) sendSigningEmail(ctx context.Context, email, nam
 
 	s.log.Infof("signing email sent to %s for request %s", email, requestName)
 	return nil
+}
+
+// ensureRevocationTemplate resolves (or creates) the revocation notification template.
+func (s *SigningRequestService) ensureRevocationTemplate(ctx context.Context) (string, error) {
+	s.revokeTemplateMu.Lock()
+	defer s.revokeTemplateMu.Unlock()
+
+	if s.revokeTemplateDone {
+		return s.revokeTemplateID, nil
+	}
+
+	s.log.Info("Resolving notification template for signing revocation...")
+
+	platformCtx := data.DetachedMetadataContext(ctx, 0)
+
+	tmpl, err := s.notificationClient.FindTemplateByName(platformCtx, revocationTemplateName)
+	if err != nil {
+		return "", fmt.Errorf("search revocation template: %w", err)
+	}
+	if tmpl != nil {
+		s.revokeTemplateID = tmpl.GetId()
+		s.revokeTemplateDone = true
+		s.log.Infof("Found existing revocation template: %s", s.revokeTemplateID)
+		return s.revokeTemplateID, nil
+	}
+
+	channelID, err := s.notificationClient.FindChannelByName(platformCtx, notificationChannelName)
+	if err != nil {
+		return "", fmt.Errorf("find channel %q: %w", notificationChannelName, err)
+	}
+
+	createReq := &notificationv1.CreateTemplateRequest{
+		Name:      revocationTemplateName,
+		ChannelId: channelID,
+		Subject:   defaultRevocationSubjectTemplate,
+		Body:      defaultRevocationBodyTemplate,
+		Variables: "RecipientName,RequestName,Reason",
+		IsDefault: false,
+	}
+	created, err := s.notificationClient.CreateTemplate(platformCtx, createReq)
+	if err != nil {
+		if strings.Contains(err.Error(), "already exists") {
+			s.log.Info("Revocation template already exists, retrying lookup...")
+			tmpl2, findErr := s.notificationClient.FindTemplateByName(platformCtx, revocationTemplateName)
+			if findErr != nil {
+				return "", fmt.Errorf("retry find revocation template: %w", findErr)
+			}
+			if tmpl2 != nil {
+				s.revokeTemplateID = tmpl2.GetId()
+				s.revokeTemplateDone = true
+				s.log.Infof("Found revocation template on retry: %s", s.revokeTemplateID)
+				return s.revokeTemplateID, nil
+			}
+		}
+		return "", fmt.Errorf("create revocation template: %w", err)
+	}
+	s.revokeTemplateID = created.GetId()
+	s.revokeTemplateDone = true
+	s.log.Infof("Created revocation template: %s", s.revokeTemplateID)
+	return s.revokeTemplateID, nil
+}
+
+// sendRevocationEmails notifies all recipients that a signing request has been revoked.
+// This method is designed to run in a goroutine, so it uses detached contexts.
+func (s *SigningRequestService) sendRevocationEmails(ctx context.Context, requestID, requestName, reason string) {
+	// Use a detached context since this runs async — the original request ctx may be cancelled
+	bgCtx := context.Background()
+
+	recipients, err := s.recipientRepo.ListByRequestID(bgCtx, requestID)
+	if err != nil {
+		s.log.Errorf("failed to list recipients for revocation notification: %v", err)
+		return
+	}
+
+	templateID, err := s.ensureRevocationTemplate(ctx)
+	if err != nil {
+		s.log.Errorf("failed to ensure revocation template: %v", err)
+		return
+	}
+
+	platformCtx := data.DetachedMetadataContext(ctx, 0)
+
+	for _, r := range recipients {
+		email := r.Email
+		name := r.Name
+		if email == "" {
+			continue
+		}
+		if name == "" {
+			name = email
+		}
+
+		variables := map[string]string{
+			"RecipientName": name,
+			"RequestName":   requestName,
+			"Reason":        reason,
+		}
+
+		if _, err := s.notificationClient.SendNotification(platformCtx, templateID, email, variables); err != nil {
+			s.log.Errorf("failed to send revocation email to %s: %v", email, err)
+			continue
+		}
+		s.log.Infof("revocation email sent to %s for request %s", email, requestName)
+	}
 }
 
 // generateSecureToken generates a 64-character hex token

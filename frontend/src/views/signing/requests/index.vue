@@ -10,6 +10,7 @@ import {
   LucideDownload,
   LucideFileSignature,
   LucideMail,
+  LucideBan,
 } from 'shell/vben/icons';
 
 import {
@@ -46,6 +47,7 @@ const formOptions = {
           { value: 'SIGNING_REQUEST_STATUS_COMPLETED', label: $t('paperless.page.signingRequest.statusCompleted') },
           { value: 'SIGNING_REQUEST_STATUS_CANCELLED', label: $t('paperless.page.signingRequest.statusCancelled') },
           { value: 'SIGNING_REQUEST_STATUS_EXPIRED', label: $t('paperless.page.signingRequest.statusExpired') },
+          { value: 'SIGNING_REQUEST_STATUS_REVOKED', label: $t('paperless.page.signingRequest.statusRevoked') },
         ],
       },
     },
@@ -130,7 +132,7 @@ const gridOptions: VxeGridProps<SigningRequest> = {
       field: 'action',
       fixed: 'right',
       slots: { default: 'action' },
-      width: 220,
+      width: 260,
     },
   ],
 };
@@ -141,6 +143,7 @@ function getStatusColor(status: string | undefined): string {
     case 'SIGNING_REQUEST_STATUS_COMPLETED': return 'success';
     case 'SIGNING_REQUEST_STATUS_CANCELLED': return 'default';
     case 'SIGNING_REQUEST_STATUS_EXPIRED': return 'warning';
+    case 'SIGNING_REQUEST_STATUS_REVOKED': return 'error';
     case 'SIGNING_REQUEST_STATUS_DRAFT': return 'default';
     default: return 'default';
   }
@@ -153,6 +156,7 @@ function getStatusLabel(status: string | undefined): string {
     case 'SIGNING_REQUEST_STATUS_COMPLETED': return $t('paperless.page.signingRequest.statusCompleted');
     case 'SIGNING_REQUEST_STATUS_CANCELLED': return $t('paperless.page.signingRequest.statusCancelled');
     case 'SIGNING_REQUEST_STATUS_EXPIRED': return $t('paperless.page.signingRequest.statusExpired');
+    case 'SIGNING_REQUEST_STATUS_REVOKED': return $t('paperless.page.signingRequest.statusRevoked');
     default: return '-';
   }
 }
@@ -195,6 +199,26 @@ async function handleCancel(row: SigningRequest) {
       try {
         await requestStore.cancelSigningRequest(row.id!);
         notification.success({ message: $t('paperless.page.signingRequest.cancelSuccess') });
+        await gridApi.query();
+      } catch {
+        notification.error({ message: $t('ui.notification.operation_failed') });
+      }
+    },
+  });
+}
+
+async function handleRevoke(row: SigningRequest) {
+  if (!row.id) return;
+  Modal.confirm({
+    title: $t('paperless.page.signingRequest.revoke'),
+    content: $t('paperless.page.signingRequest.confirmRevoke'),
+    okText: $t('ui.button.ok'),
+    cancelText: $t('ui.button.cancel'),
+    okButtonProps: { danger: true },
+    onOk: async () => {
+      try {
+        await requestStore.revokeSigningRequest(row.id!);
+        notification.success({ message: $t('paperless.page.signingRequest.revokeSuccess') });
         await gridApi.query();
       } catch {
         notification.error({ message: $t('ui.notification.operation_failed') });
@@ -332,12 +356,21 @@ function handleResend(row: SigningRequest) {
             @click.stop="handleView(row)"
           />
           <Button
-            v-if="row.status === 'SIGNING_REQUEST_STATUS_COMPLETED'"
+            v-if="row.status === 'SIGNING_REQUEST_STATUS_COMPLETED' || row.status === 'SIGNING_REQUEST_STATUS_REVOKED'"
             type="link"
             size="small"
             :icon="h(LucideDownload)"
             :title="$t('paperless.page.signingRequest.download')"
             @click.stop="handleDownload(row)"
+          />
+          <Button
+            v-if="row.status === 'SIGNING_REQUEST_STATUS_COMPLETED'"
+            danger
+            type="link"
+            size="small"
+            :icon="h(LucideBan)"
+            :title="$t('paperless.page.signingRequest.revoke')"
+            @click.stop="handleRevoke(row)"
           />
           <Button
             v-if="row.status === 'SIGNING_REQUEST_STATUS_PENDING'"
