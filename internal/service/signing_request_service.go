@@ -545,10 +545,10 @@ func (s *SigningRequestService) authorizeRevocation(ctx context.Context, entity 
 		return nil
 	}
 
-	// Paperless admin can always revoke
+	// Paperless admin or HR admin can revoke (HR creates signing requests via leave workflow)
 	roles := getRolesFromContext(ctx)
 	for _, role := range roles {
-		if role == "paperless.admin" {
+		if role == "paperless.admin" || role == "hr.admin" {
 			return nil
 		}
 	}
