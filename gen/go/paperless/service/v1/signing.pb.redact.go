@@ -185,6 +185,17 @@ func (s *redactedPaperlessSigningRequestServiceServer) CancelSigningRequest(ctx 
 	return res, err
 }
 
+// RevokeSigningRequest is the redacted wrapper for the actual PaperlessSigningRequestServiceServer.RevokeSigningRequest method
+// Unary RPC
+func (s *redactedPaperlessSigningRequestServiceServer) RevokeSigningRequest(ctx context.Context, in *RevokeSigningRequestRequest) (*RevokeSigningRequestResponse, error) {
+	res, err := s.srv.RevokeSigningRequest(ctx, in)
+	if !s.bypass.CheckInternal(ctx) {
+		// Apply redaction to the response
+		redact.Apply(res)
+	}
+	return res, err
+}
+
 // ResendSigningEmail is the redacted wrapper for the actual PaperlessSigningRequestServiceServer.ResendSigningEmail method
 // Unary RPC
 func (s *redactedPaperlessSigningRequestServiceServer) ResendSigningEmail(ctx context.Context, in *ResendSigningEmailRequest) (*emptypb.Empty, error) {
@@ -328,6 +339,8 @@ func (x *SigningTemplate) Redact() string {
 	// Safe field: CreatedBy
 
 	// Safe field: UpdatedBy
+
+	// Safe field: RevocationStampText
 	return x.String()
 }
 
@@ -422,6 +435,8 @@ func (x *CreateSigningTemplateRequest) Redact() string {
 	// Safe field: FileName
 
 	// Safe field: FileContent
+
+	// Safe field: RevocationStampText
 	return x.String()
 }
 
@@ -492,6 +507,8 @@ func (x *UpdateSigningTemplateRequest) Redact() string {
 	// Safe field: Name
 
 	// Safe field: Description
+
+	// Safe field: RevocationStampText
 	return x.String()
 }
 
@@ -679,6 +696,28 @@ func (x *CancelSigningRequestRequest) Redact() string {
 
 // Redact method implementation for CancelSigningRequestResponse
 func (x *CancelSigningRequestResponse) Redact() string {
+	if x == nil {
+		return ""
+	}
+
+	// Safe field: Request
+	return x.String()
+}
+
+// Redact method implementation for RevokeSigningRequestRequest
+func (x *RevokeSigningRequestRequest) Redact() string {
+	if x == nil {
+		return ""
+	}
+
+	// Safe field: Id
+
+	// Safe field: Reason
+	return x.String()
+}
+
+// Redact method implementation for RevokeSigningRequestResponse
+func (x *RevokeSigningRequestResponse) Redact() string {
 	if x == nil {
 		return ""
 	}

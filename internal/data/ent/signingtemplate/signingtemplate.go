@@ -36,6 +36,8 @@ const (
 	FieldFileSize = "file_size"
 	// FieldFields holds the string denoting the fields field in the database.
 	FieldFields = "fields"
+	// FieldRevocationStampText holds the string denoting the revocation_stamp_text field in the database.
+	FieldRevocationStampText = "revocation_stamp_text"
 	// Table holds the table name of the signingtemplate in the database.
 	Table = "paperless_signing_templates"
 )
@@ -55,6 +57,7 @@ var Columns = []string{
 	FieldFileName,
 	FieldFileSize,
 	FieldFields,
+	FieldRevocationStampText,
 }
 
 // ValidColumn reports if the column name is valid (part of the table columns).
@@ -87,6 +90,10 @@ var (
 	FileNameValidator func(string) error
 	// DefaultFileSize holds the default value on creation for the "file_size" field.
 	DefaultFileSize int64
+	// DefaultRevocationStampText holds the default value on creation for the "revocation_stamp_text" field.
+	DefaultRevocationStampText string
+	// RevocationStampTextValidator is a validator for the "revocation_stamp_text" field. It is called by the builders before save.
+	RevocationStampTextValidator func(string) error
 	// IDValidator is a validator for the "id" field. It is called by the builders before save.
 	IDValidator func(string) error
 )
@@ -152,4 +159,9 @@ func ByFileName(opts ...sql.OrderTermOption) OrderOption {
 // ByFileSize orders the results by the file_size field.
 func ByFileSize(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldFileSize, opts...).ToFunc()
+}
+
+// ByRevocationStampText orders the results by the revocation_stamp_text field.
+func ByRevocationStampText(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldRevocationStampText, opts...).ToFunc()
 }

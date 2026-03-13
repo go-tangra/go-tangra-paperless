@@ -31,7 +31,7 @@ func NewSigningTemplateRepo(ctx *bootstrap.Context, entClient *entCrud.EntClient
 }
 
 // Create creates a new signing template
-func (r *SigningTemplateRepo) Create(ctx context.Context, tenantID uint32, name, description, fileKey, fileName string, fileSize int64, fields []schema.SigningTemplateFieldDef, createdBy *uint32) (*ent.SigningTemplate, error) {
+func (r *SigningTemplateRepo) Create(ctx context.Context, tenantID uint32, name, description, fileKey, fileName string, fileSize int64, fields []schema.SigningTemplateFieldDef, revocationStampText string, createdBy *uint32) (*ent.SigningTemplate, error) {
 	id := uuid.New().String()
 
 	builder := r.entClient.Client().SigningTemplate.Create().
@@ -48,6 +48,9 @@ func (r *SigningTemplateRepo) Create(ctx context.Context, tenantID uint32, name,
 	}
 	if fields != nil {
 		builder.SetFields(fields)
+	}
+	if revocationStampText != "" {
+		builder.SetRevocationStampText(revocationStampText)
 	}
 	if createdBy != nil {
 		builder.SetCreateBy(*createdBy)
@@ -108,7 +111,7 @@ func (r *SigningTemplateRepo) List(ctx context.Context, tenantID uint32, nameFil
 }
 
 // Update updates a signing template
-func (r *SigningTemplateRepo) Update(ctx context.Context, id string, name, description *string, updatedBy *uint32) (*ent.SigningTemplate, error) {
+func (r *SigningTemplateRepo) Update(ctx context.Context, id string, name, description, revocationStampText *string, updatedBy *uint32) (*ent.SigningTemplate, error) {
 	builder := r.entClient.Client().SigningTemplate.UpdateOneID(id).
 		SetUpdateTime(time.Now())
 
@@ -117,6 +120,9 @@ func (r *SigningTemplateRepo) Update(ctx context.Context, id string, name, descr
 	}
 	if description != nil {
 		builder.SetDescription(*description)
+	}
+	if revocationStampText != nil {
+		builder.SetRevocationStampText(*revocationStampText)
 	}
 	if updatedBy != nil {
 		builder.SetUpdateBy(*updatedBy)
@@ -179,13 +185,14 @@ func (r *SigningTemplateRepo) ToProto(entity *ent.SigningTemplate) *paperlessV1.
 	}
 
 	proto := &paperlessV1.SigningTemplate{
-		Id:          entity.ID,
-		TenantId:    derefUint32(entity.TenantID),
-		Name:        entity.Name,
-		Description: entity.Description,
-		FileKey:     entity.FileKey,
-		FileName:    entity.FileName,
-		FileSize:    entity.FileSize,
+		Id:                   entity.ID,
+		TenantId:             derefUint32(entity.TenantID),
+		Name:                 entity.Name,
+		Description:          entity.Description,
+		FileKey:              entity.FileKey,
+		FileName:             entity.FileName,
+		FileSize:             entity.FileSize,
+		RevocationStampText:  entity.RevocationStampText,
 	}
 
 	// Convert fields

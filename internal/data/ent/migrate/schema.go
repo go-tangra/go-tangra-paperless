@@ -347,7 +347,7 @@ var (
 		{Name: "tenant_id", Type: field.TypeUint32, Nullable: true, Comment: "租户ID", Default: 0},
 		{Name: "template_id", Type: field.TypeString, Size: 36, Comment: "Reference to signing template"},
 		{Name: "name", Type: field.TypeString, Size: 255, Comment: "Request display name"},
-		{Name: "status", Type: field.TypeEnum, Comment: "Request status", Enums: []string{"SIGNING_REQUEST_STATUS_UNSPECIFIED", "SIGNING_REQUEST_STATUS_DRAFT", "SIGNING_REQUEST_STATUS_PENDING", "SIGNING_REQUEST_STATUS_COMPLETED", "SIGNING_REQUEST_STATUS_CANCELLED", "SIGNING_REQUEST_STATUS_EXPIRED"}, Default: "SIGNING_REQUEST_STATUS_DRAFT"},
+		{Name: "status", Type: field.TypeEnum, Comment: "Request status", Enums: []string{"SIGNING_REQUEST_STATUS_UNSPECIFIED", "SIGNING_REQUEST_STATUS_DRAFT", "SIGNING_REQUEST_STATUS_PENDING", "SIGNING_REQUEST_STATUS_COMPLETED", "SIGNING_REQUEST_STATUS_CANCELLED", "SIGNING_REQUEST_STATUS_EXPIRED", "SIGNING_REQUEST_STATUS_REVOKED"}, Default: "SIGNING_REQUEST_STATUS_DRAFT"},
 		{Name: "signing_type", Type: field.TypeEnum, Comment: "Request type: external (email-based) or internal (user-based)", Enums: []string{"SIGNING_REQUEST_TYPE_UNSPECIFIED", "SIGNING_REQUEST_TYPE_EXTERNAL", "SIGNING_REQUEST_TYPE_INTERNAL"}, Default: "SIGNING_REQUEST_TYPE_EXTERNAL"},
 		{Name: "original_file_key", Type: field.TypeString, Nullable: true, Size: 512, Comment: "Storage key for the original PDF copy"},
 		{Name: "signed_file_key", Type: field.TypeString, Nullable: true, Size: 512, Comment: "Storage key for the signed/completed PDF"},
@@ -398,6 +398,7 @@ var (
 		{Name: "file_name", Type: field.TypeString, Size: 255, Comment: "Original file name"},
 		{Name: "file_size", Type: field.TypeInt64, Comment: "File size in bytes", Default: 0},
 		{Name: "fields", Type: field.TypeJSON, Nullable: true, Comment: "Field definitions with positions from the visual builder"},
+		{Name: "revocation_stamp_text", Type: field.TypeString, Nullable: true, Size: 255, Comment: "Stamp text overlaid on PDF when a completed signing request is revoked", Default: "АНУЛИРАНО"},
 	}
 	// PaperlessSigningTemplatesTable holds the schema information for the "paperless_signing_templates" table.
 	PaperlessSigningTemplatesTable = &schema.Table{

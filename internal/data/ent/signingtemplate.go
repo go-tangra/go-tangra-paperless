@@ -43,8 +43,10 @@ type SigningTemplate struct {
 	// File size in bytes
 	FileSize int64 `json:"file_size,omitempty"`
 	// Field definitions with positions from the visual builder
-	Fields       []schema.SigningTemplateFieldDef `json:"fields,omitempty"`
-	selectValues sql.SelectValues
+	Fields []schema.SigningTemplateFieldDef `json:"fields,omitempty"`
+	// Stamp text overlaid on PDF when a completed signing request is revoked
+	RevocationStampText string `json:"revocation_stamp_text,omitempty"`
+	selectValues        sql.SelectValues
 }
 
 // scanValues returns the types for scanning values from sql.Rows.
@@ -56,7 +58,7 @@ func (*SigningTemplate) scanValues(columns []string) ([]any, error) {
 			values[i] = new([]byte)
 		case signingtemplate.FieldCreateBy, signingtemplate.FieldUpdateBy, signingtemplate.FieldTenantID, signingtemplate.FieldFileSize:
 			values[i] = new(sql.NullInt64)
-		case signingtemplate.FieldID, signingtemplate.FieldName, signingtemplate.FieldDescription, signingtemplate.FieldFileKey, signingtemplate.FieldFileName:
+		case signingtemplate.FieldID, signingtemplate.FieldName, signingtemplate.FieldDescription, signingtemplate.FieldFileKey, signingtemplate.FieldFileName, signingtemplate.FieldRevocationStampText:
 			values[i] = new(sql.NullString)
 		case signingtemplate.FieldCreateTime, signingtemplate.FieldUpdateTime, signingtemplate.FieldDeleteTime:
 			values[i] = new(sql.NullTime)
@@ -161,6 +163,12 @@ func (_m *SigningTemplate) assignValues(columns []string, values []any) error {
 					return fmt.Errorf("unmarshal field fields: %w", err)
 				}
 			}
+		case signingtemplate.FieldRevocationStampText:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field revocation_stamp_text", values[i])
+			} else if value.Valid {
+				_m.RevocationStampText = value.String
+			}
 		default:
 			_m.selectValues.Set(columns[i], values[i])
 		}
@@ -244,6 +252,9 @@ func (_m *SigningTemplate) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("fields=")
 	builder.WriteString(fmt.Sprintf("%v", _m.Fields))
+	builder.WriteString(", ")
+	builder.WriteString("revocation_stamp_text=")
+	builder.WriteString(_m.RevocationStampText)
 	builder.WriteByte(')')
 	return builder.String()
 }

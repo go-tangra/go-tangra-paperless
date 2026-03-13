@@ -274,6 +274,8 @@ func signingRequestStatusToProto(status string) paperlessV1.SigningRequestStatus
 		return paperlessV1.SigningRequestStatus_SIGNING_REQUEST_STATUS_CANCELLED
 	case "SIGNING_REQUEST_STATUS_EXPIRED":
 		return paperlessV1.SigningRequestStatus_SIGNING_REQUEST_STATUS_EXPIRED
+	case "SIGNING_REQUEST_STATUS_REVOKED":
+		return paperlessV1.SigningRequestStatus_SIGNING_REQUEST_STATUS_REVOKED
 	default:
 		return paperlessV1.SigningRequestStatus_SIGNING_REQUEST_STATUS_UNSPECIFIED
 	}

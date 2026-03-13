@@ -732,6 +732,23 @@ paths:
                         application/json:
                             schema:
                                 $ref: '#/components/schemas/GetEffectivePermissionsResponse'
+    /v1/roles:
+        get:
+            tags:
+                - PaperlessUserService
+            operationId: PaperlessUserService_ListRoles
+            parameters:
+                - name: noPaging
+                  in: query
+                  schema:
+                    type: boolean
+            responses:
+                "200":
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/ListPaperlessRolesResponse'
     /v1/signing/requests:
         get:
             tags:
@@ -759,6 +776,7 @@ paths:
                         - SIGNING_REQUEST_STATUS_COMPLETED
                         - SIGNING_REQUEST_STATUS_CANCELLED
                         - SIGNING_REQUEST_STATUS_EXPIRED
+                        - SIGNING_REQUEST_STATUS_REVOKED
                     type: string
                     format: enum
                 - name: templateId
@@ -879,6 +897,77 @@ paths:
                 "200":
                     description: OK
                     content: {}
+    /v1/signing/requests/{id}/revoke:
+        post:
+            tags:
+                - PaperlessSigningRequestService
+            description: Revoke a completed signing request (stamps the signed PDF and marks as revoked)
+            operationId: PaperlessSigningRequestService_RevokeSigningRequest
+            parameters:
+                - name: id
+                  in: path
+                  required: true
+                  schema:
+                    type: string
+            requestBody:
+                content:
+                    application/json:
+                        schema:
+                            $ref: '#/components/schemas/RevokeSigningRequestRequest'
+                required: true
+            responses:
+                "200":
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/RevokeSigningRequestResponse'
+    /v1/signing/sessions/auth/{token}:
+        get:
+            tags:
+                - PaperlessSigningSessionService
+            description: |-
+                Get signing session info (authenticated, for internal signing requests)
+                 Routed through admin-service gateway which injects user_id in metadata
+            operationId: PaperlessSigningSessionService_GetAuthenticatedSigningSession
+            parameters:
+                - name: token
+                  in: path
+                  required: true
+                  schema:
+                    type: string
+            responses:
+                "200":
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/GetSigningSessionResponse'
+    /v1/signing/sessions/auth/{token}/submit:
+        post:
+            tags:
+                - PaperlessSigningSessionService
+            description: Submit signing (authenticated, for internal signing requests)
+            operationId: PaperlessSigningSessionService_SubmitAuthenticatedSigning
+            parameters:
+                - name: token
+                  in: path
+                  required: true
+                  schema:
+                    type: string
+            requestBody:
+                content:
+                    application/json:
+                        schema:
+                            $ref: '#/components/schemas/SubmitSigningRequest'
+                required: true
+            responses:
+                "200":
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/SubmitSigningResponse'
     /v1/signing/sessions/{token}:
         get:
             tags:
@@ -1084,6 +1173,23 @@ paths:
                         application/json:
                             schema:
                                 $ref: '#/components/schemas/GetStatisticsResponse'
+    /v1/users:
+        get:
+            tags:
+                - PaperlessUserService
+            operationId: PaperlessUserService_ListUsers
+            parameters:
+                - name: noPaging
+                  in: query
+                  schema:
+                    type: boolean
+            responses:
+                "200":
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/ListPaperlessUsersResponse'
 components:
     schemas:
         BatchDeleteDocumentsRequest:
@@ -1311,6 +1417,14 @@ components:
                 expiresAt:
                     type: string
                     format: date-time
+                signingType:
+                    enum:
+                        - SIGNING_REQUEST_TYPE_UNSPECIFIED
+                        - SIGNING_REQUEST_TYPE_EXTERNAL
+                        - SIGNING_REQUEST_TYPE_INTERNAL
+                    type: string
+                    description: Type of signing request (defaults to EXTERNAL if not specified)
+                    format: enum
         CreateSigningRequestResponse:
             type: object
             properties:
@@ -1332,6 +1446,9 @@ components:
                 fileContent:
                     type: string
                     format: bytes
+                revocationStampText:
+                    type: string
+                    description: Stamp text overlaid on PDF when a completed signing request is revoked (e.g. "АНУЛИРАНО", "VOID")
         CreateSigningTemplateResponse:
             type: object
             properties:
@@ -1572,6 +1689,8 @@ components:
                 expiresAt:
                     type: string
                     format: date-time
+                isInternal:
+                    type: boolean
         GetSigningTemplateResponse:
             type: object
             properties:
@@ -1705,6 +1824,26 @@ components:
                 total:
                     type: integer
                     format: uint32
+        ListPaperlessRolesResponse:
+            type: object
+            properties:
+                items:
+                    type: array
+                    items:
+                        $ref: '#/components/schemas/PaperlessRole'
+                total:
+                    type: integer
+                    format: int32
+        ListPaperlessUsersResponse:
+            type: object
+            properties:
+                items:
+                    type: array
+                    items:
+                        $ref: '#/components/schemas/PaperlessUser'
+                total:
+                    type: integer
+                    format: int32
         ListPermissionsResponse:
             type: object
             properties:
@@ -1767,6 +1906,32 @@ components:
             properties:
                 document:
                     $ref: '#/components/schemas/Document'
+        PaperlessRole:
+            type: object
+            properties:
+                id:
+                    type: integer
+                    format: uint32
+                name:
+                    type: string
+                code:
+                    type: string
+                description:
+                    type: string
+            description: Lightweight role representation for paperless module dropdowns
+        PaperlessUser:
+            type: object
+            properties:
+                id:
+                    type: integer
+                    format: uint32
+                username:
+                    type: string
+                realname:
+                    type: string
+                email:
+                    type: string
+            description: Lightweight user representation for paperless module dropdowns
         PermissionTuple:
             type: object
             properties:
@@ -1824,6 +1989,21 @@ components:
                     type: string
                 recipientId:
                     type: string
+        RevokeSigningRequestRequest:
+            required:
+                - id
+            type: object
+            properties:
+                id:
+                    type: string
+                reason:
+                    type: string
+                    description: Optional reason for revocation
+        RevokeSigningRequestResponse:
+            type: object
+            properties:
+                request:
+                    $ref: '#/components/schemas/SigningRequest'
         SearchDocumentsResponse:
             type: object
             properties:
@@ -1907,11 +2087,11 @@ components:
                 signedAt:
                     type: string
                     format: date-time
+                userId:
+                    type: integer
+                    format: uint32
             description: A recipient in a signing request
         SigningRecipientInput:
-            required:
-                - email
-                - name
             type: object
             properties:
                 email:
@@ -1921,6 +2101,10 @@ components:
                 signingOrder:
                     type: integer
                     format: int32
+                userId:
+                    type: integer
+                    description: 'For internal signing requests: the platform user ID (email/name auto-resolved)'
+                    format: uint32
             description: Recipient input for creating a signing request
         SigningRequest:
             type: object
@@ -1944,6 +2128,7 @@ components:
                         - SIGNING_REQUEST_STATUS_COMPLETED
                         - SIGNING_REQUEST_STATUS_CANCELLED
                         - SIGNING_REQUEST_STATUS_EXPIRED
+                        - SIGNING_REQUEST_STATUS_REVOKED
                     type: string
                     format: enum
                 originalFileKey:
@@ -1972,6 +2157,13 @@ components:
                 createdBy:
                     type: integer
                     format: uint32
+                signingType:
+                    enum:
+                        - SIGNING_REQUEST_TYPE_UNSPECIFIED
+                        - SIGNING_REQUEST_TYPE_EXTERNAL
+                        - SIGNING_REQUEST_TYPE_INTERNAL
+                    type: string
+                    format: enum
             description: Signing request entity
         SigningSessionField:
             type: object
@@ -2048,6 +2240,9 @@ components:
                 updatedBy:
                     type: integer
                     format: uint32
+                revocationStampText:
+                    type: string
+                    description: Configurable stamp text overlaid on the PDF when a completed request is revoked (e.g. "АНУЛИРАНО")
             description: Signing template entity
         SigningTemplateField:
             type: object
@@ -2199,6 +2394,8 @@ components:
                     type: string
                 description:
                     type: string
+                revocationStampText:
+                    type: string
         UpdateSigningTemplateResponse:
             type: object
             properties:
@@ -2238,3 +2435,5 @@ tags:
       description: Signing Template Service - manages PDF templates with visual field positions for document signing
     - name: PaperlessStatisticsService
       description: Paperless Statistics Service provides aggregated statistics about the document management system
+    - name: PaperlessUserService
+      description: PaperlessUserService provides user and role listing for permission management

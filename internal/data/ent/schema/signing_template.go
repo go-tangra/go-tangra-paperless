@@ -74,6 +74,12 @@ func (SigningTemplate) Fields() []ent.Field {
 		field.JSON("fields", []SigningTemplateFieldDef{}).
 			Optional().
 			Comment("Field definitions with positions from the visual builder"),
+
+		field.String("revocation_stamp_text").
+			Optional().
+			MaxLen(255).
+			Default("АНУЛИРАНО").
+			Comment("Stamp text overlaid on PDF when a completed signing request is revoked"),
 	}
 }
 

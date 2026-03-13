@@ -104,6 +104,33 @@ func (p *PDFProcessor) FillFields(pdfBytes []byte, fills []FieldFill, signerName
 	return pdfBytes, nil
 }
 
+// StampRevocation overlays a diagonal semi-transparent stamp (e.g. "АНУЛИРАНО") on every page of the PDF.
+// The stamp is rendered as a large, rotated, red watermark text centered on each page.
+func (p *PDFProcessor) StampRevocation(pdfBytes []byte, stampText string) ([]byte, error) {
+	if stampText == "" {
+		stampText = "АНУЛИРАНО"
+	}
+
+	// Build a diagonal red stamp watermark applied to all pages
+	desc := fmt.Sprintf(
+		"font:DejaVuSans, points:72, position:c, offset:0 0, scalefactor:1 abs, color:0.8 0 0, opacity:0.35, rotation:45",
+	)
+	wm, err := api.TextWatermark(stampText, desc, true, false, types.POINTS)
+	if err != nil {
+		return nil, fmt.Errorf("create revocation watermark: %w", err)
+	}
+
+	var buf bytes.Buffer
+	conf := model.NewDefaultConfiguration()
+	conf.ValidationMode = model.ValidationRelaxed
+	if err := api.AddWatermarks(bytes.NewReader(pdfBytes), &buf, nil, wm, conf); err != nil {
+		return nil, fmt.Errorf("apply revocation stamp: %w", err)
+	}
+
+	p.log.Infof("applied revocation stamp '%s' to PDF", stampText)
+	return buf.Bytes(), nil
+}
+
 // overlayFieldsOnPages stamps field values and signature images at detected positions
 // on the original PDF pages using pdfcpu's watermark/stamp API.
 func (p *PDFProcessor) overlayFieldsOnPages(pdfBytes []byte, fills []FieldFill) ([]byte, error) {

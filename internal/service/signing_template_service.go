@@ -63,7 +63,7 @@ func (s *SigningTemplateService) CreateSigningTemplate(ctx context.Context, req 
 	}
 
 	// Create template record with empty fields (fields are added via the visual builder)
-	entity, err := s.templateRepo.Create(ctx, tenantID, req.Name, req.Description, storageKey, req.FileName, uploadResult.Size, nil, createdBy)
+	entity, err := s.templateRepo.Create(ctx, tenantID, req.Name, req.Description, storageKey, req.FileName, uploadResult.Size, nil, req.RevocationStampText, createdBy)
 	if err != nil {
 		// Clean up uploaded file
 		if delErr := s.storage.Delete(ctx, storageKey); delErr != nil {
@@ -125,7 +125,7 @@ func (s *SigningTemplateService) ListSigningTemplates(ctx context.Context, req *
 func (s *SigningTemplateService) UpdateSigningTemplate(ctx context.Context, req *paperlessV1.UpdateSigningTemplateRequest) (*paperlessV1.UpdateSigningTemplateResponse, error) {
 	updatedBy := getUserIDAsUint32(ctx)
 
-	entity, err := s.templateRepo.Update(ctx, req.Id, req.Name, req.Description, updatedBy)
+	entity, err := s.templateRepo.Update(ctx, req.Id, req.Name, req.Description, req.RevocationStampText, updatedBy)
 	if err != nil {
 		return nil, err
 	}

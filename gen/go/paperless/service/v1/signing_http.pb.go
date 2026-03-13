@@ -342,6 +342,7 @@ const OperationPaperlessSigningRequestServiceDownloadSignedDocument = "/paperles
 const OperationPaperlessSigningRequestServiceGetSigningRequest = "/paperless.service.v1.PaperlessSigningRequestService/GetSigningRequest"
 const OperationPaperlessSigningRequestServiceListSigningRequests = "/paperless.service.v1.PaperlessSigningRequestService/ListSigningRequests"
 const OperationPaperlessSigningRequestServiceResendSigningEmail = "/paperless.service.v1.PaperlessSigningRequestService/ResendSigningEmail"
+const OperationPaperlessSigningRequestServiceRevokeSigningRequest = "/paperless.service.v1.PaperlessSigningRequestService/RevokeSigningRequest"
 
 type PaperlessSigningRequestServiceHTTPServer interface {
 	// CancelSigningRequest Cancel a signing request
@@ -356,6 +357,8 @@ type PaperlessSigningRequestServiceHTTPServer interface {
 	ListSigningRequests(context.Context, *ListSigningRequestsRequest) (*ListSigningRequestsResponse, error)
 	// ResendSigningEmail Resend signing email to a specific recipient
 	ResendSigningEmail(context.Context, *ResendSigningEmailRequest) (*emptypb.Empty, error)
+	// RevokeSigningRequest Revoke a completed signing request (stamps the signed PDF and marks as revoked)
+	RevokeSigningRequest(context.Context, *RevokeSigningRequestRequest) (*RevokeSigningRequestResponse, error)
 }
 
 func RegisterPaperlessSigningRequestServiceHTTPServer(s *http.Server, srv PaperlessSigningRequestServiceHTTPServer) {
@@ -364,6 +367,7 @@ func RegisterPaperlessSigningRequestServiceHTTPServer(s *http.Server, srv Paperl
 	r.GET("/v1/signing/requests/{id}", _PaperlessSigningRequestService_GetSigningRequest0_HTTP_Handler(srv))
 	r.GET("/v1/signing/requests", _PaperlessSigningRequestService_ListSigningRequests0_HTTP_Handler(srv))
 	r.POST("/v1/signing/requests/{id}/cancel", _PaperlessSigningRequestService_CancelSigningRequest0_HTTP_Handler(srv))
+	r.POST("/v1/signing/requests/{id}/revoke", _PaperlessSigningRequestService_RevokeSigningRequest0_HTTP_Handler(srv))
 	r.POST("/v1/signing/requests/{id}/resend", _PaperlessSigningRequestService_ResendSigningEmail0_HTTP_Handler(srv))
 	r.GET("/v1/signing/requests/{id}/download", _PaperlessSigningRequestService_DownloadSignedDocument0_HTTP_Handler(srv))
 }
@@ -456,6 +460,31 @@ func _PaperlessSigningRequestService_CancelSigningRequest0_HTTP_Handler(srv Pape
 	}
 }
 
+func _PaperlessSigningRequestService_RevokeSigningRequest0_HTTP_Handler(srv PaperlessSigningRequestServiceHTTPServer) func(ctx http.Context) error {
+	return func(ctx http.Context) error {
+		var in RevokeSigningRequestRequest
+		if err := ctx.Bind(&in); err != nil {
+			return err
+		}
+		if err := ctx.BindQuery(&in); err != nil {
+			return err
+		}
+		if err := ctx.BindVars(&in); err != nil {
+			return err
+		}
+		http.SetOperation(ctx, OperationPaperlessSigningRequestServiceRevokeSigningRequest)
+		h := ctx.Middleware(func(ctx context.Context, req interface{}) (interface{}, error) {
+			return srv.RevokeSigningRequest(ctx, req.(*RevokeSigningRequestRequest))
+		})
+		out, err := h(ctx, &in)
+		if err != nil {
+			return err
+		}
+		reply := out.(*RevokeSigningRequestResponse)
+		return ctx.Result(200, reply)
+	}
+}
+
 func _PaperlessSigningRequestService_ResendSigningEmail0_HTTP_Handler(srv PaperlessSigningRequestServiceHTTPServer) func(ctx http.Context) error {
 	return func(ctx http.Context) error {
 		var in ResendSigningEmailRequest
@@ -516,6 +545,8 @@ type PaperlessSigningRequestServiceHTTPClient interface {
 	ListSigningRequests(ctx context.Context, req *ListSigningRequestsRequest, opts ...http.CallOption) (rsp *ListSigningRequestsResponse, err error)
 	// ResendSigningEmail Resend signing email to a specific recipient
 	ResendSigningEmail(ctx context.Context, req *ResendSigningEmailRequest, opts ...http.CallOption) (rsp *emptypb.Empty, err error)
+	// RevokeSigningRequest Revoke a completed signing request (stamps the signed PDF and marks as revoked)
+	RevokeSigningRequest(ctx context.Context, req *RevokeSigningRequestRequest, opts ...http.CallOption) (rsp *RevokeSigningRequestResponse, err error)
 }
 
 type PaperlessSigningRequestServiceHTTPClientImpl struct {
@@ -602,6 +633,20 @@ func (c *PaperlessSigningRequestServiceHTTPClientImpl) ResendSigningEmail(ctx co
 	pattern := "/v1/signing/requests/{id}/resend"
 	path := binding.EncodeURL(pattern, in, false)
 	opts = append(opts, http.Operation(OperationPaperlessSigningRequestServiceResendSigningEmail))
+	opts = append(opts, http.PathTemplate(pattern))
+	err := c.cc.Invoke(ctx, "POST", path, in, &out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return &out, nil
+}
+
+// RevokeSigningRequest Revoke a completed signing request (stamps the signed PDF and marks as revoked)
+func (c *PaperlessSigningRequestServiceHTTPClientImpl) RevokeSigningRequest(ctx context.Context, in *RevokeSigningRequestRequest, opts ...http.CallOption) (*RevokeSigningRequestResponse, error) {
+	var out RevokeSigningRequestResponse
+	pattern := "/v1/signing/requests/{id}/revoke"
+	path := binding.EncodeURL(pattern, in, false)
+	opts = append(opts, http.Operation(OperationPaperlessSigningRequestServiceRevokeSigningRequest))
 	opts = append(opts, http.PathTemplate(pattern))
 	err := c.cc.Invoke(ctx, "POST", path, in, &out, opts...)
 	if err != nil {

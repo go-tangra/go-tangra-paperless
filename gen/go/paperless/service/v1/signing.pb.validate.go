@@ -287,6 +287,8 @@ func (m *SigningTemplate) validate(all bool) error {
 		}
 	}
 
+	// no validation rules for RevocationStampText
+
 	if m.CreatedBy != nil {
 		// no validation rules for CreatedBy
 	}
@@ -934,6 +936,8 @@ func (m *CreateSigningTemplateRequest) validate(all bool) error {
 	// no validation rules for FileName
 
 	// no validation rules for FileContent
+
+	// no validation rules for RevocationStampText
 
 	if len(errors) > 0 {
 		return CreateSigningTemplateRequestMultiError(errors)
@@ -1667,6 +1671,10 @@ func (m *UpdateSigningTemplateRequest) validate(all bool) error {
 
 	if m.Description != nil {
 		// no validation rules for Description
+	}
+
+	if m.RevocationStampText != nil {
+		// no validation rules for RevocationStampText
 	}
 
 	if len(errors) > 0 {
@@ -3760,6 +3768,245 @@ var _ interface {
 	Cause() error
 	ErrorName() string
 } = CancelSigningRequestResponseValidationError{}
+
+// Validate checks the field values on RevokeSigningRequestRequest with the
+// rules defined in the proto definition for this message. If any rules are
+// violated, the first error encountered is returned, or nil if there are no violations.
+func (m *RevokeSigningRequestRequest) Validate() error {
+	return m.validate(false)
+}
+
+// ValidateAll checks the field values on RevokeSigningRequestRequest with the
+// rules defined in the proto definition for this message. If any rules are
+// violated, the result is a list of violation errors wrapped in
+// RevokeSigningRequestRequestMultiError, or nil if none found.
+func (m *RevokeSigningRequestRequest) ValidateAll() error {
+	return m.validate(true)
+}
+
+func (m *RevokeSigningRequestRequest) validate(all bool) error {
+	if m == nil {
+		return nil
+	}
+
+	var errors []error
+
+	// no validation rules for Id
+
+	// no validation rules for Reason
+
+	if len(errors) > 0 {
+		return RevokeSigningRequestRequestMultiError(errors)
+	}
+
+	return nil
+}
+
+// RevokeSigningRequestRequestMultiError is an error wrapping multiple
+// validation errors returned by RevokeSigningRequestRequest.ValidateAll() if
+// the designated constraints aren't met.
+type RevokeSigningRequestRequestMultiError []error
+
+// Error returns a concatenation of all the error messages it wraps.
+func (m RevokeSigningRequestRequestMultiError) Error() string {
+	msgs := make([]string, 0, len(m))
+	for _, err := range m {
+		msgs = append(msgs, err.Error())
+	}
+	return strings.Join(msgs, "; ")
+}
+
+// AllErrors returns a list of validation violation errors.
+func (m RevokeSigningRequestRequestMultiError) AllErrors() []error { return m }
+
+// RevokeSigningRequestRequestValidationError is the validation error returned
+// by RevokeSigningRequestRequest.Validate if the designated constraints
+// aren't met.
+type RevokeSigningRequestRequestValidationError struct {
+	field  string
+	reason string
+	cause  error
+	key    bool
+}
+
+// Field function returns field value.
+func (e RevokeSigningRequestRequestValidationError) Field() string { return e.field }
+
+// Reason function returns reason value.
+func (e RevokeSigningRequestRequestValidationError) Reason() string { return e.reason }
+
+// Cause function returns cause value.
+func (e RevokeSigningRequestRequestValidationError) Cause() error { return e.cause }
+
+// Key function returns key value.
+func (e RevokeSigningRequestRequestValidationError) Key() bool { return e.key }
+
+// ErrorName returns error name.
+func (e RevokeSigningRequestRequestValidationError) ErrorName() string {
+	return "RevokeSigningRequestRequestValidationError"
+}
+
+// Error satisfies the builtin error interface
+func (e RevokeSigningRequestRequestValidationError) Error() string {
+	cause := ""
+	if e.cause != nil {
+		cause = fmt.Sprintf(" | caused by: %v", e.cause)
+	}
+
+	key := ""
+	if e.key {
+		key = "key for "
+	}
+
+	return fmt.Sprintf(
+		"invalid %sRevokeSigningRequestRequest.%s: %s%s",
+		key,
+		e.field,
+		e.reason,
+		cause)
+}
+
+var _ error = RevokeSigningRequestRequestValidationError{}
+
+var _ interface {
+	Field() string
+	Reason() string
+	Key() bool
+	Cause() error
+	ErrorName() string
+} = RevokeSigningRequestRequestValidationError{}
+
+// Validate checks the field values on RevokeSigningRequestResponse with the
+// rules defined in the proto definition for this message. If any rules are
+// violated, the first error encountered is returned, or nil if there are no violations.
+func (m *RevokeSigningRequestResponse) Validate() error {
+	return m.validate(false)
+}
+
+// ValidateAll checks the field values on RevokeSigningRequestResponse with the
+// rules defined in the proto definition for this message. If any rules are
+// violated, the result is a list of violation errors wrapped in
+// RevokeSigningRequestResponseMultiError, or nil if none found.
+func (m *RevokeSigningRequestResponse) ValidateAll() error {
+	return m.validate(true)
+}
+
+func (m *RevokeSigningRequestResponse) validate(all bool) error {
+	if m == nil {
+		return nil
+	}
+
+	var errors []error
+
+	if all {
+		switch v := interface{}(m.GetRequest()).(type) {
+		case interface{ ValidateAll() error }:
+			if err := v.ValidateAll(); err != nil {
+				errors = append(errors, RevokeSigningRequestResponseValidationError{
+					field:  "Request",
+					reason: "embedded message failed validation",
+					cause:  err,
+				})
+			}
+		case interface{ Validate() error }:
+			if err := v.Validate(); err != nil {
+				errors = append(errors, RevokeSigningRequestResponseValidationError{
+					field:  "Request",
+					reason: "embedded message failed validation",
+					cause:  err,
+				})
+			}
+		}
+	} else if v, ok := interface{}(m.GetRequest()).(interface{ Validate() error }); ok {
+		if err := v.Validate(); err != nil {
+			return RevokeSigningRequestResponseValidationError{
+				field:  "Request",
+				reason: "embedded message failed validation",
+				cause:  err,
+			}
+		}
+	}
+
+	if len(errors) > 0 {
+		return RevokeSigningRequestResponseMultiError(errors)
+	}
+
+	return nil
+}
+
+// RevokeSigningRequestResponseMultiError is an error wrapping multiple
+// validation errors returned by RevokeSigningRequestResponse.ValidateAll() if
+// the designated constraints aren't met.
+type RevokeSigningRequestResponseMultiError []error
+
+// Error returns a concatenation of all the error messages it wraps.
+func (m RevokeSigningRequestResponseMultiError) Error() string {
+	msgs := make([]string, 0, len(m))
+	for _, err := range m {
+		msgs = append(msgs, err.Error())
+	}
+	return strings.Join(msgs, "; ")
+}
+
+// AllErrors returns a list of validation violation errors.
+func (m RevokeSigningRequestResponseMultiError) AllErrors() []error { return m }
+
+// RevokeSigningRequestResponseValidationError is the validation error returned
+// by RevokeSigningRequestResponse.Validate if the designated constraints
+// aren't met.
+type RevokeSigningRequestResponseValidationError struct {
+	field  string
+	reason string
+	cause  error
+	key    bool
+}
+
+// Field function returns field value.
+func (e RevokeSigningRequestResponseValidationError) Field() string { return e.field }
+
+// Reason function returns reason value.
+func (e RevokeSigningRequestResponseValidationError) Reason() string { return e.reason }
+
+// Cause function returns cause value.
+func (e RevokeSigningRequestResponseValidationError) Cause() error { return e.cause }
+
+// Key function returns key value.
+func (e RevokeSigningRequestResponseValidationError) Key() bool { return e.key }
+
+// ErrorName returns error name.
+func (e RevokeSigningRequestResponseValidationError) ErrorName() string {
+	return "RevokeSigningRequestResponseValidationError"
+}
+
+// Error satisfies the builtin error interface
+func (e RevokeSigningRequestResponseValidationError) Error() string {
+	cause := ""
+	if e.cause != nil {
+		cause = fmt.Sprintf(" | caused by: %v", e.cause)
+	}
+
+	key := ""
+	if e.key {
+		key = "key for "
+	}
+
+	return fmt.Sprintf(
+		"invalid %sRevokeSigningRequestResponse.%s: %s%s",
+		key,
+		e.field,
+		e.reason,
+		cause)
+}
+
+var _ error = RevokeSigningRequestResponseValidationError{}
+
+var _ interface {
+	Field() string
+	Reason() string
+	Key() bool
+	Cause() error
+	ErrorName() string
+} = RevokeSigningRequestResponseValidationError{}
 
 // Validate checks the field values on ResendSigningEmailRequest with the rules
 // defined in the proto definition for this message. If any rules are

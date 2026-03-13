@@ -508,6 +508,12 @@ func init() {
 	signingtemplateDescFileSize := signingtemplateFields[5].Descriptor()
 	// signingtemplate.DefaultFileSize holds the default value on creation for the file_size field.
 	signingtemplate.DefaultFileSize = signingtemplateDescFileSize.Default.(int64)
+	// signingtemplateDescRevocationStampText is the schema descriptor for revocation_stamp_text field.
+	signingtemplateDescRevocationStampText := signingtemplateFields[7].Descriptor()
+	// signingtemplate.DefaultRevocationStampText holds the default value on creation for the revocation_stamp_text field.
+	signingtemplate.DefaultRevocationStampText = signingtemplateDescRevocationStampText.Default.(string)
+	// signingtemplate.RevocationStampTextValidator is a validator for the "revocation_stamp_text" field. It is called by the builders before save.
+	signingtemplate.RevocationStampTextValidator = signingtemplateDescRevocationStampText.Validators[0].(func(string) error)
 	// signingtemplateDescID is the schema descriptor for id field.
 	signingtemplateDescID := signingtemplateFields[0].Descriptor()
 	// signingtemplate.IDValidator is a validator for the "id" field. It is called by the builders before save.

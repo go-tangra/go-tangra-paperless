@@ -160,6 +160,20 @@ func (_c *SigningTemplateCreate) SetFields(v []schema.SigningTemplateFieldDef) *
 	return _c
 }
 
+// SetRevocationStampText sets the "revocation_stamp_text" field.
+func (_c *SigningTemplateCreate) SetRevocationStampText(v string) *SigningTemplateCreate {
+	_c.mutation.SetRevocationStampText(v)
+	return _c
+}
+
+// SetNillableRevocationStampText sets the "revocation_stamp_text" field if the given value is not nil.
+func (_c *SigningTemplateCreate) SetNillableRevocationStampText(v *string) *SigningTemplateCreate {
+	if v != nil {
+		_c.SetRevocationStampText(*v)
+	}
+	return _c
+}
+
 // SetID sets the "id" field.
 func (_c *SigningTemplateCreate) SetID(v string) *SigningTemplateCreate {
 	_c.mutation.SetID(v)
@@ -211,6 +225,10 @@ func (_c *SigningTemplateCreate) defaults() error {
 		v := signingtemplate.DefaultFileSize
 		_c.mutation.SetFileSize(v)
 	}
+	if _, ok := _c.mutation.RevocationStampText(); !ok {
+		v := signingtemplate.DefaultRevocationStampText
+		_c.mutation.SetRevocationStampText(v)
+	}
 	return nil
 }
 
@@ -247,6 +265,11 @@ func (_c *SigningTemplateCreate) check() error {
 	}
 	if _, ok := _c.mutation.FileSize(); !ok {
 		return &ValidationError{Name: "file_size", err: errors.New(`ent: missing required field "SigningTemplate.file_size"`)}
+	}
+	if v, ok := _c.mutation.RevocationStampText(); ok {
+		if err := signingtemplate.RevocationStampTextValidator(v); err != nil {
+			return &ValidationError{Name: "revocation_stamp_text", err: fmt.Errorf(`ent: validator failed for field "SigningTemplate.revocation_stamp_text": %w`, err)}
+		}
 	}
 	if v, ok := _c.mutation.ID(); ok {
 		if err := signingtemplate.IDValidator(v); err != nil {
@@ -336,6 +359,10 @@ func (_c *SigningTemplateCreate) createSpec() (*SigningTemplate, *sqlgraph.Creat
 	if value, ok := _c.mutation.GetFields(); ok {
 		_spec.SetField(signingtemplate.FieldFields, field.TypeJSON, value)
 		_node.Fields = value
+	}
+	if value, ok := _c.mutation.RevocationStampText(); ok {
+		_spec.SetField(signingtemplate.FieldRevocationStampText, field.TypeString, value)
+		_node.RevocationStampText = value
 	}
 	return _node, _spec
 }
@@ -560,6 +587,24 @@ func (u *SigningTemplateUpsert) UpdateFields() *SigningTemplateUpsert {
 // ClearFields clears the value of the "fields" field.
 func (u *SigningTemplateUpsert) ClearFields() *SigningTemplateUpsert {
 	u.SetNull(signingtemplate.FieldFields)
+	return u
+}
+
+// SetRevocationStampText sets the "revocation_stamp_text" field.
+func (u *SigningTemplateUpsert) SetRevocationStampText(v string) *SigningTemplateUpsert {
+	u.Set(signingtemplate.FieldRevocationStampText, v)
+	return u
+}
+
+// UpdateRevocationStampText sets the "revocation_stamp_text" field to the value that was provided on create.
+func (u *SigningTemplateUpsert) UpdateRevocationStampText() *SigningTemplateUpsert {
+	u.SetExcluded(signingtemplate.FieldRevocationStampText)
+	return u
+}
+
+// ClearRevocationStampText clears the value of the "revocation_stamp_text" field.
+func (u *SigningTemplateUpsert) ClearRevocationStampText() *SigningTemplateUpsert {
+	u.SetNull(signingtemplate.FieldRevocationStampText)
 	return u
 }
 
@@ -817,6 +862,27 @@ func (u *SigningTemplateUpsertOne) UpdateFields() *SigningTemplateUpsertOne {
 func (u *SigningTemplateUpsertOne) ClearFields() *SigningTemplateUpsertOne {
 	return u.Update(func(s *SigningTemplateUpsert) {
 		s.ClearFields()
+	})
+}
+
+// SetRevocationStampText sets the "revocation_stamp_text" field.
+func (u *SigningTemplateUpsertOne) SetRevocationStampText(v string) *SigningTemplateUpsertOne {
+	return u.Update(func(s *SigningTemplateUpsert) {
+		s.SetRevocationStampText(v)
+	})
+}
+
+// UpdateRevocationStampText sets the "revocation_stamp_text" field to the value that was provided on create.
+func (u *SigningTemplateUpsertOne) UpdateRevocationStampText() *SigningTemplateUpsertOne {
+	return u.Update(func(s *SigningTemplateUpsert) {
+		s.UpdateRevocationStampText()
+	})
+}
+
+// ClearRevocationStampText clears the value of the "revocation_stamp_text" field.
+func (u *SigningTemplateUpsertOne) ClearRevocationStampText() *SigningTemplateUpsertOne {
+	return u.Update(func(s *SigningTemplateUpsert) {
+		s.ClearRevocationStampText()
 	})
 }
 
@@ -1241,6 +1307,27 @@ func (u *SigningTemplateUpsertBulk) UpdateFields() *SigningTemplateUpsertBulk {
 func (u *SigningTemplateUpsertBulk) ClearFields() *SigningTemplateUpsertBulk {
 	return u.Update(func(s *SigningTemplateUpsert) {
 		s.ClearFields()
+	})
+}
+
+// SetRevocationStampText sets the "revocation_stamp_text" field.
+func (u *SigningTemplateUpsertBulk) SetRevocationStampText(v string) *SigningTemplateUpsertBulk {
+	return u.Update(func(s *SigningTemplateUpsert) {
+		s.SetRevocationStampText(v)
+	})
+}
+
+// UpdateRevocationStampText sets the "revocation_stamp_text" field to the value that was provided on create.
+func (u *SigningTemplateUpsertBulk) UpdateRevocationStampText() *SigningTemplateUpsertBulk {
+	return u.Update(func(s *SigningTemplateUpsert) {
+		s.UpdateRevocationStampText()
+	})
+}
+
+// ClearRevocationStampText clears the value of the "revocation_stamp_text" field.
+func (u *SigningTemplateUpsertBulk) ClearRevocationStampText() *SigningTemplateUpsertBulk {
+	return u.Update(func(s *SigningTemplateUpsert) {
+		s.ClearRevocationStampText()
 	})
 }
 

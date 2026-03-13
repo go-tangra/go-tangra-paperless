@@ -9190,30 +9190,31 @@ func (m *SigningRequestMutation) ResetEdge(name string) error {
 // SigningTemplateMutation represents an operation that mutates the SigningTemplate nodes in the graph.
 type SigningTemplateMutation struct {
 	config
-	op            Op
-	typ           string
-	id            *string
-	create_by     *uint32
-	addcreate_by  *int32
-	update_by     *uint32
-	addupdate_by  *int32
-	create_time   *time.Time
-	update_time   *time.Time
-	delete_time   *time.Time
-	tenant_id     *uint32
-	addtenant_id  *int32
-	name          *string
-	description   *string
-	file_key      *string
-	file_name     *string
-	file_size     *int64
-	addfile_size  *int64
-	fields        *[]schema.SigningTemplateFieldDef
-	appendfields  []schema.SigningTemplateFieldDef
-	clearedFields map[string]struct{}
-	done          bool
-	oldValue      func(context.Context) (*SigningTemplate, error)
-	predicates    []predicate.SigningTemplate
+	op                    Op
+	typ                   string
+	id                    *string
+	create_by             *uint32
+	addcreate_by          *int32
+	update_by             *uint32
+	addupdate_by          *int32
+	create_time           *time.Time
+	update_time           *time.Time
+	delete_time           *time.Time
+	tenant_id             *uint32
+	addtenant_id          *int32
+	name                  *string
+	description           *string
+	file_key              *string
+	file_name             *string
+	file_size             *int64
+	addfile_size          *int64
+	fields                *[]schema.SigningTemplateFieldDef
+	appendfields          []schema.SigningTemplateFieldDef
+	revocation_stamp_text *string
+	clearedFields         map[string]struct{}
+	done                  bool
+	oldValue              func(context.Context) (*SigningTemplate, error)
+	predicates            []predicate.SigningTemplate
 }
 
 var _ ent.Mutation = (*SigningTemplateMutation)(nil)
@@ -9955,6 +9956,55 @@ func (m *SigningTemplateMutation) ResetFields() {
 	delete(m.clearedFields, signingtemplate.FieldFields)
 }
 
+// SetRevocationStampText sets the "revocation_stamp_text" field.
+func (m *SigningTemplateMutation) SetRevocationStampText(s string) {
+	m.revocation_stamp_text = &s
+}
+
+// RevocationStampText returns the value of the "revocation_stamp_text" field in the mutation.
+func (m *SigningTemplateMutation) RevocationStampText() (r string, exists bool) {
+	v := m.revocation_stamp_text
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldRevocationStampText returns the old "revocation_stamp_text" field's value of the SigningTemplate entity.
+// If the SigningTemplate object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SigningTemplateMutation) OldRevocationStampText(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldRevocationStampText is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldRevocationStampText requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldRevocationStampText: %w", err)
+	}
+	return oldValue.RevocationStampText, nil
+}
+
+// ClearRevocationStampText clears the value of the "revocation_stamp_text" field.
+func (m *SigningTemplateMutation) ClearRevocationStampText() {
+	m.revocation_stamp_text = nil
+	m.clearedFields[signingtemplate.FieldRevocationStampText] = struct{}{}
+}
+
+// RevocationStampTextCleared returns if the "revocation_stamp_text" field was cleared in this mutation.
+func (m *SigningTemplateMutation) RevocationStampTextCleared() bool {
+	_, ok := m.clearedFields[signingtemplate.FieldRevocationStampText]
+	return ok
+}
+
+// ResetRevocationStampText resets all changes to the "revocation_stamp_text" field.
+func (m *SigningTemplateMutation) ResetRevocationStampText() {
+	m.revocation_stamp_text = nil
+	delete(m.clearedFields, signingtemplate.FieldRevocationStampText)
+}
+
 // Where appends a list predicates to the SigningTemplateMutation builder.
 func (m *SigningTemplateMutation) Where(ps ...predicate.SigningTemplate) {
 	m.predicates = append(m.predicates, ps...)
@@ -9989,7 +10039,7 @@ func (m *SigningTemplateMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *SigningTemplateMutation) Fields() []string {
-	fields := make([]string, 0, 12)
+	fields := make([]string, 0, 13)
 	if m.create_by != nil {
 		fields = append(fields, signingtemplate.FieldCreateBy)
 	}
@@ -10026,6 +10076,9 @@ func (m *SigningTemplateMutation) Fields() []string {
 	if m.fields != nil {
 		fields = append(fields, signingtemplate.FieldFields)
 	}
+	if m.revocation_stamp_text != nil {
+		fields = append(fields, signingtemplate.FieldRevocationStampText)
+	}
 	return fields
 }
 
@@ -10058,6 +10111,8 @@ func (m *SigningTemplateMutation) Field(name string) (ent.Value, bool) {
 		return m.FileSize()
 	case signingtemplate.FieldFields:
 		return m.GetFields()
+	case signingtemplate.FieldRevocationStampText:
+		return m.RevocationStampText()
 	}
 	return nil, false
 }
@@ -10091,6 +10146,8 @@ func (m *SigningTemplateMutation) OldField(ctx context.Context, name string) (en
 		return m.OldFileSize(ctx)
 	case signingtemplate.FieldFields:
 		return m.OldFields(ctx)
+	case signingtemplate.FieldRevocationStampText:
+		return m.OldRevocationStampText(ctx)
 	}
 	return nil, fmt.Errorf("unknown SigningTemplate field %s", name)
 }
@@ -10183,6 +10240,13 @@ func (m *SigningTemplateMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetFields(v)
+		return nil
+	case signingtemplate.FieldRevocationStampText:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetRevocationStampText(v)
 		return nil
 	}
 	return fmt.Errorf("unknown SigningTemplate field %s", name)
@@ -10289,6 +10353,9 @@ func (m *SigningTemplateMutation) ClearedFields() []string {
 	if m.FieldCleared(signingtemplate.FieldFields) {
 		fields = append(fields, signingtemplate.FieldFields)
 	}
+	if m.FieldCleared(signingtemplate.FieldRevocationStampText) {
+		fields = append(fields, signingtemplate.FieldRevocationStampText)
+	}
 	return fields
 }
 
@@ -10326,6 +10393,9 @@ func (m *SigningTemplateMutation) ClearField(name string) error {
 		return nil
 	case signingtemplate.FieldFields:
 		m.ClearFields()
+		return nil
+	case signingtemplate.FieldRevocationStampText:
+		m.ClearRevocationStampText()
 		return nil
 	}
 	return fmt.Errorf("unknown SigningTemplate nullable field %s", name)
@@ -10370,6 +10440,9 @@ func (m *SigningTemplateMutation) ResetField(name string) error {
 		return nil
 	case signingtemplate.FieldFields:
 		m.ResetFields()
+		return nil
+	case signingtemplate.FieldRevocationStampText:
+		m.ResetRevocationStampText()
 		return nil
 	}
 	return fmt.Errorf("unknown SigningTemplate field %s", name)

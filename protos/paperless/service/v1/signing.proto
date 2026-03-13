@@ -95,6 +95,14 @@ service PaperlessSigningRequestService {
     };
   }
 
+  // Revoke a completed signing request (stamps the signed PDF and marks as revoked)
+  rpc RevokeSigningRequest(RevokeSigningRequestRequest) returns (RevokeSigningRequestResponse) {
+    option (google.api.http) = {
+      post: "/v1/signing/requests/{id}/revoke"
+      body: "*"
+    };
+  }
+
   // Resend signing email to a specific recipient
   rpc ResendSigningEmail(ResendSigningEmailRequest) returns (google.protobuf.Empty) {
     option (google.api.http) = {
@@ -169,6 +177,7 @@ enum SigningRequestStatus {
   SIGNING_REQUEST_STATUS_COMPLETED = 3;
   SIGNING_REQUEST_STATUS_CANCELLED = 4;
   SIGNING_REQUEST_STATUS_EXPIRED = 5;
+  SIGNING_REQUEST_STATUS_REVOKED = 6;
 }
 
 // Type of signing request (external = email-based, internal = user-based)
@@ -220,6 +229,8 @@ message SigningTemplate {
   google.protobuf.Timestamp update_time = 10 [json_name = "updateTime"];
   optional uint32 created_by = 11 [json_name = "createdBy"];
   optional uint32 updated_by = 12 [json_name = "updatedBy"];
+  // Configurable stamp text overlaid on the PDF when a completed request is revoked (e.g. "АНУЛИРАНО")
+  string revocation_stamp_text = 13 [json_name = "revocationStampText"];
 }
 
 // A recipient in a signing request
@@ -293,6 +304,12 @@ message CreateSigningTemplateRequest {
     json_name = "fileContent",
     (google.api.field_behavior) = REQUIRED
   ];
+
+  // Stamp text overlaid on PDF when a completed signing request is revoked (e.g. "АНУЛИРАНО", "VOID")
+  string revocation_stamp_text = 5 [
+    json_name = "revocationStampText",
+    (buf.validate.field).string = {max_len: 255}
+  ];
 }
 
 message CreateSigningTemplateResponse {
@@ -348,6 +365,11 @@ message UpdateSigningTemplateRequest {
   optional string description = 3 [
     json_name = "description",
     (buf.validate.field).string = {max_len: 4096}
+  ];
+
+  optional string revocation_stamp_text = 4 [
+    json_name = "revocationStampText",
+    (buf.validate.field).string = {max_len: 255}
   ];
 }
 
@@ -533,6 +555,28 @@ message CancelSigningRequestRequest {
 }
 
 message CancelSigningRequestResponse {
+  SigningRequest request = 1 [json_name = "request"];
+}
+
+message RevokeSigningRequestRequest {
+  string id = 1 [
+    json_name = "id",
+    (google.api.field_behavior) = REQUIRED,
+    (buf.validate.field).string = {
+      min_len: 1
+      max_len: 36
+      pattern: "^[a-fA-F0-9\\-]+$"
+    }
+  ];
+
+  // Optional reason for revocation
+  string reason = 2 [
+    json_name = "reason",
+    (buf.validate.field).string = {max_len: 4096}
+  ];
+}
+
+message RevokeSigningRequestResponse {
   SigningRequest request = 1 [json_name = "request"];
 }
 

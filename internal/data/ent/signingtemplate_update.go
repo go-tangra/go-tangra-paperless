@@ -226,6 +226,26 @@ func (_u *SigningTemplateUpdate) ClearFields() *SigningTemplateUpdate {
 	return _u
 }
 
+// SetRevocationStampText sets the "revocation_stamp_text" field.
+func (_u *SigningTemplateUpdate) SetRevocationStampText(v string) *SigningTemplateUpdate {
+	_u.mutation.SetRevocationStampText(v)
+	return _u
+}
+
+// SetNillableRevocationStampText sets the "revocation_stamp_text" field if the given value is not nil.
+func (_u *SigningTemplateUpdate) SetNillableRevocationStampText(v *string) *SigningTemplateUpdate {
+	if v != nil {
+		_u.SetRevocationStampText(*v)
+	}
+	return _u
+}
+
+// ClearRevocationStampText clears the value of the "revocation_stamp_text" field.
+func (_u *SigningTemplateUpdate) ClearRevocationStampText() *SigningTemplateUpdate {
+	_u.mutation.ClearRevocationStampText()
+	return _u
+}
+
 // Mutation returns the SigningTemplateMutation object of the builder.
 func (_u *SigningTemplateUpdate) Mutation() *SigningTemplateMutation {
 	return _u.mutation
@@ -278,6 +298,11 @@ func (_u *SigningTemplateUpdate) check() error {
 	if v, ok := _u.mutation.FileName(); ok {
 		if err := signingtemplate.FileNameValidator(v); err != nil {
 			return &ValidationError{Name: "file_name", err: fmt.Errorf(`ent: validator failed for field "SigningTemplate.file_name": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.RevocationStampText(); ok {
+		if err := signingtemplate.RevocationStampTextValidator(v); err != nil {
+			return &ValidationError{Name: "revocation_stamp_text", err: fmt.Errorf(`ent: validator failed for field "SigningTemplate.revocation_stamp_text": %w`, err)}
 		}
 	}
 	return nil
@@ -368,6 +393,12 @@ func (_u *SigningTemplateUpdate) sqlSave(ctx context.Context) (_node int, err er
 	}
 	if _u.mutation.FieldsCleared() {
 		_spec.ClearField(signingtemplate.FieldFields, field.TypeJSON)
+	}
+	if value, ok := _u.mutation.RevocationStampText(); ok {
+		_spec.SetField(signingtemplate.FieldRevocationStampText, field.TypeString, value)
+	}
+	if _u.mutation.RevocationStampTextCleared() {
+		_spec.ClearField(signingtemplate.FieldRevocationStampText, field.TypeString)
 	}
 	_spec.AddModifiers(_u.modifiers...)
 	if _node, err = sqlgraph.UpdateNodes(ctx, _u.driver, _spec); err != nil {
@@ -586,6 +617,26 @@ func (_u *SigningTemplateUpdateOne) ClearFields() *SigningTemplateUpdateOne {
 	return _u
 }
 
+// SetRevocationStampText sets the "revocation_stamp_text" field.
+func (_u *SigningTemplateUpdateOne) SetRevocationStampText(v string) *SigningTemplateUpdateOne {
+	_u.mutation.SetRevocationStampText(v)
+	return _u
+}
+
+// SetNillableRevocationStampText sets the "revocation_stamp_text" field if the given value is not nil.
+func (_u *SigningTemplateUpdateOne) SetNillableRevocationStampText(v *string) *SigningTemplateUpdateOne {
+	if v != nil {
+		_u.SetRevocationStampText(*v)
+	}
+	return _u
+}
+
+// ClearRevocationStampText clears the value of the "revocation_stamp_text" field.
+func (_u *SigningTemplateUpdateOne) ClearRevocationStampText() *SigningTemplateUpdateOne {
+	_u.mutation.ClearRevocationStampText()
+	return _u
+}
+
 // Mutation returns the SigningTemplateMutation object of the builder.
 func (_u *SigningTemplateUpdateOne) Mutation() *SigningTemplateMutation {
 	return _u.mutation
@@ -651,6 +702,11 @@ func (_u *SigningTemplateUpdateOne) check() error {
 	if v, ok := _u.mutation.FileName(); ok {
 		if err := signingtemplate.FileNameValidator(v); err != nil {
 			return &ValidationError{Name: "file_name", err: fmt.Errorf(`ent: validator failed for field "SigningTemplate.file_name": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.RevocationStampText(); ok {
+		if err := signingtemplate.RevocationStampTextValidator(v); err != nil {
+			return &ValidationError{Name: "revocation_stamp_text", err: fmt.Errorf(`ent: validator failed for field "SigningTemplate.revocation_stamp_text": %w`, err)}
 		}
 	}
 	return nil
@@ -758,6 +814,12 @@ func (_u *SigningTemplateUpdateOne) sqlSave(ctx context.Context) (_node *Signing
 	}
 	if _u.mutation.FieldsCleared() {
 		_spec.ClearField(signingtemplate.FieldFields, field.TypeJSON)
+	}
+	if value, ok := _u.mutation.RevocationStampText(); ok {
+		_spec.SetField(signingtemplate.FieldRevocationStampText, field.TypeString, value)
+	}
+	if _u.mutation.RevocationStampTextCleared() {
+		_spec.ClearField(signingtemplate.FieldRevocationStampText, field.TypeString)
 	}
 	_spec.AddModifiers(_u.modifiers...)
 	_node = &SigningTemplate{config: _u.config}

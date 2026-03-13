@@ -58,6 +58,7 @@ func (SigningRequest) Fields() []ent.Field {
 				"SIGNING_REQUEST_STATUS_COMPLETED",
 				"SIGNING_REQUEST_STATUS_CANCELLED",
 				"SIGNING_REQUEST_STATUS_EXPIRED",
+				"SIGNING_REQUEST_STATUS_REVOKED",
 			).
 			Default("SIGNING_REQUEST_STATUS_DRAFT").
 			Comment("Request status"),

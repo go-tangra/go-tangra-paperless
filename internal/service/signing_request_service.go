@@ -429,6 +429,74 @@ func (s *SigningRequestService) CancelSigningRequest(ctx context.Context, req *p
 	}, nil
 }
 
+// RevokeSigningRequest revokes a completed signing request by stamping the signed PDF
+// with a configurable revocation stamp and updating the status to REVOKED.
+func (s *SigningRequestService) RevokeSigningRequest(ctx context.Context, req *paperlessV1.RevokeSigningRequestRequest) (*paperlessV1.RevokeSigningRequestResponse, error) {
+	entity, err := s.requestRepo.GetByID(ctx, req.Id)
+	if err != nil {
+		return nil, err
+	}
+	if entity == nil {
+		return nil, paperlessV1.ErrorSigningRequestNotFound("signing request not found")
+	}
+
+	if string(entity.Status) != "SIGNING_REQUEST_STATUS_COMPLETED" {
+		return nil, paperlessV1.ErrorBadRequest("only completed signing requests can be revoked")
+	}
+
+	// Get the template to read the configurable stamp text
+	template, err := s.templateRepo.GetByID(ctx, entity.TemplateID)
+	if err != nil {
+		return nil, err
+	}
+
+	stampText := "АНУЛИРАНО"
+	if template != nil && template.RevocationStampText != "" {
+		stampText = template.RevocationStampText
+	}
+
+	// Download the signed PDF
+	fileKey := entity.SignedFileKey
+	if fileKey == "" {
+		fileKey = entity.OriginalFileKey
+	}
+	pdfBytes, err := s.storage.Download(ctx, fileKey)
+	if err != nil {
+		s.log.Errorf("failed to download signed PDF for revocation: %v", err)
+		return nil, paperlessV1.ErrorStorageOperationError("failed to download signed document")
+	}
+
+	// Apply revocation stamp to the PDF
+	stamped, err := s.processor.StampRevocation(pdfBytes, stampText)
+	if err != nil {
+		s.log.Errorf("failed to stamp revocation on PDF: %v", err)
+		return nil, paperlessV1.ErrorInternalServerError("failed to apply revocation stamp")
+	}
+
+	// Upload the stamped PDF back (overwrite signed file)
+	if _, err := s.storage.UploadRaw(ctx, fileKey, stamped, "application/pdf"); err != nil {
+		s.log.Errorf("failed to upload revoked PDF: %v", err)
+		return nil, paperlessV1.ErrorStorageOperationError("failed to save revoked document")
+	}
+
+	// Update status to REVOKED
+	if err := s.requestRepo.UpdateStatus(ctx, req.Id, "SIGNING_REQUEST_STATUS_REVOKED"); err != nil {
+		return nil, err
+	}
+
+	// Re-fetch updated entity
+	entity, err = s.requestRepo.GetByID(ctx, req.Id)
+	if err != nil {
+		return nil, err
+	}
+
+	s.log.Infof("Signing request %s revoked with stamp '%s'", req.Id, stampText)
+
+	return &paperlessV1.RevokeSigningRequestResponse{
+		Request: s.requestRepo.ToProto(ctx, entity),
+	}, nil
+}
+
 // ResendSigningEmail resends the signing email to a specific recipient
 func (s *SigningRequestService) ResendSigningEmail(ctx context.Context, req *paperlessV1.ResendSigningEmailRequest) (*emptypb.Empty, error) {
 	entity, err := s.requestRepo.GetByID(ctx, req.Id)

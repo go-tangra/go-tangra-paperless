@@ -119,6 +119,11 @@ func FileSize(v int64) predicate.SigningTemplate {
 	return predicate.SigningTemplate(sql.FieldEQ(FieldFileSize, v))
 }
 
+// RevocationStampText applies equality check predicate on the "revocation_stamp_text" field. It's identical to RevocationStampTextEQ.
+func RevocationStampText(v string) predicate.SigningTemplate {
+	return predicate.SigningTemplate(sql.FieldEQ(FieldRevocationStampText, v))
+}
+
 // CreateByEQ applies the EQ predicate on the "create_by" field.
 func CreateByEQ(v uint32) predicate.SigningTemplate {
 	return predicate.SigningTemplate(sql.FieldEQ(FieldCreateBy, v))
@@ -737,6 +742,81 @@ func FieldsIsNil() predicate.SigningTemplate {
 // FieldsNotNil applies the NotNil predicate on the "fields" field.
 func FieldsNotNil() predicate.SigningTemplate {
 	return predicate.SigningTemplate(sql.FieldNotNull(FieldFields))
+}
+
+// RevocationStampTextEQ applies the EQ predicate on the "revocation_stamp_text" field.
+func RevocationStampTextEQ(v string) predicate.SigningTemplate {
+	return predicate.SigningTemplate(sql.FieldEQ(FieldRevocationStampText, v))
+}
+
+// RevocationStampTextNEQ applies the NEQ predicate on the "revocation_stamp_text" field.
+func RevocationStampTextNEQ(v string) predicate.SigningTemplate {
+	return predicate.SigningTemplate(sql.FieldNEQ(FieldRevocationStampText, v))
+}
+
+// RevocationStampTextIn applies the In predicate on the "revocation_stamp_text" field.
+func RevocationStampTextIn(vs ...string) predicate.SigningTemplate {
+	return predicate.SigningTemplate(sql.FieldIn(FieldRevocationStampText, vs...))
+}
+
+// RevocationStampTextNotIn applies the NotIn predicate on the "revocation_stamp_text" field.
+func RevocationStampTextNotIn(vs ...string) predicate.SigningTemplate {
+	return predicate.SigningTemplate(sql.FieldNotIn(FieldRevocationStampText, vs...))
+}
+
+// RevocationStampTextGT applies the GT predicate on the "revocation_stamp_text" field.
+func RevocationStampTextGT(v string) predicate.SigningTemplate {
+	return predicate.SigningTemplate(sql.FieldGT(FieldRevocationStampText, v))
+}
+
+// RevocationStampTextGTE applies the GTE predicate on the "revocation_stamp_text" field.
+func RevocationStampTextGTE(v string) predicate.SigningTemplate {
+	return predicate.SigningTemplate(sql.FieldGTE(FieldRevocationStampText, v))
+}
+
+// RevocationStampTextLT applies the LT predicate on the "revocation_stamp_text" field.
+func RevocationStampTextLT(v string) predicate.SigningTemplate {
+	return predicate.SigningTemplate(sql.FieldLT(FieldRevocationStampText, v))
+}
+
+// RevocationStampTextLTE applies the LTE predicate on the "revocation_stamp_text" field.
+func RevocationStampTextLTE(v string) predicate.SigningTemplate {
+	return predicate.SigningTemplate(sql.FieldLTE(FieldRevocationStampText, v))
+}
+
+// RevocationStampTextContains applies the Contains predicate on the "revocation_stamp_text" field.
+func RevocationStampTextContains(v string) predicate.SigningTemplate {
+	return predicate.SigningTemplate(sql.FieldContains(FieldRevocationStampText, v))
+}
+
+// RevocationStampTextHasPrefix applies the HasPrefix predicate on the "revocation_stamp_text" field.
+func RevocationStampTextHasPrefix(v string) predicate.SigningTemplate {
+	return predicate.SigningTemplate(sql.FieldHasPrefix(FieldRevocationStampText, v))
+}
+
+// RevocationStampTextHasSuffix applies the HasSuffix predicate on the "revocation_stamp_text" field.
+func RevocationStampTextHasSuffix(v string) predicate.SigningTemplate {
+	return predicate.SigningTemplate(sql.FieldHasSuffix(FieldRevocationStampText, v))
+}
+
+// RevocationStampTextIsNil applies the IsNil predicate on the "revocation_stamp_text" field.
+func RevocationStampTextIsNil() predicate.SigningTemplate {
+	return predicate.SigningTemplate(sql.FieldIsNull(FieldRevocationStampText))
+}
+
+// RevocationStampTextNotNil applies the NotNil predicate on the "revocation_stamp_text" field.
+func RevocationStampTextNotNil() predicate.SigningTemplate {
+	return predicate.SigningTemplate(sql.FieldNotNull(FieldRevocationStampText))
+}
+
+// RevocationStampTextEqualFold applies the EqualFold predicate on the "revocation_stamp_text" field.
+func RevocationStampTextEqualFold(v string) predicate.SigningTemplate {
+	return predicate.SigningTemplate(sql.FieldEqualFold(FieldRevocationStampText, v))
+}
+
+// RevocationStampTextContainsFold applies the ContainsFold predicate on the "revocation_stamp_text" field.
+func RevocationStampTextContainsFold(v string) predicate.SigningTemplate {
+	return predicate.SigningTemplate(sql.FieldContainsFold(FieldRevocationStampText, v))
 }
 
 // And groups predicates with the AND operator between them.

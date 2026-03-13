@@ -373,6 +373,7 @@ const (
 	PaperlessSigningRequestService_GetSigningRequest_FullMethodName      = "/paperless.service.v1.PaperlessSigningRequestService/GetSigningRequest"
 	PaperlessSigningRequestService_ListSigningRequests_FullMethodName    = "/paperless.service.v1.PaperlessSigningRequestService/ListSigningRequests"
 	PaperlessSigningRequestService_CancelSigningRequest_FullMethodName   = "/paperless.service.v1.PaperlessSigningRequestService/CancelSigningRequest"
+	PaperlessSigningRequestService_RevokeSigningRequest_FullMethodName   = "/paperless.service.v1.PaperlessSigningRequestService/RevokeSigningRequest"
 	PaperlessSigningRequestService_ResendSigningEmail_FullMethodName     = "/paperless.service.v1.PaperlessSigningRequestService/ResendSigningEmail"
 	PaperlessSigningRequestService_DownloadSignedDocument_FullMethodName = "/paperless.service.v1.PaperlessSigningRequestService/DownloadSignedDocument"
 )
@@ -391,6 +392,8 @@ type PaperlessSigningRequestServiceClient interface {
 	ListSigningRequests(ctx context.Context, in *ListSigningRequestsRequest, opts ...grpc.CallOption) (*ListSigningRequestsResponse, error)
 	// Cancel a signing request
 	CancelSigningRequest(ctx context.Context, in *CancelSigningRequestRequest, opts ...grpc.CallOption) (*CancelSigningRequestResponse, error)
+	// Revoke a completed signing request (stamps the signed PDF and marks as revoked)
+	RevokeSigningRequest(ctx context.Context, in *RevokeSigningRequestRequest, opts ...grpc.CallOption) (*RevokeSigningRequestResponse, error)
 	// Resend signing email to a specific recipient
 	ResendSigningEmail(ctx context.Context, in *ResendSigningEmailRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
 	// Get download URL for the signed document
@@ -445,6 +448,16 @@ func (c *paperlessSigningRequestServiceClient) CancelSigningRequest(ctx context.
 	return out, nil
 }
 
+func (c *paperlessSigningRequestServiceClient) RevokeSigningRequest(ctx context.Context, in *RevokeSigningRequestRequest, opts ...grpc.CallOption) (*RevokeSigningRequestResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(RevokeSigningRequestResponse)
+	err := c.cc.Invoke(ctx, PaperlessSigningRequestService_RevokeSigningRequest_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *paperlessSigningRequestServiceClient) ResendSigningEmail(ctx context.Context, in *ResendSigningEmailRequest, opts ...grpc.CallOption) (*emptypb.Empty, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(emptypb.Empty)
@@ -479,6 +492,8 @@ type PaperlessSigningRequestServiceServer interface {
 	ListSigningRequests(context.Context, *ListSigningRequestsRequest) (*ListSigningRequestsResponse, error)
 	// Cancel a signing request
 	CancelSigningRequest(context.Context, *CancelSigningRequestRequest) (*CancelSigningRequestResponse, error)
+	// Revoke a completed signing request (stamps the signed PDF and marks as revoked)
+	RevokeSigningRequest(context.Context, *RevokeSigningRequestRequest) (*RevokeSigningRequestResponse, error)
 	// Resend signing email to a specific recipient
 	ResendSigningEmail(context.Context, *ResendSigningEmailRequest) (*emptypb.Empty, error)
 	// Get download URL for the signed document
@@ -504,6 +519,9 @@ func (UnimplementedPaperlessSigningRequestServiceServer) ListSigningRequests(con
 }
 func (UnimplementedPaperlessSigningRequestServiceServer) CancelSigningRequest(context.Context, *CancelSigningRequestRequest) (*CancelSigningRequestResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method CancelSigningRequest not implemented")
+}
+func (UnimplementedPaperlessSigningRequestServiceServer) RevokeSigningRequest(context.Context, *RevokeSigningRequestRequest) (*RevokeSigningRequestResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method RevokeSigningRequest not implemented")
 }
 func (UnimplementedPaperlessSigningRequestServiceServer) ResendSigningEmail(context.Context, *ResendSigningEmailRequest) (*emptypb.Empty, error) {
 	return nil, status.Error(codes.Unimplemented, "method ResendSigningEmail not implemented")
@@ -605,6 +623,24 @@ func _PaperlessSigningRequestService_CancelSigningRequest_Handler(srv interface{
 	return interceptor(ctx, in, info, handler)
 }
 
+func _PaperlessSigningRequestService_RevokeSigningRequest_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(RevokeSigningRequestRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(PaperlessSigningRequestServiceServer).RevokeSigningRequest(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: PaperlessSigningRequestService_RevokeSigningRequest_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(PaperlessSigningRequestServiceServer).RevokeSigningRequest(ctx, req.(*RevokeSigningRequestRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _PaperlessSigningRequestService_ResendSigningEmail_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(ResendSigningEmailRequest)
 	if err := dec(in); err != nil {
@@ -663,6 +699,10 @@ var PaperlessSigningRequestService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "CancelSigningRequest",
 			Handler:    _PaperlessSigningRequestService_CancelSigningRequest_Handler,
+		},
+		{
+			MethodName: "RevokeSigningRequest",
+			Handler:    _PaperlessSigningRequestService_RevokeSigningRequest_Handler,
 		},
 		{
 			MethodName: "ResendSigningEmail",
