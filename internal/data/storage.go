@@ -159,14 +159,14 @@ func (s *StorageClient) CopyObject(ctx context.Context, srcKey, dstKey string) e
 func (s *StorageClient) Download(ctx context.Context, key string) ([]byte, error) {
 	obj, err := s.client.GetObject(ctx, s.bucket, key, minio.GetObjectOptions{})
 	if err != nil {
-		s.log.Errorf("failed to get object: %v", err)
+		s.log.Errorf("failed to get object: bucket: %s, key: %s, error: %v", s.bucket, key, err)
 		return nil, fmt.Errorf("failed to get object: %w", err)
 	}
 	defer obj.Close()
 
 	content, err := io.ReadAll(obj)
 	if err != nil {
-		s.log.Errorf("failed to read object: %v", err)
+		s.log.Errorf("failed to read object: bucket: %s, key: %s, error: %v", s.bucket, key, err)
 		return nil, fmt.Errorf("failed to read object: %w", err)
 	}
 
