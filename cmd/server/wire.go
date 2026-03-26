@@ -11,7 +11,6 @@ import (
 	"github.com/tx7do/kratos-bootstrap/bootstrap"
 
 	dataProviders "github.com/go-tangra/go-tangra-paperless/internal/data/providers"
-	eventProviders "github.com/go-tangra/go-tangra-paperless/internal/event/providers"
 	serverProviders "github.com/go-tangra/go-tangra-paperless/internal/server/providers"
 	serviceProviders "github.com/go-tangra/go-tangra-paperless/internal/service/providers"
 )
@@ -21,7 +20,6 @@ func initApp(*bootstrap.Context) (*kratos.App, func(), error) {
 	panic(
 		wire.Build(
 			dataProviders.ProviderSet,
-			eventProviders.ProviderSet,
 			serverProviders.ProviderSet,
 			serviceProviders.ProviderSet,
 			newApp,

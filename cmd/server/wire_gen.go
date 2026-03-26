@@ -11,7 +11,6 @@ import (
 	"github.com/go-tangra/go-tangra-paperless/internal/cert"
 	"github.com/go-tangra/go-tangra-paperless/internal/client"
 	"github.com/go-tangra/go-tangra-paperless/internal/data"
-	"github.com/go-tangra/go-tangra-paperless/internal/event"
 	"github.com/go-tangra/go-tangra-paperless/internal/metrics"
 	"github.com/go-tangra/go-tangra-paperless/internal/server"
 	"github.com/go-tangra/go-tangra-paperless/internal/service"
@@ -23,10 +22,11 @@ import (
 
 // initApp initializes the Wire provider entry for the kratos application
 func initApp(context *bootstrap.Context) (*kratos.App, func(), error) {
-	v, err := cert.NewCertManager(context)
+	certManager, err := cert.NewCertManager(context)
 	if err != nil {
 		return nil, nil, err
 	}
+	collector := metrics.NewCollector(context)
 	entClient, cleanup, err := data.NewEntClient(context)
 	if err != nil {
 		return nil, nil, err
@@ -39,7 +39,6 @@ func initApp(context *bootstrap.Context) (*kratos.App, func(), error) {
 	resourceLookup := providers.ProvideResourceLookup(categoryRepo, documentRepo)
 	engine := providers.ProvideAuthzEngine(permissionStore, resourceLookup, context)
 	checker := providers.ProvideAuthzChecker(engine)
-	collector := metrics.NewCollector(context)
 	categoryService := service.NewCategoryService(context, categoryRepo, permissionRepo, checker, collector)
 	storageClient, cleanup2, err := data.NewStorageClient(context)
 	if err != nil {
@@ -65,12 +64,7 @@ func initApp(context *bootstrap.Context) (*kratos.App, func(), error) {
 	statisticsRepo := data.NewStatisticsRepo(context, entClient)
 	statisticsService := service.NewStatisticsService(context, statisticsRepo)
 	backupService := service.NewBackupService(context, entClient)
-	signingTemplateRepo := data.NewSigningTemplateRepo(context, entClient)
-	pdfProcessor := service.NewPDFProcessor(context)
-	signingTemplateService := service.NewSigningTemplateService(context, signingTemplateRepo, storageClient, pdfProcessor)
-	signingRecipientRepo := data.NewSigningRecipientRepo(context, entClient)
-	signingRequestRepo := data.NewSigningRequestRepo(context, entClient, signingRecipientRepo, signingTemplateRepo)
-	registrationClient, err := data.NewRegistrationClient(context)
+	adminClient, cleanup5, err := client.NewAdminClient(context, certManager)
 	if err != nil {
 		cleanup4()
 		cleanup3()
@@ -78,44 +72,11 @@ func initApp(context *bootstrap.Context) (*kratos.App, func(), error) {
 		cleanup()
 		return nil, nil, err
 	}
-	moduleDialer := data.NewModuleDialer(context, registrationClient)
-	notificationClient, cleanup5, err := data.NewNotificationClient(context, moduleDialer)
-	if err != nil {
-		cleanup4()
-		cleanup3()
-		cleanup2()
-		cleanup()
-		return nil, nil, err
-	}
-	redisClient, cleanup6, err := data.NewRedisClient(context)
-	if err != nil {
-		cleanup5()
-		cleanup4()
-		cleanup3()
-		cleanup2()
-		cleanup()
-		return nil, nil, err
-	}
-	publisher := event.NewPublisher(context, redisClient)
-	adminClient, cleanup7, err := client.NewAdminClient(context, v)
-	if err != nil {
-		cleanup6()
-		cleanup5()
-		cleanup4()
-		cleanup3()
-		cleanup2()
-		cleanup()
-		return nil, nil, err
-	}
-	signingRequestService := service.NewSigningRequestService(context, signingRequestRepo, signingTemplateRepo, signingRecipientRepo, storageClient, pdfProcessor, notificationClient, adminClient, publisher)
 	userService := service.NewUserService(context, adminClient)
-	grpcServer := server.NewGRPCServer(context, v, collector, auditLogRepo, categoryService, documentService, permissionService, statisticsService, backupService, signingTemplateService, signingRequestService, userService)
-	signingSessionService := service.NewSigningSessionService(context, signingRecipientRepo, signingRequestRepo, signingTemplateRepo, storageClient, pdfProcessor, notificationClient, publisher)
-	httpServer := server.NewHTTPServer(context, signingSessionService, signingRequestService, signingTemplateService)
+	grpcServer := server.NewGRPCServer(context, certManager, collector, auditLogRepo, categoryService, documentService, permissionService, statisticsService, backupService, userService)
+	httpServer := server.NewHTTPServer(context)
 	app := newApp(context, grpcServer, httpServer)
 	return app, func() {
-		cleanup7()
-		cleanup6()
 		cleanup5()
 		cleanup4()
 		cleanup3()

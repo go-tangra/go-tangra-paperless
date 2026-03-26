@@ -15,7 +15,6 @@ import (
 
 // ProviderSet is the Wire provider set for data layer
 var ProviderSet = wire.NewSet(
-	data.NewRedisClient,
 	data.NewEntClient,
 	data.NewStorageClient,
 	data.NewTikaClient,
@@ -25,10 +24,4 @@ var ProviderSet = wire.NewSet(
 	data.NewPermissionRepo,
 	data.NewAuditLogRepo,
 	data.NewStatisticsRepo,
-	data.NewSigningTemplateRepo,
-	data.NewSigningRecipientRepo,
-	data.NewSigningRequestRepo,
-	data.NewRegistrationClient,
-	data.NewModuleDialer,
-	data.NewNotificationClient,
 )

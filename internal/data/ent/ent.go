@@ -16,9 +16,6 @@ import (
 	"github.com/go-tangra/go-tangra-paperless/internal/data/ent/category"
 	"github.com/go-tangra/go-tangra-paperless/internal/data/ent/document"
 	"github.com/go-tangra/go-tangra-paperless/internal/data/ent/documentpermission"
-	"github.com/go-tangra/go-tangra-paperless/internal/data/ent/signingrecipient"
-	"github.com/go-tangra/go-tangra-paperless/internal/data/ent/signingrequest"
-	"github.com/go-tangra/go-tangra-paperless/internal/data/ent/signingtemplate"
 )
 
 // ent aliases to avoid import conflicts in user's code.
@@ -83,9 +80,6 @@ func checkColumn(t, c string) error {
 			category.Table:           category.ValidColumn,
 			document.Table:           document.ValidColumn,
 			documentpermission.Table: documentpermission.ValidColumn,
-			signingrecipient.Table:   signingrecipient.ValidColumn,
-			signingrequest.Table:     signingrequest.ValidColumn,
-			signingtemplate.Table:    signingtemplate.ValidColumn,
 		})
 	})
 	return columnCheck(t, c)

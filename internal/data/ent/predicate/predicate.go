@@ -17,12 +17,3 @@ type Document func(*sql.Selector)
 
 // DocumentPermission is the predicate function for documentpermission builders.
 type DocumentPermission func(*sql.Selector)
-
-// SigningRecipient is the predicate function for signingrecipient builders.
-type SigningRecipient func(*sql.Selector)
-
-// SigningRequest is the predicate function for signingrequest builders.
-type SigningRequest func(*sql.Selector)
-
-// SigningTemplate is the predicate function for signingtemplate builders.
-type SigningTemplate func(*sql.Selector)

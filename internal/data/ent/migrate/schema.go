@@ -283,150 +283,12 @@ var (
 			},
 		},
 	}
-	// PaperlessSigningRecipientsColumns holds the columns for the "paperless_signing_recipients" table.
-	PaperlessSigningRecipientsColumns = []*schema.Column{
-		{Name: "id", Type: field.TypeString, Unique: true, Comment: "UUID primary key"},
-		{Name: "create_time", Type: field.TypeTime, Nullable: true, Comment: "创建时间"},
-		{Name: "update_time", Type: field.TypeTime, Nullable: true, Comment: "更新时间"},
-		{Name: "delete_time", Type: field.TypeTime, Nullable: true, Comment: "删除时间"},
-		{Name: "email", Type: field.TypeString, Size: 255, Comment: "Recipient email address"},
-		{Name: "name", Type: field.TypeString, Size: 255, Comment: "Recipient display name"},
-		{Name: "user_id", Type: field.TypeUint32, Nullable: true, Comment: "User ID for internal recipients (null for external)"},
-		{Name: "signing_order", Type: field.TypeInt32, Comment: "Order in which recipients sign (1-based)", Default: 1},
-		{Name: "status", Type: field.TypeEnum, Comment: "Recipient signing status", Enums: []string{"SIGNING_RECIPIENT_STATUS_UNSPECIFIED", "SIGNING_RECIPIENT_STATUS_WAITING", "SIGNING_RECIPIENT_STATUS_PENDING", "SIGNING_RECIPIENT_STATUS_COMPLETED", "SIGNING_RECIPIENT_STATUS_DECLINED"}, Default: "SIGNING_RECIPIENT_STATUS_WAITING"},
-		{Name: "token", Type: field.TypeString, Unique: true, Size: 64, Comment: "Unique signing token (64-char hex)"},
-		{Name: "signed_at", Type: field.TypeTime, Nullable: true, Comment: "Timestamp when recipient signed"},
-		{Name: "signed_ip", Type: field.TypeString, Nullable: true, Size: 45, Comment: "IP address of signer"},
-		{Name: "signature_data", Type: field.TypeBytes, Nullable: true, Comment: "Signature image data (PNG)"},
-		{Name: "signing_request_id", Type: field.TypeString, Comment: "Reference to signing request"},
-	}
-	// PaperlessSigningRecipientsTable holds the schema information for the "paperless_signing_recipients" table.
-	PaperlessSigningRecipientsTable = &schema.Table{
-		Name:       "paperless_signing_recipients",
-		Columns:    PaperlessSigningRecipientsColumns,
-		PrimaryKey: []*schema.Column{PaperlessSigningRecipientsColumns[0]},
-		ForeignKeys: []*schema.ForeignKey{
-			{
-				Symbol:     "paperless_signing_recipients_paperless_signing_requests_recipients",
-				Columns:    []*schema.Column{PaperlessSigningRecipientsColumns[13]},
-				RefColumns: []*schema.Column{PaperlessSigningRequestsColumns[0]},
-				OnDelete:   schema.NoAction,
-			},
-		},
-		Indexes: []*schema.Index{
-			{
-				Name:    "signingrecipient_token",
-				Unique:  true,
-				Columns: []*schema.Column{PaperlessSigningRecipientsColumns[9]},
-			},
-			{
-				Name:    "signingrecipient_signing_request_id_signing_order",
-				Unique:  false,
-				Columns: []*schema.Column{PaperlessSigningRecipientsColumns[13], PaperlessSigningRecipientsColumns[7]},
-			},
-			{
-				Name:    "signingrecipient_signing_request_id",
-				Unique:  false,
-				Columns: []*schema.Column{PaperlessSigningRecipientsColumns[13]},
-			},
-			{
-				Name:    "signingrecipient_user_id",
-				Unique:  false,
-				Columns: []*schema.Column{PaperlessSigningRecipientsColumns[6]},
-			},
-		},
-	}
-	// PaperlessSigningRequestsColumns holds the columns for the "paperless_signing_requests" table.
-	PaperlessSigningRequestsColumns = []*schema.Column{
-		{Name: "id", Type: field.TypeString, Unique: true, Comment: "UUID primary key"},
-		{Name: "create_by", Type: field.TypeUint32, Nullable: true, Comment: "创建者ID"},
-		{Name: "update_by", Type: field.TypeUint32, Nullable: true, Comment: "更新者ID"},
-		{Name: "create_time", Type: field.TypeTime, Nullable: true, Comment: "创建时间"},
-		{Name: "update_time", Type: field.TypeTime, Nullable: true, Comment: "更新时间"},
-		{Name: "delete_time", Type: field.TypeTime, Nullable: true, Comment: "删除时间"},
-		{Name: "tenant_id", Type: field.TypeUint32, Nullable: true, Comment: "租户ID", Default: 0},
-		{Name: "template_id", Type: field.TypeString, Size: 36, Comment: "Reference to signing template"},
-		{Name: "name", Type: field.TypeString, Size: 255, Comment: "Request display name"},
-		{Name: "status", Type: field.TypeEnum, Comment: "Request status", Enums: []string{"SIGNING_REQUEST_STATUS_UNSPECIFIED", "SIGNING_REQUEST_STATUS_DRAFT", "SIGNING_REQUEST_STATUS_PENDING", "SIGNING_REQUEST_STATUS_COMPLETED", "SIGNING_REQUEST_STATUS_CANCELLED", "SIGNING_REQUEST_STATUS_EXPIRED", "SIGNING_REQUEST_STATUS_REVOKED"}, Default: "SIGNING_REQUEST_STATUS_DRAFT"},
-		{Name: "signing_type", Type: field.TypeEnum, Comment: "Request type: external (email-based) or internal (user-based)", Enums: []string{"SIGNING_REQUEST_TYPE_UNSPECIFIED", "SIGNING_REQUEST_TYPE_EXTERNAL", "SIGNING_REQUEST_TYPE_INTERNAL"}, Default: "SIGNING_REQUEST_TYPE_EXTERNAL"},
-		{Name: "original_file_key", Type: field.TypeString, Nullable: true, Size: 512, Comment: "Storage key for the original PDF copy"},
-		{Name: "signed_file_key", Type: field.TypeString, Nullable: true, Size: 512, Comment: "Storage key for the signed/completed PDF"},
-		{Name: "field_values", Type: field.TypeJSON, Nullable: true, Comment: "Filled field values from all signers"},
-		{Name: "message", Type: field.TypeString, Nullable: true, Size: 4096, Comment: "Custom message to recipients"},
-		{Name: "expires_at", Type: field.TypeTime, Nullable: true, Comment: "Expiration time for the signing request"},
-	}
-	// PaperlessSigningRequestsTable holds the schema information for the "paperless_signing_requests" table.
-	PaperlessSigningRequestsTable = &schema.Table{
-		Name:       "paperless_signing_requests",
-		Columns:    PaperlessSigningRequestsColumns,
-		PrimaryKey: []*schema.Column{PaperlessSigningRequestsColumns[0]},
-		Indexes: []*schema.Index{
-			{
-				Name:    "signingrequest_tenant_id",
-				Unique:  false,
-				Columns: []*schema.Column{PaperlessSigningRequestsColumns[6]},
-			},
-			{
-				Name:    "signingrequest_status",
-				Unique:  false,
-				Columns: []*schema.Column{PaperlessSigningRequestsColumns[9]},
-			},
-			{
-				Name:    "signingrequest_template_id",
-				Unique:  false,
-				Columns: []*schema.Column{PaperlessSigningRequestsColumns[7]},
-			},
-			{
-				Name:    "signingrequest_tenant_id_status",
-				Unique:  false,
-				Columns: []*schema.Column{PaperlessSigningRequestsColumns[6], PaperlessSigningRequestsColumns[9]},
-			},
-		},
-	}
-	// PaperlessSigningTemplatesColumns holds the columns for the "paperless_signing_templates" table.
-	PaperlessSigningTemplatesColumns = []*schema.Column{
-		{Name: "id", Type: field.TypeString, Unique: true, Comment: "UUID primary key"},
-		{Name: "create_by", Type: field.TypeUint32, Nullable: true, Comment: "创建者ID"},
-		{Name: "update_by", Type: field.TypeUint32, Nullable: true, Comment: "更新者ID"},
-		{Name: "create_time", Type: field.TypeTime, Nullable: true, Comment: "创建时间"},
-		{Name: "update_time", Type: field.TypeTime, Nullable: true, Comment: "更新时间"},
-		{Name: "delete_time", Type: field.TypeTime, Nullable: true, Comment: "删除时间"},
-		{Name: "tenant_id", Type: field.TypeUint32, Nullable: true, Comment: "租户ID", Default: 0},
-		{Name: "name", Type: field.TypeString, Size: 255, Comment: "Template display name"},
-		{Name: "description", Type: field.TypeString, Nullable: true, Size: 4096, Comment: "Template description"},
-		{Name: "file_key", Type: field.TypeString, Size: 512, Comment: "Storage key in RustFS/S3"},
-		{Name: "file_name", Type: field.TypeString, Size: 255, Comment: "Original file name"},
-		{Name: "file_size", Type: field.TypeInt64, Comment: "File size in bytes", Default: 0},
-		{Name: "fields", Type: field.TypeJSON, Nullable: true, Comment: "Field definitions with positions from the visual builder"},
-		{Name: "revocation_stamp_text", Type: field.TypeString, Nullable: true, Size: 255, Comment: "Stamp text overlaid on PDF when a completed signing request is revoked", Default: "АНУЛИРАНО"},
-	}
-	// PaperlessSigningTemplatesTable holds the schema information for the "paperless_signing_templates" table.
-	PaperlessSigningTemplatesTable = &schema.Table{
-		Name:       "paperless_signing_templates",
-		Columns:    PaperlessSigningTemplatesColumns,
-		PrimaryKey: []*schema.Column{PaperlessSigningTemplatesColumns[0]},
-		Indexes: []*schema.Index{
-			{
-				Name:    "signingtemplate_tenant_id_name",
-				Unique:  true,
-				Columns: []*schema.Column{PaperlessSigningTemplatesColumns[6], PaperlessSigningTemplatesColumns[7]},
-			},
-			{
-				Name:    "signingtemplate_tenant_id",
-				Unique:  false,
-				Columns: []*schema.Column{PaperlessSigningTemplatesColumns[6]},
-			},
-		},
-	}
 	// Tables holds all the tables in the schema.
 	Tables = []*schema.Table{
 		PaperlessAuditLogsTable,
 		PaperlessCategoriesTable,
 		PaperlessDocumentsTable,
 		PaperlessPermissionsTable,
-		PaperlessSigningRecipientsTable,
-		PaperlessSigningRequestsTable,
-		PaperlessSigningTemplatesTable,
 	}
 )
 
@@ -446,15 +308,5 @@ func init() {
 	PaperlessPermissionsTable.ForeignKeys[1].RefTable = PaperlessDocumentsTable
 	PaperlessPermissionsTable.Annotation = &entsql.Annotation{
 		Table: "paperless_permissions",
-	}
-	PaperlessSigningRecipientsTable.ForeignKeys[0].RefTable = PaperlessSigningRequestsTable
-	PaperlessSigningRecipientsTable.Annotation = &entsql.Annotation{
-		Table: "paperless_signing_recipients",
-	}
-	PaperlessSigningRequestsTable.Annotation = &entsql.Annotation{
-		Table: "paperless_signing_requests",
-	}
-	PaperlessSigningTemplatesTable.Annotation = &entsql.Annotation{
-		Table: "paperless_signing_templates",
 	}
 }

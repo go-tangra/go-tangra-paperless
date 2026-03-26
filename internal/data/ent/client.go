@@ -19,9 +19,6 @@ import (
 	"github.com/go-tangra/go-tangra-paperless/internal/data/ent/category"
 	"github.com/go-tangra/go-tangra-paperless/internal/data/ent/document"
 	"github.com/go-tangra/go-tangra-paperless/internal/data/ent/documentpermission"
-	"github.com/go-tangra/go-tangra-paperless/internal/data/ent/signingrecipient"
-	"github.com/go-tangra/go-tangra-paperless/internal/data/ent/signingrequest"
-	"github.com/go-tangra/go-tangra-paperless/internal/data/ent/signingtemplate"
 )
 
 // Client is the client that holds all ent builders.
@@ -37,12 +34,6 @@ type Client struct {
 	Document *DocumentClient
 	// DocumentPermission is the client for interacting with the DocumentPermission builders.
 	DocumentPermission *DocumentPermissionClient
-	// SigningRecipient is the client for interacting with the SigningRecipient builders.
-	SigningRecipient *SigningRecipientClient
-	// SigningRequest is the client for interacting with the SigningRequest builders.
-	SigningRequest *SigningRequestClient
-	// SigningTemplate is the client for interacting with the SigningTemplate builders.
-	SigningTemplate *SigningTemplateClient
 }
 
 // NewClient creates a new client configured with the given options.
@@ -58,9 +49,6 @@ func (c *Client) init() {
 	c.Category = NewCategoryClient(c.config)
 	c.Document = NewDocumentClient(c.config)
 	c.DocumentPermission = NewDocumentPermissionClient(c.config)
-	c.SigningRecipient = NewSigningRecipientClient(c.config)
-	c.SigningRequest = NewSigningRequestClient(c.config)
-	c.SigningTemplate = NewSigningTemplateClient(c.config)
 }
 
 type (
@@ -157,9 +145,6 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		Category:           NewCategoryClient(cfg),
 		Document:           NewDocumentClient(cfg),
 		DocumentPermission: NewDocumentPermissionClient(cfg),
-		SigningRecipient:   NewSigningRecipientClient(cfg),
-		SigningRequest:     NewSigningRequestClient(cfg),
-		SigningTemplate:    NewSigningTemplateClient(cfg),
 	}, nil
 }
 
@@ -183,9 +168,6 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		Category:           NewCategoryClient(cfg),
 		Document:           NewDocumentClient(cfg),
 		DocumentPermission: NewDocumentPermissionClient(cfg),
-		SigningRecipient:   NewSigningRecipientClient(cfg),
-		SigningRequest:     NewSigningRequestClient(cfg),
-		SigningTemplate:    NewSigningTemplateClient(cfg),
 	}, nil
 }
 
@@ -214,23 +196,19 @@ func (c *Client) Close() error {
 // Use adds the mutation hooks to all the entity clients.
 // In order to add hooks to a specific client, call: `client.Node.Use(...)`.
 func (c *Client) Use(hooks ...Hook) {
-	for _, n := range []interface{ Use(...Hook) }{
-		c.AuditLog, c.Category, c.Document, c.DocumentPermission, c.SigningRecipient,
-		c.SigningRequest, c.SigningTemplate,
-	} {
-		n.Use(hooks...)
-	}
+	c.AuditLog.Use(hooks...)
+	c.Category.Use(hooks...)
+	c.Document.Use(hooks...)
+	c.DocumentPermission.Use(hooks...)
 }
 
 // Intercept adds the query interceptors to all the entity clients.
 // In order to add interceptors to a specific client, call: `client.Node.Intercept(...)`.
 func (c *Client) Intercept(interceptors ...Interceptor) {
-	for _, n := range []interface{ Intercept(...Interceptor) }{
-		c.AuditLog, c.Category, c.Document, c.DocumentPermission, c.SigningRecipient,
-		c.SigningRequest, c.SigningTemplate,
-	} {
-		n.Intercept(interceptors...)
-	}
+	c.AuditLog.Intercept(interceptors...)
+	c.Category.Intercept(interceptors...)
+	c.Document.Intercept(interceptors...)
+	c.DocumentPermission.Intercept(interceptors...)
 }
 
 // Mutate implements the ent.Mutator interface.
@@ -244,12 +222,6 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.Document.mutate(ctx, m)
 	case *DocumentPermissionMutation:
 		return c.DocumentPermission.mutate(ctx, m)
-	case *SigningRecipientMutation:
-		return c.SigningRecipient.mutate(ctx, m)
-	case *SigningRequestMutation:
-		return c.SigningRequest.mutate(ctx, m)
-	case *SigningTemplateMutation:
-		return c.SigningTemplate.mutate(ctx, m)
 	default:
 		return nil, fmt.Errorf("ent: unknown mutation type %T", m)
 	}
@@ -919,447 +891,12 @@ func (c *DocumentPermissionClient) mutate(ctx context.Context, m *DocumentPermis
 	}
 }
 
-// SigningRecipientClient is a client for the SigningRecipient schema.
-type SigningRecipientClient struct {
-	config
-}
-
-// NewSigningRecipientClient returns a client for the SigningRecipient from the given config.
-func NewSigningRecipientClient(c config) *SigningRecipientClient {
-	return &SigningRecipientClient{config: c}
-}
-
-// Use adds a list of mutation hooks to the hooks stack.
-// A call to `Use(f, g, h)` equals to `signingrecipient.Hooks(f(g(h())))`.
-func (c *SigningRecipientClient) Use(hooks ...Hook) {
-	c.hooks.SigningRecipient = append(c.hooks.SigningRecipient, hooks...)
-}
-
-// Intercept adds a list of query interceptors to the interceptors stack.
-// A call to `Intercept(f, g, h)` equals to `signingrecipient.Intercept(f(g(h())))`.
-func (c *SigningRecipientClient) Intercept(interceptors ...Interceptor) {
-	c.inters.SigningRecipient = append(c.inters.SigningRecipient, interceptors...)
-}
-
-// Create returns a builder for creating a SigningRecipient entity.
-func (c *SigningRecipientClient) Create() *SigningRecipientCreate {
-	mutation := newSigningRecipientMutation(c.config, OpCreate)
-	return &SigningRecipientCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
-}
-
-// CreateBulk returns a builder for creating a bulk of SigningRecipient entities.
-func (c *SigningRecipientClient) CreateBulk(builders ...*SigningRecipientCreate) *SigningRecipientCreateBulk {
-	return &SigningRecipientCreateBulk{config: c.config, builders: builders}
-}
-
-// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
-// a builder and applies setFunc on it.
-func (c *SigningRecipientClient) MapCreateBulk(slice any, setFunc func(*SigningRecipientCreate, int)) *SigningRecipientCreateBulk {
-	rv := reflect.ValueOf(slice)
-	if rv.Kind() != reflect.Slice {
-		return &SigningRecipientCreateBulk{err: fmt.Errorf("calling to SigningRecipientClient.MapCreateBulk with wrong type %T, need slice", slice)}
-	}
-	builders := make([]*SigningRecipientCreate, rv.Len())
-	for i := 0; i < rv.Len(); i++ {
-		builders[i] = c.Create()
-		setFunc(builders[i], i)
-	}
-	return &SigningRecipientCreateBulk{config: c.config, builders: builders}
-}
-
-// Update returns an update builder for SigningRecipient.
-func (c *SigningRecipientClient) Update() *SigningRecipientUpdate {
-	mutation := newSigningRecipientMutation(c.config, OpUpdate)
-	return &SigningRecipientUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
-}
-
-// UpdateOne returns an update builder for the given entity.
-func (c *SigningRecipientClient) UpdateOne(_m *SigningRecipient) *SigningRecipientUpdateOne {
-	mutation := newSigningRecipientMutation(c.config, OpUpdateOne, withSigningRecipient(_m))
-	return &SigningRecipientUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
-}
-
-// UpdateOneID returns an update builder for the given id.
-func (c *SigningRecipientClient) UpdateOneID(id string) *SigningRecipientUpdateOne {
-	mutation := newSigningRecipientMutation(c.config, OpUpdateOne, withSigningRecipientID(id))
-	return &SigningRecipientUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
-}
-
-// Delete returns a delete builder for SigningRecipient.
-func (c *SigningRecipientClient) Delete() *SigningRecipientDelete {
-	mutation := newSigningRecipientMutation(c.config, OpDelete)
-	return &SigningRecipientDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
-}
-
-// DeleteOne returns a builder for deleting the given entity.
-func (c *SigningRecipientClient) DeleteOne(_m *SigningRecipient) *SigningRecipientDeleteOne {
-	return c.DeleteOneID(_m.ID)
-}
-
-// DeleteOneID returns a builder for deleting the given entity by its id.
-func (c *SigningRecipientClient) DeleteOneID(id string) *SigningRecipientDeleteOne {
-	builder := c.Delete().Where(signingrecipient.ID(id))
-	builder.mutation.id = &id
-	builder.mutation.op = OpDeleteOne
-	return &SigningRecipientDeleteOne{builder}
-}
-
-// Query returns a query builder for SigningRecipient.
-func (c *SigningRecipientClient) Query() *SigningRecipientQuery {
-	return &SigningRecipientQuery{
-		config: c.config,
-		ctx:    &QueryContext{Type: TypeSigningRecipient},
-		inters: c.Interceptors(),
-	}
-}
-
-// Get returns a SigningRecipient entity by its id.
-func (c *SigningRecipientClient) Get(ctx context.Context, id string) (*SigningRecipient, error) {
-	return c.Query().Where(signingrecipient.ID(id)).Only(ctx)
-}
-
-// GetX is like Get, but panics if an error occurs.
-func (c *SigningRecipientClient) GetX(ctx context.Context, id string) *SigningRecipient {
-	obj, err := c.Get(ctx, id)
-	if err != nil {
-		panic(err)
-	}
-	return obj
-}
-
-// QuerySigningRequest queries the signing_request edge of a SigningRecipient.
-func (c *SigningRecipientClient) QuerySigningRequest(_m *SigningRecipient) *SigningRequestQuery {
-	query := (&SigningRequestClient{config: c.config}).Query()
-	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
-		id := _m.ID
-		step := sqlgraph.NewStep(
-			sqlgraph.From(signingrecipient.Table, signingrecipient.FieldID, id),
-			sqlgraph.To(signingrequest.Table, signingrequest.FieldID),
-			sqlgraph.Edge(sqlgraph.M2O, true, signingrecipient.SigningRequestTable, signingrecipient.SigningRequestColumn),
-		)
-		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
-		return fromV, nil
-	}
-	return query
-}
-
-// Hooks returns the client hooks.
-func (c *SigningRecipientClient) Hooks() []Hook {
-	return c.hooks.SigningRecipient
-}
-
-// Interceptors returns the client interceptors.
-func (c *SigningRecipientClient) Interceptors() []Interceptor {
-	return c.inters.SigningRecipient
-}
-
-func (c *SigningRecipientClient) mutate(ctx context.Context, m *SigningRecipientMutation) (Value, error) {
-	switch m.Op() {
-	case OpCreate:
-		return (&SigningRecipientCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
-	case OpUpdate:
-		return (&SigningRecipientUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
-	case OpUpdateOne:
-		return (&SigningRecipientUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
-	case OpDelete, OpDeleteOne:
-		return (&SigningRecipientDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
-	default:
-		return nil, fmt.Errorf("ent: unknown SigningRecipient mutation op: %q", m.Op())
-	}
-}
-
-// SigningRequestClient is a client for the SigningRequest schema.
-type SigningRequestClient struct {
-	config
-}
-
-// NewSigningRequestClient returns a client for the SigningRequest from the given config.
-func NewSigningRequestClient(c config) *SigningRequestClient {
-	return &SigningRequestClient{config: c}
-}
-
-// Use adds a list of mutation hooks to the hooks stack.
-// A call to `Use(f, g, h)` equals to `signingrequest.Hooks(f(g(h())))`.
-func (c *SigningRequestClient) Use(hooks ...Hook) {
-	c.hooks.SigningRequest = append(c.hooks.SigningRequest, hooks...)
-}
-
-// Intercept adds a list of query interceptors to the interceptors stack.
-// A call to `Intercept(f, g, h)` equals to `signingrequest.Intercept(f(g(h())))`.
-func (c *SigningRequestClient) Intercept(interceptors ...Interceptor) {
-	c.inters.SigningRequest = append(c.inters.SigningRequest, interceptors...)
-}
-
-// Create returns a builder for creating a SigningRequest entity.
-func (c *SigningRequestClient) Create() *SigningRequestCreate {
-	mutation := newSigningRequestMutation(c.config, OpCreate)
-	return &SigningRequestCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
-}
-
-// CreateBulk returns a builder for creating a bulk of SigningRequest entities.
-func (c *SigningRequestClient) CreateBulk(builders ...*SigningRequestCreate) *SigningRequestCreateBulk {
-	return &SigningRequestCreateBulk{config: c.config, builders: builders}
-}
-
-// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
-// a builder and applies setFunc on it.
-func (c *SigningRequestClient) MapCreateBulk(slice any, setFunc func(*SigningRequestCreate, int)) *SigningRequestCreateBulk {
-	rv := reflect.ValueOf(slice)
-	if rv.Kind() != reflect.Slice {
-		return &SigningRequestCreateBulk{err: fmt.Errorf("calling to SigningRequestClient.MapCreateBulk with wrong type %T, need slice", slice)}
-	}
-	builders := make([]*SigningRequestCreate, rv.Len())
-	for i := 0; i < rv.Len(); i++ {
-		builders[i] = c.Create()
-		setFunc(builders[i], i)
-	}
-	return &SigningRequestCreateBulk{config: c.config, builders: builders}
-}
-
-// Update returns an update builder for SigningRequest.
-func (c *SigningRequestClient) Update() *SigningRequestUpdate {
-	mutation := newSigningRequestMutation(c.config, OpUpdate)
-	return &SigningRequestUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
-}
-
-// UpdateOne returns an update builder for the given entity.
-func (c *SigningRequestClient) UpdateOne(_m *SigningRequest) *SigningRequestUpdateOne {
-	mutation := newSigningRequestMutation(c.config, OpUpdateOne, withSigningRequest(_m))
-	return &SigningRequestUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
-}
-
-// UpdateOneID returns an update builder for the given id.
-func (c *SigningRequestClient) UpdateOneID(id string) *SigningRequestUpdateOne {
-	mutation := newSigningRequestMutation(c.config, OpUpdateOne, withSigningRequestID(id))
-	return &SigningRequestUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
-}
-
-// Delete returns a delete builder for SigningRequest.
-func (c *SigningRequestClient) Delete() *SigningRequestDelete {
-	mutation := newSigningRequestMutation(c.config, OpDelete)
-	return &SigningRequestDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
-}
-
-// DeleteOne returns a builder for deleting the given entity.
-func (c *SigningRequestClient) DeleteOne(_m *SigningRequest) *SigningRequestDeleteOne {
-	return c.DeleteOneID(_m.ID)
-}
-
-// DeleteOneID returns a builder for deleting the given entity by its id.
-func (c *SigningRequestClient) DeleteOneID(id string) *SigningRequestDeleteOne {
-	builder := c.Delete().Where(signingrequest.ID(id))
-	builder.mutation.id = &id
-	builder.mutation.op = OpDeleteOne
-	return &SigningRequestDeleteOne{builder}
-}
-
-// Query returns a query builder for SigningRequest.
-func (c *SigningRequestClient) Query() *SigningRequestQuery {
-	return &SigningRequestQuery{
-		config: c.config,
-		ctx:    &QueryContext{Type: TypeSigningRequest},
-		inters: c.Interceptors(),
-	}
-}
-
-// Get returns a SigningRequest entity by its id.
-func (c *SigningRequestClient) Get(ctx context.Context, id string) (*SigningRequest, error) {
-	return c.Query().Where(signingrequest.ID(id)).Only(ctx)
-}
-
-// GetX is like Get, but panics if an error occurs.
-func (c *SigningRequestClient) GetX(ctx context.Context, id string) *SigningRequest {
-	obj, err := c.Get(ctx, id)
-	if err != nil {
-		panic(err)
-	}
-	return obj
-}
-
-// QueryRecipients queries the recipients edge of a SigningRequest.
-func (c *SigningRequestClient) QueryRecipients(_m *SigningRequest) *SigningRecipientQuery {
-	query := (&SigningRecipientClient{config: c.config}).Query()
-	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
-		id := _m.ID
-		step := sqlgraph.NewStep(
-			sqlgraph.From(signingrequest.Table, signingrequest.FieldID, id),
-			sqlgraph.To(signingrecipient.Table, signingrecipient.FieldID),
-			sqlgraph.Edge(sqlgraph.O2M, false, signingrequest.RecipientsTable, signingrequest.RecipientsColumn),
-		)
-		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
-		return fromV, nil
-	}
-	return query
-}
-
-// Hooks returns the client hooks.
-func (c *SigningRequestClient) Hooks() []Hook {
-	hooks := c.hooks.SigningRequest
-	return append(hooks[:len(hooks):len(hooks)], signingrequest.Hooks[:]...)
-}
-
-// Interceptors returns the client interceptors.
-func (c *SigningRequestClient) Interceptors() []Interceptor {
-	return c.inters.SigningRequest
-}
-
-func (c *SigningRequestClient) mutate(ctx context.Context, m *SigningRequestMutation) (Value, error) {
-	switch m.Op() {
-	case OpCreate:
-		return (&SigningRequestCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
-	case OpUpdate:
-		return (&SigningRequestUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
-	case OpUpdateOne:
-		return (&SigningRequestUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
-	case OpDelete, OpDeleteOne:
-		return (&SigningRequestDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
-	default:
-		return nil, fmt.Errorf("ent: unknown SigningRequest mutation op: %q", m.Op())
-	}
-}
-
-// SigningTemplateClient is a client for the SigningTemplate schema.
-type SigningTemplateClient struct {
-	config
-}
-
-// NewSigningTemplateClient returns a client for the SigningTemplate from the given config.
-func NewSigningTemplateClient(c config) *SigningTemplateClient {
-	return &SigningTemplateClient{config: c}
-}
-
-// Use adds a list of mutation hooks to the hooks stack.
-// A call to `Use(f, g, h)` equals to `signingtemplate.Hooks(f(g(h())))`.
-func (c *SigningTemplateClient) Use(hooks ...Hook) {
-	c.hooks.SigningTemplate = append(c.hooks.SigningTemplate, hooks...)
-}
-
-// Intercept adds a list of query interceptors to the interceptors stack.
-// A call to `Intercept(f, g, h)` equals to `signingtemplate.Intercept(f(g(h())))`.
-func (c *SigningTemplateClient) Intercept(interceptors ...Interceptor) {
-	c.inters.SigningTemplate = append(c.inters.SigningTemplate, interceptors...)
-}
-
-// Create returns a builder for creating a SigningTemplate entity.
-func (c *SigningTemplateClient) Create() *SigningTemplateCreate {
-	mutation := newSigningTemplateMutation(c.config, OpCreate)
-	return &SigningTemplateCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
-}
-
-// CreateBulk returns a builder for creating a bulk of SigningTemplate entities.
-func (c *SigningTemplateClient) CreateBulk(builders ...*SigningTemplateCreate) *SigningTemplateCreateBulk {
-	return &SigningTemplateCreateBulk{config: c.config, builders: builders}
-}
-
-// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
-// a builder and applies setFunc on it.
-func (c *SigningTemplateClient) MapCreateBulk(slice any, setFunc func(*SigningTemplateCreate, int)) *SigningTemplateCreateBulk {
-	rv := reflect.ValueOf(slice)
-	if rv.Kind() != reflect.Slice {
-		return &SigningTemplateCreateBulk{err: fmt.Errorf("calling to SigningTemplateClient.MapCreateBulk with wrong type %T, need slice", slice)}
-	}
-	builders := make([]*SigningTemplateCreate, rv.Len())
-	for i := 0; i < rv.Len(); i++ {
-		builders[i] = c.Create()
-		setFunc(builders[i], i)
-	}
-	return &SigningTemplateCreateBulk{config: c.config, builders: builders}
-}
-
-// Update returns an update builder for SigningTemplate.
-func (c *SigningTemplateClient) Update() *SigningTemplateUpdate {
-	mutation := newSigningTemplateMutation(c.config, OpUpdate)
-	return &SigningTemplateUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
-}
-
-// UpdateOne returns an update builder for the given entity.
-func (c *SigningTemplateClient) UpdateOne(_m *SigningTemplate) *SigningTemplateUpdateOne {
-	mutation := newSigningTemplateMutation(c.config, OpUpdateOne, withSigningTemplate(_m))
-	return &SigningTemplateUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
-}
-
-// UpdateOneID returns an update builder for the given id.
-func (c *SigningTemplateClient) UpdateOneID(id string) *SigningTemplateUpdateOne {
-	mutation := newSigningTemplateMutation(c.config, OpUpdateOne, withSigningTemplateID(id))
-	return &SigningTemplateUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
-}
-
-// Delete returns a delete builder for SigningTemplate.
-func (c *SigningTemplateClient) Delete() *SigningTemplateDelete {
-	mutation := newSigningTemplateMutation(c.config, OpDelete)
-	return &SigningTemplateDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
-}
-
-// DeleteOne returns a builder for deleting the given entity.
-func (c *SigningTemplateClient) DeleteOne(_m *SigningTemplate) *SigningTemplateDeleteOne {
-	return c.DeleteOneID(_m.ID)
-}
-
-// DeleteOneID returns a builder for deleting the given entity by its id.
-func (c *SigningTemplateClient) DeleteOneID(id string) *SigningTemplateDeleteOne {
-	builder := c.Delete().Where(signingtemplate.ID(id))
-	builder.mutation.id = &id
-	builder.mutation.op = OpDeleteOne
-	return &SigningTemplateDeleteOne{builder}
-}
-
-// Query returns a query builder for SigningTemplate.
-func (c *SigningTemplateClient) Query() *SigningTemplateQuery {
-	return &SigningTemplateQuery{
-		config: c.config,
-		ctx:    &QueryContext{Type: TypeSigningTemplate},
-		inters: c.Interceptors(),
-	}
-}
-
-// Get returns a SigningTemplate entity by its id.
-func (c *SigningTemplateClient) Get(ctx context.Context, id string) (*SigningTemplate, error) {
-	return c.Query().Where(signingtemplate.ID(id)).Only(ctx)
-}
-
-// GetX is like Get, but panics if an error occurs.
-func (c *SigningTemplateClient) GetX(ctx context.Context, id string) *SigningTemplate {
-	obj, err := c.Get(ctx, id)
-	if err != nil {
-		panic(err)
-	}
-	return obj
-}
-
-// Hooks returns the client hooks.
-func (c *SigningTemplateClient) Hooks() []Hook {
-	hooks := c.hooks.SigningTemplate
-	return append(hooks[:len(hooks):len(hooks)], signingtemplate.Hooks[:]...)
-}
-
-// Interceptors returns the client interceptors.
-func (c *SigningTemplateClient) Interceptors() []Interceptor {
-	return c.inters.SigningTemplate
-}
-
-func (c *SigningTemplateClient) mutate(ctx context.Context, m *SigningTemplateMutation) (Value, error) {
-	switch m.Op() {
-	case OpCreate:
-		return (&SigningTemplateCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
-	case OpUpdate:
-		return (&SigningTemplateUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
-	case OpUpdateOne:
-		return (&SigningTemplateUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
-	case OpDelete, OpDeleteOne:
-		return (&SigningTemplateDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
-	default:
-		return nil, fmt.Errorf("ent: unknown SigningTemplate mutation op: %q", m.Op())
-	}
-}
-
 // hooks and interceptors per client, for fast access.
 type (
 	hooks struct {
-		AuditLog, Category, Document, DocumentPermission, SigningRecipient,
-		SigningRequest, SigningTemplate []ent.Hook
+		AuditLog, Category, Document, DocumentPermission []ent.Hook
 	}
 	inters struct {
-		AuditLog, Category, Document, DocumentPermission, SigningRecipient,
-		SigningRequest, SigningTemplate []ent.Interceptor
+		AuditLog, Category, Document, DocumentPermission []ent.Interceptor
 	}
 )

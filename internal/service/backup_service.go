@@ -19,9 +19,6 @@ import (
 	"github.com/go-tangra/go-tangra-paperless/internal/data/ent/category"
 	"github.com/go-tangra/go-tangra-paperless/internal/data/ent/document"
 	"github.com/go-tangra/go-tangra-paperless/internal/data/ent/documentpermission"
-	"github.com/go-tangra/go-tangra-paperless/internal/data/ent/signingrecipient"
-	"github.com/go-tangra/go-tangra-paperless/internal/data/ent/signingrequest"
-	"github.com/go-tangra/go-tangra-paperless/internal/data/ent/signingtemplate"
 )
 
 const (
@@ -56,9 +53,6 @@ type backupEntities struct {
 	Categories          []json.RawMessage `json:"categories,omitempty"`
 	Documents           []json.RawMessage `json:"documents,omitempty"`
 	DocumentPermissions []json.RawMessage `json:"documentPermissions,omitempty"`
-	SigningTemplates    []json.RawMessage `json:"signingTemplates,omitempty"`
-	SigningRequests     []json.RawMessage `json:"signingRequests,omitempty"`
-	SigningRecipients   []json.RawMessage `json:"signingRecipients,omitempty"`
 }
 
 func (s *BackupService) ExportBackup(ctx context.Context, req *paperlessV1.ExportBackupRequest) (*paperlessV1.ExportBackupResponse, error) {
@@ -89,19 +83,6 @@ func (s *BackupService) ExportBackup(ctx context.Context, req *paperlessV1.Expor
 	if err != nil {
 		return nil, fmt.Errorf("export document permissions: %w", err)
 	}
-	signingTemplates, err := s.exportSigningTemplates(ctx, client, tenantID, full)
-	if err != nil {
-		return nil, fmt.Errorf("export signing templates: %w", err)
-	}
-	signingRequests, err := s.exportSigningRequests(ctx, client, tenantID, full)
-	if err != nil {
-		return nil, fmt.Errorf("export signing requests: %w", err)
-	}
-	signingRecipients, err := s.exportSigningRecipients(ctx, client, tenantID, full)
-	if err != nil {
-		return nil, fmt.Errorf("export signing recipients: %w", err)
-	}
-
 	backup := backupData{
 		Module:     backupModule,
 		Version:    backupVersion,
@@ -112,9 +93,6 @@ func (s *BackupService) ExportBackup(ctx context.Context, req *paperlessV1.Expor
 			Categories:          categories,
 			Documents:           documents,
 			DocumentPermissions: documentPermissions,
-			SigningTemplates:    signingTemplates,
-			SigningRequests:     signingRequests,
-			SigningRecipients:   signingRecipients,
 		},
 	}
 
@@ -127,9 +105,6 @@ func (s *BackupService) ExportBackup(ctx context.Context, req *paperlessV1.Expor
 		"categories":          int64(len(categories)),
 		"documents":           int64(len(documents)),
 		"documentPermissions": int64(len(documentPermissions)),
-		"signingTemplates":    int64(len(signingTemplates)),
-		"signingRequests":     int64(len(signingRequests)),
-		"signingRecipients":   int64(len(signingRecipients)),
 	}
 
 	s.log.Infof("exported backup: module=%s tenant=%d full=%v entities=%v", backupModule, tenantID, full, entityCounts)
@@ -185,18 +160,12 @@ func (s *BackupService) ImportBackup(ctx context.Context, req *paperlessV1.Impor
 		{"categories", s.importCategories},
 		{"documents", s.importDocuments},
 		{"documentPermissions", s.importDocumentPermissions},
-		{"signingTemplates", s.importSigningTemplates},
-		{"signingRequests", s.importSigningRequests},
-		{"signingRecipients", s.importSigningRecipients},
 	}
 
 	dataMap := map[string][]json.RawMessage{
 		"categories":          backup.Data.Categories,
 		"documents":           backup.Data.Documents,
 		"documentPermissions": backup.Data.DocumentPermissions,
-		"signingTemplates":    backup.Data.SigningTemplates,
-		"signingRequests":     backup.Data.SigningRequests,
-		"signingRecipients":   backup.Data.SigningRecipients,
 	}
 
 	for _, imp := range importFuncs {
@@ -527,237 +496,3 @@ func (s *BackupService) importDocumentPermissions(ctx context.Context, client *e
 	return result, warnings
 }
 
-// --- Signing export helpers ---
-
-func (s *BackupService) exportSigningTemplates(ctx context.Context, client *ent.Client, tenantID uint32, full bool) ([]json.RawMessage, error) {
-	query := client.SigningTemplate.Query()
-	if !full {
-		query = query.Where(signingtemplate.TenantID(tenantID))
-	}
-	entities, err := query.All(ctx)
-	if err != nil {
-		return nil, err
-	}
-	return marshalEntities(entities)
-}
-
-func (s *BackupService) exportSigningRequests(ctx context.Context, client *ent.Client, tenantID uint32, full bool) ([]json.RawMessage, error) {
-	query := client.SigningRequest.Query()
-	if !full {
-		query = query.Where(signingrequest.TenantID(tenantID))
-	}
-	entities, err := query.All(ctx)
-	if err != nil {
-		return nil, err
-	}
-	return marshalEntities(entities)
-}
-
-func (s *BackupService) exportSigningRecipients(ctx context.Context, client *ent.Client, tenantID uint32, full bool) ([]json.RawMessage, error) {
-	query := client.SigningRecipient.Query()
-	if !full {
-		query = query.Where(signingrecipient.HasSigningRequestWith(signingrequest.TenantID(tenantID)))
-	}
-	entities, err := query.All(ctx)
-	if err != nil {
-		return nil, err
-	}
-	return marshalEntities(entities)
-}
-
-// --- Signing import helpers ---
-
-func (s *BackupService) importSigningTemplates(ctx context.Context, client *ent.Client, items []json.RawMessage, tenantID uint32, full bool, mode paperlessV1.RestoreMode) (*paperlessV1.EntityImportResult, []string) {
-	result := &paperlessV1.EntityImportResult{EntityType: "signingTemplates", Total: int64(len(items))}
-	var warnings []string
-
-	for _, raw := range items {
-		var e ent.SigningTemplate
-		if err := json.Unmarshal(raw, &e); err != nil {
-			warnings = append(warnings, fmt.Sprintf("signingTemplates: unmarshal error: %v", err))
-			result.Failed++
-			continue
-		}
-
-		tid := tenantID
-		if full && e.TenantID != nil {
-			tid = *e.TenantID
-		}
-
-		existing, _ := client.SigningTemplate.Get(ctx, e.ID)
-		if existing != nil {
-			if mode == paperlessV1.RestoreMode_RESTORE_MODE_SKIP {
-				result.Skipped++
-				continue
-			}
-			_, err := client.SigningTemplate.UpdateOneID(e.ID).
-				SetName(e.Name).
-				SetDescription(e.Description).
-				SetFileKey(e.FileKey).
-				SetFileName(e.FileName).
-				SetFileSize(e.FileSize).
-				SetFields(e.Fields).
-				SetNillableCreateBy(e.CreateBy).
-				SetNillableUpdateBy(e.UpdateBy).
-				Save(ctx)
-			if err != nil {
-				warnings = append(warnings, fmt.Sprintf("signingTemplates: update %s: %v", e.ID, err))
-				result.Failed++
-				continue
-			}
-			result.Updated++
-		} else {
-			_, err := client.SigningTemplate.Create().
-				SetID(e.ID).
-				SetNillableTenantID(&tid).
-				SetName(e.Name).
-				SetDescription(e.Description).
-				SetFileKey(e.FileKey).
-				SetFileName(e.FileName).
-				SetFileSize(e.FileSize).
-				SetFields(e.Fields).
-				SetNillableCreateBy(e.CreateBy).
-				SetNillableUpdateBy(e.UpdateBy).
-				SetNillableCreateTime(e.CreateTime).
-				Save(ctx)
-			if err != nil {
-				warnings = append(warnings, fmt.Sprintf("signingTemplates: create %s: %v", e.ID, err))
-				result.Failed++
-				continue
-			}
-			result.Created++
-		}
-	}
-
-	return result, warnings
-}
-
-func (s *BackupService) importSigningRequests(ctx context.Context, client *ent.Client, items []json.RawMessage, tenantID uint32, full bool, mode paperlessV1.RestoreMode) (*paperlessV1.EntityImportResult, []string) {
-	result := &paperlessV1.EntityImportResult{EntityType: "signingRequests", Total: int64(len(items))}
-	var warnings []string
-
-	for _, raw := range items {
-		var e ent.SigningRequest
-		if err := json.Unmarshal(raw, &e); err != nil {
-			warnings = append(warnings, fmt.Sprintf("signingRequests: unmarshal error: %v", err))
-			result.Failed++
-			continue
-		}
-
-		tid := tenantID
-		if full && e.TenantID != nil {
-			tid = *e.TenantID
-		}
-
-		existing, _ := client.SigningRequest.Get(ctx, e.ID)
-		if existing != nil {
-			if mode == paperlessV1.RestoreMode_RESTORE_MODE_SKIP {
-				result.Skipped++
-				continue
-			}
-			_, err := client.SigningRequest.UpdateOneID(e.ID).
-				SetTemplateID(e.TemplateID).
-				SetName(e.Name).
-				SetStatus(e.Status).
-				SetOriginalFileKey(e.OriginalFileKey).
-				SetSignedFileKey(e.SignedFileKey).
-				SetFieldValues(e.FieldValues).
-				SetMessage(e.Message).
-				SetNillableExpiresAt(e.ExpiresAt).
-				SetNillableCreateBy(e.CreateBy).
-				SetNillableUpdateBy(e.UpdateBy).
-				Save(ctx)
-			if err != nil {
-				warnings = append(warnings, fmt.Sprintf("signingRequests: update %s: %v", e.ID, err))
-				result.Failed++
-				continue
-			}
-			result.Updated++
-		} else {
-			_, err := client.SigningRequest.Create().
-				SetID(e.ID).
-				SetNillableTenantID(&tid).
-				SetTemplateID(e.TemplateID).
-				SetName(e.Name).
-				SetStatus(e.Status).
-				SetOriginalFileKey(e.OriginalFileKey).
-				SetSignedFileKey(e.SignedFileKey).
-				SetFieldValues(e.FieldValues).
-				SetMessage(e.Message).
-				SetNillableExpiresAt(e.ExpiresAt).
-				SetNillableCreateBy(e.CreateBy).
-				SetNillableUpdateBy(e.UpdateBy).
-				SetNillableCreateTime(e.CreateTime).
-				Save(ctx)
-			if err != nil {
-				warnings = append(warnings, fmt.Sprintf("signingRequests: create %s: %v", e.ID, err))
-				result.Failed++
-				continue
-			}
-			result.Created++
-		}
-	}
-
-	return result, warnings
-}
-
-func (s *BackupService) importSigningRecipients(ctx context.Context, client *ent.Client, items []json.RawMessage, tenantID uint32, full bool, mode paperlessV1.RestoreMode) (*paperlessV1.EntityImportResult, []string) {
-	result := &paperlessV1.EntityImportResult{EntityType: "signingRecipients", Total: int64(len(items))}
-	var warnings []string
-
-	for _, raw := range items {
-		var e ent.SigningRecipient
-		if err := json.Unmarshal(raw, &e); err != nil {
-			warnings = append(warnings, fmt.Sprintf("signingRecipients: unmarshal error: %v", err))
-			result.Failed++
-			continue
-		}
-
-		existing, _ := client.SigningRecipient.Get(ctx, e.ID)
-		if existing != nil {
-			if mode == paperlessV1.RestoreMode_RESTORE_MODE_SKIP {
-				result.Skipped++
-				continue
-			}
-			_, err := client.SigningRecipient.UpdateOneID(e.ID).
-				SetSigningRequestID(e.SigningRequestID).
-				SetEmail(e.Email).
-				SetName(e.Name).
-				SetSigningOrder(e.SigningOrder).
-				SetStatus(e.Status).
-				SetToken(e.Token).
-				SetNillableSignedAt(e.SignedAt).
-				SetNillableSignedIP(&e.SignedIP).
-				SetSignatureData(e.SignatureData).
-				Save(ctx)
-			if err != nil {
-				warnings = append(warnings, fmt.Sprintf("signingRecipients: update %s: %v", e.ID, err))
-				result.Failed++
-				continue
-			}
-			result.Updated++
-		} else {
-			_, err := client.SigningRecipient.Create().
-				SetID(e.ID).
-				SetSigningRequestID(e.SigningRequestID).
-				SetEmail(e.Email).
-				SetName(e.Name).
-				SetSigningOrder(e.SigningOrder).
-				SetStatus(e.Status).
-				SetToken(e.Token).
-				SetNillableSignedAt(e.SignedAt).
-				SetNillableSignedIP(&e.SignedIP).
-				SetSignatureData(e.SignatureData).
-				SetNillableCreateTime(e.CreateTime).
-				Save(ctx)
-			if err != nil {
-				warnings = append(warnings, fmt.Sprintf("signingRecipients: create %s: %v", e.ID, err))
-				result.Failed++
-				continue
-			}
-			result.Created++
-		}
-	}
-
-	return result, warnings
-}

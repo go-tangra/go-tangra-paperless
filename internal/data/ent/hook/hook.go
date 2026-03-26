@@ -57,42 +57,6 @@ func (f DocumentPermissionFunc) Mutate(ctx context.Context, m ent.Mutation) (ent
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.DocumentPermissionMutation", m)
 }
 
-// The SigningRecipientFunc type is an adapter to allow the use of ordinary
-// function as SigningRecipient mutator.
-type SigningRecipientFunc func(context.Context, *ent.SigningRecipientMutation) (ent.Value, error)
-
-// Mutate calls f(ctx, m).
-func (f SigningRecipientFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
-	if mv, ok := m.(*ent.SigningRecipientMutation); ok {
-		return f(ctx, mv)
-	}
-	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.SigningRecipientMutation", m)
-}
-
-// The SigningRequestFunc type is an adapter to allow the use of ordinary
-// function as SigningRequest mutator.
-type SigningRequestFunc func(context.Context, *ent.SigningRequestMutation) (ent.Value, error)
-
-// Mutate calls f(ctx, m).
-func (f SigningRequestFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
-	if mv, ok := m.(*ent.SigningRequestMutation); ok {
-		return f(ctx, mv)
-	}
-	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.SigningRequestMutation", m)
-}
-
-// The SigningTemplateFunc type is an adapter to allow the use of ordinary
-// function as SigningTemplate mutator.
-type SigningTemplateFunc func(context.Context, *ent.SigningTemplateMutation) (ent.Value, error)
-
-// Mutate calls f(ctx, m).
-func (f SigningTemplateFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
-	if mv, ok := m.(*ent.SigningTemplateMutation); ok {
-		return f(ctx, mv)
-	}
-	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.SigningTemplateMutation", m)
-}
-
 // Condition is a hook condition function.
 type Condition func(context.Context, ent.Mutation) bool
 
