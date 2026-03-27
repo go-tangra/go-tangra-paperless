@@ -2,9 +2,7 @@ package service
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
-	"time"
 
 	"github.com/go-kratos/kratos/v2/log"
 	"github.com/tx7do/kratos-bootstrap/bootstrap"
@@ -12,6 +10,7 @@ import (
 
 	entCrud "github.com/tx7do/go-crud/entgo"
 
+	"github.com/go-tangra/go-tangra-common/backup"
 	"github.com/go-tangra/go-tangra-common/grpcx"
 
 	paperlessV1 "github.com/go-tangra/go-tangra-paperless/gen/go/paperless/service/v1"
@@ -22,9 +21,20 @@ import (
 )
 
 const (
-	backupModule  = "paperless"
-	backupVersion = "1.1"
+	backupModule        = "paperless"
+	backupSchemaVersion = 1
 )
+
+// Migrations registry — add entries here when schema changes.
+var migrations = backup.NewMigrationRegistry(backupModule)
+
+// Register migrations in init. Example for future use:
+//
+//	func init() {
+//	    migrations.Register(1, func(entities map[string]json.RawMessage) error {
+//	        return backup.MigrateAddField(entities, "documents", "newField", "")
+//	    })
+//	}
 
 type BackupService struct {
 	paperlessV1.UnimplementedBackupServiceServer
@@ -40,21 +50,7 @@ func NewBackupService(ctx *bootstrap.Context, entClient *entCrud.EntClient[*ent.
 	}
 }
 
-type backupData struct {
-	Module     string          `json:"module"`
-	Version    string          `json:"version"`
-	ExportedAt time.Time      `json:"exportedAt"`
-	TenantID   uint32         `json:"tenantId"`
-	FullBackup bool           `json:"fullBackup"`
-	Data       backupEntities `json:"data"`
-}
-
-type backupEntities struct {
-	Categories          []json.RawMessage `json:"categories,omitempty"`
-	Documents           []json.RawMessage `json:"documents,omitempty"`
-	DocumentPermissions []json.RawMessage `json:"documentPermissions,omitempty"`
-}
-
+// ExportBackup exports all paperless entities as a gzipped archive.
 func (s *BackupService) ExportBackup(ctx context.Context, req *paperlessV1.ExportBackupRequest) (*paperlessV1.ExportBackupResponse, error) {
 	tenantID := grpcx.GetTenantIDFromContext(ctx)
 	full := false
@@ -62,131 +58,150 @@ func (s *BackupService) ExportBackup(ctx context.Context, req *paperlessV1.Expor
 	if grpcx.IsPlatformAdmin(ctx) && req.TenantId != nil && *req.TenantId == 0 {
 		full = true
 		tenantID = 0
-	} else if req.TenantId != nil && *req.TenantId != 0 {
-		if grpcx.IsPlatformAdmin(ctx) {
-			tenantID = *req.TenantId
-		}
+	} else if req.TenantId != nil && *req.TenantId != 0 && grpcx.IsPlatformAdmin(ctx) {
+		tenantID = *req.TenantId
 	}
 
 	client := s.entClient.Client()
-	now := time.Now()
+	a := backup.NewArchive(backupModule, backupSchemaVersion, tenantID, full)
 
-	categories, err := s.exportCategories(ctx, client, tenantID, full)
+	// Export categories
+	catQuery := client.Category.Query()
+	if !full {
+		catQuery = catQuery.Where(category.TenantID(tenantID))
+	}
+	categories, err := catQuery.All(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("export categories: %w", err)
 	}
-	documents, err := s.exportDocuments(ctx, client, tenantID, full)
+	if err := backup.SetEntities(a, "categories", categories); err != nil {
+		return nil, fmt.Errorf("set categories: %w", err)
+	}
+
+	// Export documents
+	docQuery := client.Document.Query()
+	if !full {
+		docQuery = docQuery.Where(document.TenantID(tenantID))
+	}
+	documents, err := docQuery.All(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("export documents: %w", err)
 	}
-	documentPermissions, err := s.exportDocumentPermissions(ctx, client, tenantID, full)
+	if err := backup.SetEntities(a, "documents", documents); err != nil {
+		return nil, fmt.Errorf("set documents: %w", err)
+	}
+
+	// Export document permissions
+	permQuery := client.DocumentPermission.Query()
+	if !full {
+		permQuery = permQuery.Where(documentpermission.TenantID(tenantID))
+	}
+	permissions, err := permQuery.All(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("export document permissions: %w", err)
 	}
-	backup := backupData{
-		Module:     backupModule,
-		Version:    backupVersion,
-		ExportedAt: now,
-		TenantID:   tenantID,
-		FullBackup: full,
-		Data: backupEntities{
-			Categories:          categories,
-			Documents:           documents,
-			DocumentPermissions: documentPermissions,
-		},
+	if err := backup.SetEntities(a, "documentPermissions", permissions); err != nil {
+		return nil, fmt.Errorf("set document permissions: %w", err)
 	}
 
-	data, err := json.Marshal(backup)
+	// Pack (JSON + gzip)
+	data, err := backup.Pack(a)
 	if err != nil {
-		return nil, fmt.Errorf("marshal backup: %w", err)
+		return nil, fmt.Errorf("pack backup: %w", err)
 	}
 
-	entityCounts := map[string]int64{
-		"categories":          int64(len(categories)),
-		"documents":           int64(len(documents)),
-		"documentPermissions": int64(len(documentPermissions)),
-	}
-
-	s.log.Infof("exported backup: module=%s tenant=%d full=%v entities=%v", backupModule, tenantID, full, entityCounts)
+	s.log.Infof("exported backup: module=%s tenant=%d full=%v entities=%v", backupModule, tenantID, full, a.Manifest.EntityCounts)
 
 	return &paperlessV1.ExportBackupResponse{
-		Data:         data,
-		Module:       backupModule,
-		Version:      backupVersion,
-		ExportedAt:   timestamppb.New(now),
-		TenantId:     tenantID,
-		EntityCounts: entityCounts,
+		Data:          data,
+		Module:        backupModule,
+		Version:       fmt.Sprintf("%d", backupSchemaVersion),
+		ExportedAt:    timestamppb.New(a.Manifest.ExportedAt),
+		TenantId:      tenantID,
+		EntityCounts:  a.Manifest.EntityCounts,
+		SchemaVersion: int32(backupSchemaVersion),
 	}, nil
 }
 
+// ImportBackup restores paperless entities from a gzipped archive.
 func (s *BackupService) ImportBackup(ctx context.Context, req *paperlessV1.ImportBackupRequest) (*paperlessV1.ImportBackupResponse, error) {
 	tenantID := grpcx.GetTenantIDFromContext(ctx)
 	isPlatformAdmin := grpcx.IsPlatformAdmin(ctx)
-	mode := req.GetMode()
+	mode := mapRestoreMode(req.GetMode())
 
-	var backup backupData
-	if err := json.Unmarshal(req.GetData(), &backup); err != nil {
-		return nil, fmt.Errorf("invalid backup data: %w", err)
+	// Unpack
+	a, err := backup.Unpack(req.GetData())
+	if err != nil {
+		return nil, fmt.Errorf("unpack backup: %w", err)
 	}
 
-	if backup.Module != backupModule {
-		return nil, fmt.Errorf("backup module mismatch: expected %s, got %s", backupModule, backup.Module)
-	}
-	if backup.Version != backupVersion && backup.Version != "1.0" {
-		return nil, fmt.Errorf("backup version mismatch: expected %s or 1.0, got %s", backupVersion, backup.Version)
+	// Validate
+	if err := backup.Validate(a, backupModule, backupSchemaVersion); err != nil {
+		return nil, err
 	}
 
-	// For full backups, only platform admins can restore
-	if backup.FullBackup && !isPlatformAdmin {
+	// Full backups require platform admin
+	if a.Manifest.FullBackup && !isPlatformAdmin {
 		return nil, fmt.Errorf("only platform admins can restore full backups")
 	}
 
-	// Non-platform admins always restore to their own tenant
-	if !isPlatformAdmin || !backup.FullBackup {
+	// Run migrations if needed
+	sourceVersion := a.Manifest.SchemaVersion
+	applied, err := migrations.RunMigrations(a, backupSchemaVersion)
+	if err != nil {
+		return nil, fmt.Errorf("migration failed: %w", err)
+	}
+
+	// Determine restore tenant
+	if !isPlatformAdmin || !a.Manifest.FullBackup {
 		tenantID = grpcx.GetTenantIDFromContext(ctx)
 	} else {
-		tenantID = 0 // Signal for full backup restore — each entity carries its own tenant_id
+		tenantID = 0
 	}
 
 	client := s.entClient.Client()
-	var results []*paperlessV1.EntityImportResult
-	var warnings []string
+	result := backup.NewRestoreResult(sourceVersion, backupSchemaVersion, applied)
 
-	// Import in FK dependency order
-	importFuncs := []struct {
-		name string
-		fn   func(ctx context.Context, client *ent.Client, items []json.RawMessage, tenantID uint32, full bool, mode paperlessV1.RestoreMode) (*paperlessV1.EntityImportResult, []string)
-	}{
-		{"categories", s.importCategories},
-		{"documents", s.importDocuments},
-		{"documentPermissions", s.importDocumentPermissions},
-	}
+	// Import categories (with topological sort for parent_id)
+	s.importCategories(ctx, client, a, tenantID, a.Manifest.FullBackup, mode, result)
 
-	dataMap := map[string][]json.RawMessage{
-		"categories":          backup.Data.Categories,
-		"documents":           backup.Data.Documents,
-		"documentPermissions": backup.Data.DocumentPermissions,
-	}
+	// Import documents
+	s.importDocuments(ctx, client, a, tenantID, a.Manifest.FullBackup, mode, result)
 
-	for _, imp := range importFuncs {
-		items := dataMap[imp.name]
-		if len(items) == 0 {
-			continue
+	// Import document permissions
+	s.importDocumentPermissions(ctx, client, a, tenantID, a.Manifest.FullBackup, mode, result)
+
+	s.log.Infof("imported backup: module=%s tenant=%d mode=%v migrations=%d results=%d",
+		backupModule, tenantID, mode, applied, len(result.Results))
+
+	// Convert to proto response
+	protoResults := make([]*paperlessV1.EntityImportResult, len(result.Results))
+	for i, r := range result.Results {
+		protoResults[i] = &paperlessV1.EntityImportResult{
+			EntityType: r.EntityType,
+			Total:      r.Total,
+			Created:    r.Created,
+			Updated:    r.Updated,
+			Skipped:    r.Skipped,
+			Failed:     r.Failed,
 		}
-		result, w := imp.fn(ctx, client, items, tenantID, backup.FullBackup, mode)
-		if result != nil {
-			results = append(results, result)
-		}
-		warnings = append(warnings, w...)
 	}
-
-	s.log.Infof("imported backup: module=%s tenant=%d mode=%v results=%d warnings=%d", backupModule, tenantID, mode, len(results), len(warnings))
 
 	return &paperlessV1.ImportBackupResponse{
-		Success:  true,
-		Results:  results,
-		Warnings: warnings,
+		Success:           result.Success,
+		Results:           protoResults,
+		Warnings:          result.Warnings,
+		SourceVersion:     int32(result.SourceVersion),
+		TargetVersion:     int32(result.TargetVersion),
+		MigrationsApplied: int32(result.MigrationsApplied),
 	}, nil
+}
+
+func mapRestoreMode(m paperlessV1.RestoreMode) backup.RestoreMode {
+	if m == paperlessV1.RestoreMode_RESTORE_MODE_OVERWRITE {
+		return backup.RestoreModeOverwrite
+	}
+	return backup.RestoreModeSkip
 }
 
 // topologicalSortByParentID sorts items so parents come before children.
@@ -207,91 +222,38 @@ func topologicalSortByParentID[T any](items []T, getID func(T) string, getParent
 		}
 	}
 
-	result := make([]T, 0, len(items))
+	sorted := make([]T, 0, len(items))
 	var walk func([]T)
 	walk = func(nodes []T) {
 		for _, n := range nodes {
-			result = append(result, n)
+			sorted = append(sorted, n)
 			if children, ok := childMap[getID(n)]; ok {
 				walk(children)
 			}
 		}
 	}
 	walk(roots)
-	return result
-}
-
-func marshalEntities[T any](entities []*T) ([]json.RawMessage, error) {
-	result := make([]json.RawMessage, 0, len(entities))
-	for _, e := range entities {
-		b, err := json.Marshal(e)
-		if err != nil {
-			return nil, err
-		}
-		result = append(result, b)
-	}
-	return result, nil
-}
-
-// --- Export helpers ---
-
-func (s *BackupService) exportCategories(ctx context.Context, client *ent.Client, tenantID uint32, full bool) ([]json.RawMessage, error) {
-	query := client.Category.Query()
-	if !full {
-		query = query.Where(category.TenantID(tenantID))
-	}
-	entities, err := query.All(ctx)
-	if err != nil {
-		return nil, err
-	}
-	return marshalEntities(entities)
-}
-
-func (s *BackupService) exportDocuments(ctx context.Context, client *ent.Client, tenantID uint32, full bool) ([]json.RawMessage, error) {
-	query := client.Document.Query()
-	if !full {
-		query = query.Where(document.TenantID(tenantID))
-	}
-	entities, err := query.All(ctx)
-	if err != nil {
-		return nil, err
-	}
-	return marshalEntities(entities)
-}
-
-func (s *BackupService) exportDocumentPermissions(ctx context.Context, client *ent.Client, tenantID uint32, full bool) ([]json.RawMessage, error) {
-	query := client.DocumentPermission.Query()
-	if !full {
-		query = query.Where(documentpermission.TenantID(tenantID))
-	}
-	entities, err := query.All(ctx)
-	if err != nil {
-		return nil, err
-	}
-	return marshalEntities(entities)
+	return sorted
 }
 
 // --- Import helpers ---
 
-func (s *BackupService) importCategories(ctx context.Context, client *ent.Client, items []json.RawMessage, tenantID uint32, full bool, mode paperlessV1.RestoreMode) (*paperlessV1.EntityImportResult, []string) {
-	result := &paperlessV1.EntityImportResult{EntityType: "categories", Total: int64(len(items))}
-	var warnings []string
-
-	var entities []*ent.Category
-	for _, raw := range items {
-		var e ent.Category
-		if err := json.Unmarshal(raw, &e); err != nil {
-			warnings = append(warnings, fmt.Sprintf("categories: unmarshal error: %v", err))
-			result.Failed++
-			continue
-		}
-		entities = append(entities, &e)
+func (s *BackupService) importCategories(ctx context.Context, client *ent.Client, a *backup.Archive, tenantID uint32, full bool, mode backup.RestoreMode, result *backup.RestoreResult) {
+	categories, err := backup.GetEntities[ent.Category](a, "categories")
+	if err != nil {
+		result.AddWarning(fmt.Sprintf("categories: unmarshal error: %v", err))
+		return
+	}
+	if len(categories) == 0 {
+		return
 	}
 
+	er := backup.EntityResult{EntityType: "categories", Total: int64(len(categories))}
+
 	// Topological sort for self-referential parent_id
-	sorted := topologicalSortByParentID(entities,
-		func(e *ent.Category) string { return e.ID },
-		func(e *ent.Category) string {
+	sorted := topologicalSortByParentID(categories,
+		func(e ent.Category) string { return e.ID },
+		func(e ent.Category) string {
 			if e.ParentID == nil {
 				return ""
 			}
@@ -307,29 +269,27 @@ func (s *BackupService) importCategories(ctx context.Context, client *ent.Client
 
 		existing, _ := client.Category.Get(ctx, e.ID)
 		if existing != nil {
-			if mode == paperlessV1.RestoreMode_RESTORE_MODE_SKIP {
-				result.Skipped++
+			if mode == backup.RestoreModeSkip {
+				er.Skipped++
 				continue
 			}
-			// Overwrite
-			update := client.Category.UpdateOneID(e.ID).
+			_, err := client.Category.UpdateOneID(e.ID).
 				SetName(e.Name).
 				SetPath(e.Path).
 				SetDescription(e.Description).
 				SetDepth(e.Depth).
 				SetSortOrder(e.SortOrder).
 				SetNillableParentID(e.ParentID).
-				SetNillableCreateBy(e.CreateBy)
-			_, err := update.Save(ctx)
+				SetNillableCreateBy(e.CreateBy).
+				Save(ctx)
 			if err != nil {
-				warnings = append(warnings, fmt.Sprintf("categories: update %s: %v", e.ID, err))
-				result.Failed++
+				result.AddWarning(fmt.Sprintf("categories: update %s: %v", e.ID, err))
+				er.Failed++
 				continue
 			}
-			result.Updated++
+			er.Updated++
 		} else {
-			// Create
-			create := client.Category.Create().
+			_, err := client.Category.Create().
 				SetID(e.ID).
 				SetNillableTenantID(&tid).
 				SetName(e.Name).
@@ -339,32 +299,33 @@ func (s *BackupService) importCategories(ctx context.Context, client *ent.Client
 				SetSortOrder(e.SortOrder).
 				SetNillableParentID(e.ParentID).
 				SetNillableCreateBy(e.CreateBy).
-				SetNillableCreateTime(e.CreateTime)
-			_, err := create.Save(ctx)
+				SetNillableCreateTime(e.CreateTime).
+				Save(ctx)
 			if err != nil {
-				warnings = append(warnings, fmt.Sprintf("categories: create %s: %v", e.ID, err))
-				result.Failed++
+				result.AddWarning(fmt.Sprintf("categories: create %s: %v", e.ID, err))
+				er.Failed++
 				continue
 			}
-			result.Created++
+			er.Created++
 		}
 	}
 
-	return result, warnings
+	result.AddResult(er)
 }
 
-func (s *BackupService) importDocuments(ctx context.Context, client *ent.Client, items []json.RawMessage, tenantID uint32, full bool, mode paperlessV1.RestoreMode) (*paperlessV1.EntityImportResult, []string) {
-	result := &paperlessV1.EntityImportResult{EntityType: "documents", Total: int64(len(items))}
-	var warnings []string
+func (s *BackupService) importDocuments(ctx context.Context, client *ent.Client, a *backup.Archive, tenantID uint32, full bool, mode backup.RestoreMode, result *backup.RestoreResult) {
+	documents, err := backup.GetEntities[ent.Document](a, "documents")
+	if err != nil {
+		result.AddWarning(fmt.Sprintf("documents: unmarshal error: %v", err))
+		return
+	}
+	if len(documents) == 0 {
+		return
+	}
 
-	for _, raw := range items {
-		var e ent.Document
-		if err := json.Unmarshal(raw, &e); err != nil {
-			warnings = append(warnings, fmt.Sprintf("documents: unmarshal error: %v", err))
-			result.Failed++
-			continue
-		}
+	er := backup.EntityResult{EntityType: "documents", Total: int64(len(documents))}
 
+	for _, e := range documents {
 		tid := tenantID
 		if full && e.TenantID != nil {
 			tid = *e.TenantID
@@ -372,8 +333,8 @@ func (s *BackupService) importDocuments(ctx context.Context, client *ent.Client,
 
 		existing, _ := client.Document.Get(ctx, e.ID)
 		if existing != nil {
-			if mode == paperlessV1.RestoreMode_RESTORE_MODE_SKIP {
-				result.Skipped++
+			if mode == backup.RestoreModeSkip {
+				er.Skipped++
 				continue
 			}
 			_, err := client.Document.UpdateOneID(e.ID).
@@ -395,11 +356,11 @@ func (s *BackupService) importDocuments(ctx context.Context, client *ent.Client,
 				SetNillableUpdateBy(e.UpdateBy).
 				Save(ctx)
 			if err != nil {
-				warnings = append(warnings, fmt.Sprintf("documents: update %s: %v", e.ID, err))
-				result.Failed++
+				result.AddWarning(fmt.Sprintf("documents: update %s: %v", e.ID, err))
+				er.Failed++
 				continue
 			}
-			result.Updated++
+			er.Updated++
 		} else {
 			_, err := client.Document.Create().
 				SetID(e.ID).
@@ -423,29 +384,30 @@ func (s *BackupService) importDocuments(ctx context.Context, client *ent.Client,
 				SetNillableCreateTime(e.CreateTime).
 				Save(ctx)
 			if err != nil {
-				warnings = append(warnings, fmt.Sprintf("documents: create %s: %v", e.ID, err))
-				result.Failed++
+				result.AddWarning(fmt.Sprintf("documents: create %s: %v", e.ID, err))
+				er.Failed++
 				continue
 			}
-			result.Created++
+			er.Created++
 		}
 	}
 
-	return result, warnings
+	result.AddResult(er)
 }
 
-func (s *BackupService) importDocumentPermissions(ctx context.Context, client *ent.Client, items []json.RawMessage, tenantID uint32, full bool, mode paperlessV1.RestoreMode) (*paperlessV1.EntityImportResult, []string) {
-	result := &paperlessV1.EntityImportResult{EntityType: "documentPermissions", Total: int64(len(items))}
-	var warnings []string
+func (s *BackupService) importDocumentPermissions(ctx context.Context, client *ent.Client, a *backup.Archive, tenantID uint32, full bool, mode backup.RestoreMode, result *backup.RestoreResult) {
+	permissions, err := backup.GetEntities[ent.DocumentPermission](a, "documentPermissions")
+	if err != nil {
+		result.AddWarning(fmt.Sprintf("documentPermissions: unmarshal error: %v", err))
+		return
+	}
+	if len(permissions) == 0 {
+		return
+	}
 
-	for _, raw := range items {
-		var e ent.DocumentPermission
-		if err := json.Unmarshal(raw, &e); err != nil {
-			warnings = append(warnings, fmt.Sprintf("documentPermissions: unmarshal error: %v", err))
-			result.Failed++
-			continue
-		}
+	er := backup.EntityResult{EntityType: "documentPermissions", Total: int64(len(permissions))}
 
+	for _, e := range permissions {
 		tid := tenantID
 		if full && e.TenantID != nil {
 			tid = *e.TenantID
@@ -453,8 +415,8 @@ func (s *BackupService) importDocumentPermissions(ctx context.Context, client *e
 
 		existing, _ := client.DocumentPermission.Get(ctx, e.ID)
 		if existing != nil {
-			if mode == paperlessV1.RestoreMode_RESTORE_MODE_SKIP {
-				result.Skipped++
+			if mode == backup.RestoreModeSkip {
+				er.Skipped++
 				continue
 			}
 			_, err := client.DocumentPermission.UpdateOneID(e.ID).
@@ -467,11 +429,11 @@ func (s *BackupService) importDocumentPermissions(ctx context.Context, client *e
 				SetNillableExpiresAt(e.ExpiresAt).
 				Save(ctx)
 			if err != nil {
-				warnings = append(warnings, fmt.Sprintf("documentPermissions: update %d: %v", e.ID, err))
-				result.Failed++
+				result.AddWarning(fmt.Sprintf("documentPermissions: update %d: %v", e.ID, err))
+				er.Failed++
 				continue
 			}
-			result.Updated++
+			er.Updated++
 		} else {
 			_, err := client.DocumentPermission.Create().
 				SetNillableTenantID(&tid).
@@ -485,14 +447,13 @@ func (s *BackupService) importDocumentPermissions(ctx context.Context, client *e
 				SetNillableCreateTime(e.CreateTime).
 				Save(ctx)
 			if err != nil {
-				warnings = append(warnings, fmt.Sprintf("documentPermissions: create %d: %v", e.ID, err))
-				result.Failed++
+				result.AddWarning(fmt.Sprintf("documentPermissions: create %d: %v", e.ID, err))
+				er.Failed++
 				continue
 			}
-			result.Created++
+			er.Created++
 		}
 	}
 
-	return result, warnings
+	result.AddResult(er)
 }
-
