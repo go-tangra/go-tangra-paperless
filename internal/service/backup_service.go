@@ -267,7 +267,12 @@ func (s *BackupService) importCategories(ctx context.Context, client *ent.Client
 			tid = *e.TenantID
 		}
 
-		existing, _ := client.Category.Get(ctx, e.ID)
+		existing, getErr := client.Category.Get(ctx, e.ID)
+		if getErr != nil && !ent.IsNotFound(getErr) {
+			result.AddWarning(fmt.Sprintf("categories: lookup %s: %v", e.ID, getErr))
+			er.Failed++
+			continue
+		}
 		if existing != nil {
 			if mode == backup.RestoreModeSkip {
 				er.Skipped++
@@ -331,7 +336,12 @@ func (s *BackupService) importDocuments(ctx context.Context, client *ent.Client,
 			tid = *e.TenantID
 		}
 
-		existing, _ := client.Document.Get(ctx, e.ID)
+		existing, getErr := client.Document.Get(ctx, e.ID)
+		if getErr != nil && !ent.IsNotFound(getErr) {
+			result.AddWarning(fmt.Sprintf("documents: lookup %s: %v", e.ID, getErr))
+			er.Failed++
+			continue
+		}
 		if existing != nil {
 			if mode == backup.RestoreModeSkip {
 				er.Skipped++
@@ -413,7 +423,12 @@ func (s *BackupService) importDocumentPermissions(ctx context.Context, client *e
 			tid = *e.TenantID
 		}
 
-		existing, _ := client.DocumentPermission.Get(ctx, e.ID)
+		existing, getErr := client.DocumentPermission.Get(ctx, e.ID)
+		if getErr != nil && !ent.IsNotFound(getErr) {
+			result.AddWarning(fmt.Sprintf("documentPermissions: lookup %d: %v", e.ID, getErr))
+			er.Failed++
+			continue
+		}
 		if existing != nil {
 			if mode == backup.RestoreModeSkip {
 				er.Skipped++
