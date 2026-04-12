@@ -45,6 +45,13 @@ func NewHTTPServer(
 		return err
 	})
 
+	route.GET("/menus.yaml", func(ctx kratosHttp.Context) error {
+		ctx.Response().Header().Set("Content-Type", "application/yaml")
+		_, err := ctx.Response().Write(assets.MenusData)
+		return err
+	})
+
+
 
 	// Serve embedded frontend assets (Module Federation remote)
 	fsys, err := fs.Sub(assets.FrontendDist, "frontend-dist")
