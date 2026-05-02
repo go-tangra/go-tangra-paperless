@@ -34,6 +34,14 @@ RUN curl -sSL "https://github.com/bufbuild/buf/releases/latest/download/buf-$(un
 WORKDIR /src
 
 # Copy go mod files first for better caching
+# Pull in the sibling go-tangra-common via a BuildKit named context
+# (declared in docker-compose.yaml as `additional_contexts: common:
+# ../go-tangra-common`). Required because go.mod has a temporary
+# `replace ../go-tangra-common` while the registration-rework branch
+# is in flight — without this COPY the Go module download below fails
+# trying to resolve the replace target.
+COPY --from=common . /go-tangra-common/
+
 COPY go.mod go.sum ./
 RUN go mod download
 
@@ -84,7 +92,7 @@ RUN addgroup -g 1000 paperless && \
     adduser -D -u 1000 -G paperless paperless && \
     mkdir -p /home/paperless/.config/pdfcpu/fonts && \
     chown -R paperless:paperless /home/paperless/.config && \
-    chown -R paperless:paperless /app
+    mkdir -p /app/certs && chown -R paperless:paperless /app
 
 # Switch to non-root user
 USER paperless:paperless
