@@ -11,6 +11,7 @@ import (
 	"github.com/go-kratos/kratos/v2/middleware/validate"
 	"github.com/go-kratos/kratos/v2/transport/grpc"
 	"github.com/tx7do/kratos-bootstrap/bootstrap"
+	commonV1 "github.com/go-tangra/go-tangra-common/gen/go/common/service/v1"
 
 	paperlessV1 "github.com/go-tangra/go-tangra-paperless/gen/go/paperless/service/v1"
 	"github.com/go-tangra/go-tangra-paperless/internal/cert"
@@ -45,6 +46,7 @@ func NewGRPCServer(
 	permissionSvc *service.PermissionService,
 	statisticsSvc *service.StatisticsService,
 	backupSvc *service.BackupService,
+	sqlBackupSvc *service.SqlBackupService,
 	userSvc *service.UserService,
 ) *grpc.Server {
 	cfg := ctx.GetConfig()
@@ -127,6 +129,7 @@ func NewGRPCServer(
 	paperlessV1.RegisterRedactedPaperlessPermissionServiceServer(srv, permissionSvc, nil)
 	paperlessV1.RegisterRedactedPaperlessStatisticsServiceServer(srv, statisticsSvc, nil)
 	paperlessV1.RegisterRedactedBackupServiceServer(srv, backupSvc, nil)
+	commonV1.RegisterBackupServiceServer(srv, sqlBackupSvc)
 	paperlessV1.RegisterRedactedPaperlessUserServiceServer(srv, userSvc, nil)
 
 	return srv

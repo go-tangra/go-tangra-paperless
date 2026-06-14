@@ -64,6 +64,7 @@ func initApp(context *bootstrap.Context) (*kratos.App, func(), error) {
 	statisticsRepo := data.NewStatisticsRepo(context, entClient)
 	statisticsService := service.NewStatisticsService(context, statisticsRepo)
 	backupService := service.NewBackupService(context, entClient)
+	sqlBackupService := service.NewSqlBackupService(context)
 	adminClient, cleanup5, err := client.NewAdminClient(context, certManager)
 	if err != nil {
 		cleanup4()
@@ -73,7 +74,7 @@ func initApp(context *bootstrap.Context) (*kratos.App, func(), error) {
 		return nil, nil, err
 	}
 	userService := service.NewUserService(context, adminClient)
-	grpcServer := server.NewGRPCServer(context, certManager, collector, auditLogRepo, categoryService, documentService, permissionService, statisticsService, backupService, userService)
+	grpcServer := server.NewGRPCServer(context, certManager, collector, auditLogRepo, categoryService, documentService, permissionService, statisticsService, backupService, sqlBackupService, userService)
 	httpServer := server.NewHTTPServer(context)
 	app := newApp(context, grpcServer, httpServer)
 	return app, func() {
