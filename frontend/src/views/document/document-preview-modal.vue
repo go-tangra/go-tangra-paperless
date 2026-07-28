@@ -16,6 +16,7 @@ import {
 
 import { $t } from 'shell/locales';
 import { usePaperlessDocumentStore } from '../../stores/paperless-document.state';
+import { formatDateTime as sharedFormatDateTime } from '../../datetime';
 
 const props = defineProps<{
   open: boolean;
@@ -114,7 +115,7 @@ function formatFileSize(bytes: number | undefined): string {
 
 function formatDateTime(value: string | undefined): string {
   if (!value) return '-';
-  try { return new Date(value).toLocaleString(); }
+  try { return sharedFormatDateTime(value); }
   catch { return value; }
 }
 
