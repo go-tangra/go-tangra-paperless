@@ -1,0 +1,82 @@
+openapi: 3.1.0
+info:
+  title: Paperless API
+  version: 0.1.0
+  description: >
+    Document management: store documents (bytes in object storage, metadata and
+    extracted text in the platform database), organize them into categories,
+    extract and full-text-search their content, and govern access with
+    fine-grained, inheritable permissions. Gateway-proxied under /api/paperless.
+    Every route declares an x-freya-permission; credentials and extracted content
+    are never returned in listings or logs.
+servers:
+  - url: /
+components:
+  parameters:
+    csrf:
+      name: X-CSRF-Token
+      in: header
+      required: true
+      schema: { type: string, maxLength: 128 }
+    id:
+      name: id
+      in: path
+      required: true
+      schema: { type: string, maxLength: 64 }
+  schemas:
+    Error:
+      type: object
+      properties:
+        reason: { type: string }
+        detail: { type: object }
+paths:
+  /api/paperless/v1/documents:
+    post: { operationId: uploadDocument, x-freya-permission: 'documents:write', x-freya-max-body-bytes: 104857600, parameters: [{ $ref: '#/components/parameters/csrf' }], responses: { '201': { description: created } } }
+    get: { operationId: listDocuments, x-freya-permission: 'documents:read', responses: { '200': { description: list } } }
+  /api/paperless/v1/documents/{id}:
+    get: { operationId: getDocument, x-freya-permission: 'documents:read', parameters: [{ $ref: '#/components/parameters/id' }], responses: { '200': { description: document }, '404': { description: not_found } } }
+    put: { operationId: updateDocument, x-freya-permission: 'documents:write', parameters: [{ $ref: '#/components/parameters/csrf' }, { $ref: '#/components/parameters/id' }], responses: { '200': { description: updated } } }
+  /api/paperless/v1/documents/{id}/remove:
+    post: { operationId: deleteDocument, x-freya-permission: 'documents:delete', parameters: [{ $ref: '#/components/parameters/csrf' }, { $ref: '#/components/parameters/id' }], responses: { '204': { description: deleted } } }
+  /api/paperless/v1/documents/{id}/move:
+    post: { operationId: moveDocument, x-freya-permission: 'documents:write', parameters: [{ $ref: '#/components/parameters/csrf' }, { $ref: '#/components/parameters/id' }], responses: { '200': { description: moved } } }
+  /api/paperless/v1/documents/{id}/download:
+    get: { operationId: downloadDocument, x-freya-permission: 'documents:read', parameters: [{ $ref: '#/components/parameters/id' }], responses: { '200': { description: bytes } } }
+  /api/paperless/v1/documents/{id}/download-url:
+    get: { operationId: getDownloadUrl, x-freya-permission: 'documents:read', parameters: [{ $ref: '#/components/parameters/id' }], responses: { '200': { description: url } } }
+  /api/paperless/v1/documents/search:
+    post: { operationId: searchDocuments, x-freya-permission: 'search:read', parameters: [{ $ref: '#/components/parameters/csrf' }], responses: { '200': { description: results } } }
+  /api/paperless/v1/documents/batch-delete:
+    post: { operationId: batchDeleteDocuments, x-freya-permission: 'documents:delete', parameters: [{ $ref: '#/components/parameters/csrf' }], responses: { '200': { description: results } } }
+  /api/paperless/v1/categories:
+    post: { operationId: createCategory, x-freya-permission: 'categories:manage', parameters: [{ $ref: '#/components/parameters/csrf' }], responses: { '201': { description: created } } }
+    get: { operationId: listCategories, x-freya-permission: 'categories:read', responses: { '200': { description: list } } }
+  /api/paperless/v1/categories/tree:
+    get: { operationId: getCategoryTree, x-freya-permission: 'categories:read', responses: { '200': { description: tree } } }
+  /api/paperless/v1/categories/{id}:
+    get: { operationId: getCategory, x-freya-permission: 'categories:read', parameters: [{ $ref: '#/components/parameters/id' }], responses: { '200': { description: category }, '404': { description: not_found } } }
+    put: { operationId: updateCategory, x-freya-permission: 'categories:manage', parameters: [{ $ref: '#/components/parameters/csrf' }, { $ref: '#/components/parameters/id' }], responses: { '200': { description: updated } } }
+  /api/paperless/v1/categories/{id}/remove:
+    post: { operationId: deleteCategory, x-freya-permission: 'categories:manage', parameters: [{ $ref: '#/components/parameters/csrf' }, { $ref: '#/components/parameters/id' }], responses: { '204': { description: deleted } } }
+  /api/paperless/v1/categories/{id}/move:
+    post: { operationId: moveCategory, x-freya-permission: 'categories:manage', parameters: [{ $ref: '#/components/parameters/csrf' }, { $ref: '#/components/parameters/id' }], responses: { '200': { description: moved } } }
+  /api/paperless/v1/permissions/grant:
+    post: { operationId: grantAccess, x-freya-permission: 'permissions:manage', parameters: [{ $ref: '#/components/parameters/csrf' }], responses: { '200': { description: granted } } }
+  /api/paperless/v1/permissions/revoke:
+    post: { operationId: revokeAccess, x-freya-permission: 'permissions:manage', parameters: [{ $ref: '#/components/parameters/csrf' }], responses: { '200': { description: revoked } } }
+  /api/paperless/v1/permissions:
+    get: { operationId: listPermissions, x-freya-permission: 'permissions:manage', responses: { '200': { description: list } } }
+  /api/paperless/v1/permissions/check:
+    post: { operationId: checkAccess, x-freya-permission: 'documents:read', parameters: [{ $ref: '#/components/parameters/csrf' }], responses: { '200': { description: decision } } }
+  /api/paperless/v1/permissions/effective:
+    get: { operationId: getEffectivePermissions, x-freya-permission: 'documents:read', responses: { '200': { description: effective } } }
+  /api/paperless/v1/statistics:
+    get: { operationId: getStatistics, x-freya-permission: 'stats:read', responses: { '200': { description: statistics } } }
+  /api/paperless/v1/statistics/tenant:
+    get: { operationId: getTenantStatistics, x-freya-permission: 'stats:read', responses: { '200': { description: 'tenant statistics' } } }
+  /api/paperless/v1/backup/export:
+    post: { operationId: exportBackup, x-freya-permission: 'backup:manage', parameters: [{ $ref: '#/components/parameters/csrf' }], responses: { '200': { description: export } } }
+  /api/paperless/v1/backup/import:
+    post: { operationId: importBackup, x-freya-permission: 'backup:manage', parameters: [{ $ref: '#/components/parameters/csrf' }], responses: { '200': { description: imported } } }
+  /api/paperless/v1/stream:
+    get: { operationId: streamEvents, x-freya-permission: 'documents:read', responses: { '200': { description: 'SSE event stream' } } }
