@@ -117,3 +117,11 @@ tuples, versioned by schema; document bytes are referenced by file key
 (optionally as presigned URLs, never inlined). `POST
 /api/paperless/v1/backup/import` recreates them (mode `skip` or `overwrite`),
 preserving entity ids so blob references and grants re-link unchanged.
+
+## UI
+
+The remote under `services/paperless/ui` is built on the shared kit `@freya/ui` (FlyonUI + Zod,
+see `docs/frontend.md`): forms validate through Zod schemas in `src/schemas/`, the
+shell provides the theme and shared singletons, and `npm run lint` runs
+`check-no-legacy`. Rebuild the image after UI changes; the Dockerfile builds `ui/kit`
+first.

@@ -45,13 +45,12 @@ export const useDocuments = defineStore('paperless-documents', () => {
 
   // upload posts a multipart/form-data body; the browser sets the boundary.
   async function uploadDocument(input: UploadInput): Promise<Document> {
-    const form = new FormData()
-    form.append('file', input.file)
-    if (input.name) form.append('name', input.name)
-    if (input.description) form.append('description', input.description)
-    if (input.category_id) form.append('category_id', input.category_id)
-    if (input.tags && Object.keys(input.tags).length) form.append('tags', JSON.stringify(input.tags))
-    const d = await upload<Document>('documents', form)
+    const fields: Record<string, string> = {}
+    if (input.name) fields.name = input.name
+    if (input.description) fields.description = input.description
+    if (input.category_id) fields.category_id = input.category_id
+    if (input.tags && Object.keys(input.tags).length) fields.tags = JSON.stringify(input.tags)
+    const d = await upload<Document>('documents', input.file, fields)
     items.value = [d, ...items.value]
     return d
   }
