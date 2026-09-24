@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref } from 'vue'
-import { UiPage, UiAlert, UiCard, UiForm, UiSelect, UiButton, UiDataTable, UiStatusChip, UiLiveIndicator, UiFilePicker, UiInput, UiTextarea, UiTagEditor, UiRecordDrawer, UiKeyValueTable, UiBadge, useConfirm, UiDrawer, useToast, type Column, type SelectOption } from '@freya/ui'
-import { useZodForm, zodToFields } from '@freya/ui/forms'
+import { UiPage, UiAlert, UiCard, UiForm, UiSelect, UiButton, UiDataTable, UiStatusChip, UiLiveIndicator, UiFilePicker, UiInput, UiTextarea, UiTagEditor, UiRecordDrawer, UiKeyValueTable, UiBadge, useConfirm, UiDrawer, useToast, type Column, type SelectOption } from '@go-tangra/ui'
+import { useZodForm, zodToFields } from '@go-tangra/ui/forms'
 import { useDocuments } from '@/stores/documents'
 import { useCategories } from '@/stores/categories'
 import { useLive } from '@/stores/live'

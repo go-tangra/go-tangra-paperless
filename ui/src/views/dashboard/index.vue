@@ -3,7 +3,7 @@ import { computed, onMounted } from 'vue'
 import { useDocuments } from '@/stores/documents'
 import { useCategories } from '@/stores/categories'
 import { useStats } from '@/stores/stats'
-import { UiPage, UiCard, UiStatGrid, UiStatTile, UiBarList, type BarItem } from '@freya/ui'
+import { UiPage, UiCard, UiStatGrid, UiStatTile, UiBarList, type BarItem } from '@go-tangra/ui'
 
 // The dashboard prefers the /statistics/tenant snapshot; when it is unavailable
 // it derives figures from the loaded document and category lists.

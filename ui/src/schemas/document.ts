@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { nonEmpty, optionalString, tagMap } from '@freya/ui/forms'
+import { nonEmpty, optionalString, tagMap } from '@go-tangra/ui/forms'
 
 export const DOCUMENT_STATUSES = ['active', 'archived', 'deleted'] as const
 export const PROCESSING_STATUSES = ['pending', 'processing', 'completed', 'failed', 'retrying'] as const

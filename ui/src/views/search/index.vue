@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
-import { UiPage, UiAlert, UiCard, UiForm, UiInput, UiButton, UiBadge, UiIcon, UiEmptyState } from '@freya/ui'
-import { useZodForm } from '@freya/ui/forms'
+import { UiPage, UiAlert, UiCard, UiForm, UiInput, UiButton, UiBadge, UiIcon, UiEmptyState } from '@go-tangra/ui'
+import { useZodForm } from '@go-tangra/ui/forms'
 import { useDocuments } from '@/stores/documents'
 import { searchSchema } from '@/schemas'
 import type { SearchHit } from '@/api/types'

@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { optionalString, tagMap } from '@freya/ui/forms'
+import { optionalString, tagMap } from '@go-tangra/ui/forms'
 
 export const MAX_UPLOAD_BYTES = 100 * 1024 * 1024
 
