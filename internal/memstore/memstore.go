@@ -8,6 +8,7 @@ import (
 	"errors"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/go-tangra/go-tangra-paperless/v4/internal/repo"
@@ -16,6 +17,9 @@ import (
 
 // Mem is an in-memory store.
 type Mem struct {
+	// mu guards the maps, the audit log and the injected failure: the jobs
+	// workers and the tests use one store from several goroutines.
+	mu    sync.Mutex
 	docs  map[string]store.Document
 	cats  map[string]store.Category
 	perms map[string]store.PermissionTuple
@@ -35,8 +39,13 @@ func New() *Mem {
 }
 
 // FailNext injects an error into the next mutating operation.
-func (m *Mem) FailNext(err error) { m.fail = err }
+func (m *Mem) FailNext(err error) {
+	m.mu.Lock()
+	m.fail = err
+	m.mu.Unlock()
+}
 
+// take is called with m.mu held.
 func (m *Mem) take() error {
 	if m.fail != nil {
 		e := m.fail
@@ -58,6 +67,8 @@ func (m *Mem) Close() {}
 // ---- Documents
 
 func (m *Mem) InsertDocument(_ context.Context, d store.Document) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	if err := m.take(); err != nil {
 		return err
 	}
@@ -70,6 +81,8 @@ func (m *Mem) InsertDocument(_ context.Context, d store.Document) error {
 }
 
 func (m *Mem) GetDocument(_ context.Context, tenantID, id string) (store.Document, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	d, ok := m.docs[id]
 	if !ok || d.TenantID != tenantID {
 		return store.Document{}, errNotFound
@@ -78,6 +91,8 @@ func (m *Mem) GetDocument(_ context.Context, tenantID, id string) (store.Documen
 }
 
 func (m *Mem) ListDocuments(_ context.Context, tenantID string, f repo.DocFilter) ([]store.Document, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	var out []store.Document
 	for _, d := range m.docs {
 		if d.TenantID != tenantID {
@@ -114,6 +129,8 @@ func (m *Mem) ListDocuments(_ context.Context, tenantID string, f repo.DocFilter
 }
 
 func (m *Mem) UpdateDocument(_ context.Context, d store.Document) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	if err := m.take(); err != nil {
 		return err
 	}
@@ -128,6 +145,8 @@ func (m *Mem) UpdateDocument(_ context.Context, d store.Document) error {
 }
 
 func (m *Mem) SetDocumentProcessing(_ context.Context, tenantID, id, status, content string, meta map[string]string) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	d, ok := m.docs[id]
 	if !ok || d.TenantID != tenantID {
 		return errNotFound
@@ -143,6 +162,8 @@ func (m *Mem) SetDocumentProcessing(_ context.Context, tenantID, id, status, con
 }
 
 func (m *Mem) DeleteDocument(_ context.Context, tenantID, id string) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	d, ok := m.docs[id]
 	if !ok || d.TenantID != tenantID {
 		return errNotFound
@@ -152,6 +173,8 @@ func (m *Mem) DeleteDocument(_ context.Context, tenantID, id string) error {
 }
 
 func (m *Mem) SearchDocuments(_ context.Context, tenantID, query string, accessible []string, all bool, limit int) ([]store.SearchResult, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	acc := map[string]bool{}
 	for _, id := range accessible {
 		acc[id] = true
@@ -188,6 +211,8 @@ func snippet(s, q string) string {
 // ---- Categories
 
 func (m *Mem) InsertCategory(_ context.Context, c store.Category) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	if err := m.take(); err != nil {
 		return err
 	}
@@ -205,6 +230,8 @@ func (m *Mem) InsertCategory(_ context.Context, c store.Category) error {
 }
 
 func (m *Mem) GetCategory(_ context.Context, tenantID, id string) (store.Category, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	c, ok := m.cats[id]
 	if !ok || c.TenantID != tenantID {
 		return store.Category{}, errNotFound
@@ -213,6 +240,8 @@ func (m *Mem) GetCategory(_ context.Context, tenantID, id string) (store.Categor
 }
 
 func (m *Mem) ListCategories(_ context.Context, tenantID string) ([]store.Category, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	var out []store.Category
 	for _, c := range m.cats {
 		if c.TenantID == tenantID {
@@ -224,6 +253,8 @@ func (m *Mem) ListCategories(_ context.Context, tenantID string) ([]store.Catego
 }
 
 func (m *Mem) ListSubtree(_ context.Context, tenantID, prefix string) ([]store.Category, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	var out []store.Category
 	for _, c := range m.cats {
 		if c.TenantID == tenantID && (c.Path == prefix || strings.HasPrefix(c.Path, prefix+"/")) {
@@ -235,6 +266,8 @@ func (m *Mem) ListSubtree(_ context.Context, tenantID, prefix string) ([]store.C
 }
 
 func (m *Mem) UpdateCategory(_ context.Context, c store.Category) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	if err := m.take(); err != nil {
 		return err
 	}
@@ -249,6 +282,8 @@ func (m *Mem) UpdateCategory(_ context.Context, c store.Category) error {
 }
 
 func (m *Mem) DeleteCategory(_ context.Context, tenantID, id string) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	c, ok := m.cats[id]
 	if !ok || c.TenantID != tenantID {
 		return errNotFound
@@ -260,6 +295,8 @@ func (m *Mem) DeleteCategory(_ context.Context, tenantID, id string) error {
 // ---- Permissions
 
 func (m *Mem) InsertPermission(_ context.Context, p store.PermissionTuple) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	if err := m.take(); err != nil {
 		return err
 	}
@@ -271,6 +308,8 @@ func (m *Mem) InsertPermission(_ context.Context, p store.PermissionTuple) error
 }
 
 func (m *Mem) DeletePermission(_ context.Context, tenantID, id string) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	p, ok := m.perms[id]
 	if !ok || p.TenantID != tenantID {
 		return errNotFound
@@ -280,6 +319,8 @@ func (m *Mem) DeletePermission(_ context.Context, tenantID, id string) error {
 }
 
 func (m *Mem) ListPermissionsByResource(_ context.Context, tenantID, rt, rid string) ([]store.PermissionTuple, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	var out []store.PermissionTuple
 	for _, p := range m.perms {
 		if p.TenantID == tenantID && p.ResourceType == rt && p.ResourceID == rid {
@@ -290,6 +331,8 @@ func (m *Mem) ListPermissionsByResource(_ context.Context, tenantID, rt, rid str
 }
 
 func (m *Mem) ListPermissionsBySubject(_ context.Context, tenantID, st, sid string) ([]store.PermissionTuple, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	var out []store.PermissionTuple
 	for _, p := range m.perms {
 		if p.TenantID == tenantID && p.SubjectType == st && p.SubjectID == sid {
@@ -300,6 +343,8 @@ func (m *Mem) ListPermissionsBySubject(_ context.Context, tenantID, st, sid stri
 }
 
 func (m *Mem) GrantsForSubjects(_ context.Context, tenantID, userID string, roles []string, now time.Time) ([]store.PermissionTuple, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	roleset := map[string]bool{}
 	for _, r := range roles {
 		roleset[r] = true
@@ -331,6 +376,8 @@ func (m *Mem) GrantsForSubjects(_ context.Context, tenantID, userID string, role
 // ---- Jobs
 
 func (m *Mem) InsertJob(_ context.Context, j store.ProcessingJob) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	if err := m.take(); err != nil {
 		return err
 	}
@@ -343,6 +390,8 @@ func (m *Mem) InsertJob(_ context.Context, j store.ProcessingJob) error {
 }
 
 func (m *Mem) GetJob(_ context.Context, tenantID, id string) (store.ProcessingJob, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	j, ok := m.jobs[id]
 	if !ok || j.TenantID != tenantID {
 		return store.ProcessingJob{}, errNotFound
@@ -351,6 +400,8 @@ func (m *Mem) GetJob(_ context.Context, tenantID, id string) (store.ProcessingJo
 }
 
 func (m *Mem) UpdateJob(_ context.Context, j store.ProcessingJob) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	old, ok := m.jobs[j.ID]
 	if !ok || old.TenantID != j.TenantID {
 		return errNotFound
@@ -362,6 +413,8 @@ func (m *Mem) UpdateJob(_ context.Context, j store.ProcessingJob) error {
 }
 
 func (m *Mem) ClaimDueJobs(_ context.Context, now time.Time, lease time.Duration, limit int) ([]store.ProcessingJob, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	var out []store.ProcessingJob
 	for id, j := range m.jobs {
 		if j.Status != store.ProcPending && j.Status != store.ProcRetrying {
@@ -386,6 +439,8 @@ func (m *Mem) ClaimDueJobs(_ context.Context, now time.Time, lease time.Duration
 }
 
 func (m *Mem) DeleteJobsOlderThan(_ context.Context, cutoff time.Time) (int, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	n := 0
 	for id, j := range m.jobs {
 		if j.CreatedAt.Before(cutoff) {
@@ -399,11 +454,15 @@ func (m *Mem) DeleteJobsOlderThan(_ context.Context, cutoff time.Time) (int, err
 // ---- Audit / misc
 
 func (m *Mem) InsertAuditRows(_ context.Context, rows []store.AuditRow) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	m.audit = append(m.audit, rows...)
 	return nil
 }
 
 func (m *Mem) Exists(_ context.Context, tenantID, rt, id string) (bool, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	switch rt {
 	case store.ResourceDocument:
 		d, ok := m.docs[id]
@@ -416,6 +475,8 @@ func (m *Mem) Exists(_ context.Context, tenantID, rt, id string) (bool, error) {
 }
 
 func (m *Mem) TenantIDs(_ context.Context) ([]string, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	set := map[string]bool{}
 	for _, d := range m.docs {
 		set[d.TenantID] = true
