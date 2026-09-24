@@ -3710,7 +3710,7 @@ const file_paperless_v1_paperless_proto_rawDesc = "" +
 	"\x17ListAccessibleResources\x12,.paperless.v1.ListAccessibleResourcesRequest\x1a-.paperless.v1.ListAccessibleResourcesResponse\x12v\n" +
 	"\x17GetEffectivePermissions\x12,.paperless.v1.GetEffectivePermissionsRequest\x1a-.paperless.v1.GetEffectivePermissionsResponse2k\n" +
 	"\x1aPaperlessStatisticsService\x12M\n" +
-	"\rGetStatistics\x12\".paperless.v1.GetStatisticsRequest\x1a\x18.paperless.v1.StatisticsBQZOgithub.com/go-freya/freya/services/paperless/api/proto/paperless/v1;paperlessv1b\x06proto3"
+	"\rGetStatistics\x12\".paperless.v1.GetStatisticsRequest\x1a\x18.paperless.v1.StatisticsBPZNgithub.com/go-tangra/go-tangra-paperless/v4/api/proto/paperless/v1;paperlessv1b\x06proto3"
 
 var (
 	file_paperless_v1_paperless_proto_rawDescOnce sync.Once

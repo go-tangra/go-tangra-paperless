@@ -14,7 +14,7 @@ import (
 
 	"google.golang.org/grpc"
 
-	paperlessv1 "github.com/go-freya/freya/services/paperless/api/proto/paperless/v1"
+	paperlessv1 "github.com/go-tangra/go-tangra-paperless/v4/api/proto/paperless/v1"
 )
 
 // Client calls the paperless.v1 API over a caller-provided gRPC connection.

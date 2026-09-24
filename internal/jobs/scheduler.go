@@ -6,8 +6,8 @@ import (
 	"math"
 	"time"
 
-	"github.com/go-freya/freya/services/paperless/internal/events"
-	"github.com/go-freya/freya/services/paperless/internal/store"
+	"github.com/go-tangra/go-tangra-paperless/v4/internal/events"
+	"github.com/go-tangra/go-tangra-paperless/v4/internal/store"
 )
 
 // process runs one extraction job: fetch bytes -> extract -> store content ->

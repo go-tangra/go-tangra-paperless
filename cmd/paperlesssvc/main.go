@@ -11,10 +11,10 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/go-freya/freya/services/paperless/internal/app"
-	"github.com/go-freya/freya/services/paperless/internal/config"
-	"github.com/go-freya/freya/services/paperless/internal/store"
-	"github.com/go-freya/freya/services/paperless/ui"
+	"github.com/go-tangra/go-tangra-paperless/v4/internal/app"
+	"github.com/go-tangra/go-tangra-paperless/v4/internal/config"
+	"github.com/go-tangra/go-tangra-paperless/v4/internal/store"
+	"github.com/go-tangra/go-tangra-paperless/v4/ui"
 )
 
 func main() {

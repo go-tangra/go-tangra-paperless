@@ -9,7 +9,7 @@ syntax = "proto3";
 // credentials: those are secrets of the read path and are omitted here entirely.
 package paperless.v1;
 
-option go_package = "github.com/go-freya/freya/services/paperless/api/proto/paperless/v1;paperlessv1";
+option go_package = "github.com/go-tangra/go-tangra-paperless/v4/api/proto/paperless/v1;paperlessv1";
 
 // ---- Enums
 

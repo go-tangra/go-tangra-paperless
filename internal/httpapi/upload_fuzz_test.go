@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/go-freya/freya/services/auth/pkg/authclient"
+	"github.com/go-tangra/go-tangra-auth/sdk/v4/pkg/authclient"
 )
 
 // uploadRoute is the declared multipart upload operation.

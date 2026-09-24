@@ -9,7 +9,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/go-freya/freya/services/paperless/internal/store"
+	"github.com/go-tangra/go-tangra-paperless/v4/internal/store"
 )
 
 // DocFilter selects documents.

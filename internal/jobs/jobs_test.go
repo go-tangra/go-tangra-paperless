@@ -7,11 +7,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/go-freya/freya/services/paperless/internal/blob"
-	"github.com/go-freya/freya/services/paperless/internal/extract"
-	"github.com/go-freya/freya/services/paperless/internal/jobs"
-	"github.com/go-freya/freya/services/paperless/internal/memstore"
-	"github.com/go-freya/freya/services/paperless/internal/store"
+	"github.com/go-tangra/go-tangra-paperless/v4/internal/blob"
+	"github.com/go-tangra/go-tangra-paperless/v4/internal/extract"
+	"github.com/go-tangra/go-tangra-paperless/v4/internal/jobs"
+	"github.com/go-tangra/go-tangra-paperless/v4/internal/memstore"
+	"github.com/go-tangra/go-tangra-paperless/v4/internal/store"
 )
 
 const tenant = "11111111-1111-1111-1111-111111111111"

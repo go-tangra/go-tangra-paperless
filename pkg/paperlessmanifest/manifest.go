@@ -12,8 +12,8 @@ import (
 
 	"github.com/getkin/kin-openapi/openapi3"
 
-	"github.com/go-freya/freya/services/gateway/pkg/gatewayclient"
-	"github.com/go-freya/freya/services/paperless/api/openapi"
+	"github.com/go-tangra/go-tangra-paperless/v4/api/openapi"
+	"github.com/go-tangra/go-tangra-portal/sdk/v4/pkg/gatewayclient"
 )
 
 // Module identity.

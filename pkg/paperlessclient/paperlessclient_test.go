@@ -12,8 +12,8 @@ import (
 	"google.golang.org/grpc/status"
 	"google.golang.org/grpc/test/bufconn"
 
-	paperlessv1 "github.com/go-freya/freya/services/paperless/api/proto/paperless/v1"
-	"github.com/go-freya/freya/services/paperless/pkg/paperlessclient"
+	paperlessv1 "github.com/go-tangra/go-tangra-paperless/v4/api/proto/paperless/v1"
+	"github.com/go-tangra/go-tangra-paperless/v4/pkg/paperlessclient"
 )
 
 // stubDocs is a canned in-process PaperlessDocumentService. It records the last

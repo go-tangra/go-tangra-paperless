@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/go-freya/freya/services/paperless/internal/stream"
+	"github.com/go-tangra/go-tangra-paperless/v4/internal/stream"
 )
 
 // RegisterStream mounts GET /api/paperless/v1/stream: a per-signed-in-user SSE

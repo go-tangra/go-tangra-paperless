@@ -5,15 +5,15 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/go-freya/freya/services/paperless/internal/authz"
-	"github.com/go-freya/freya/services/paperless/internal/backup"
-	"github.com/go-freya/freya/services/paperless/internal/categories"
-	"github.com/go-freya/freya/services/paperless/internal/documents"
-	"github.com/go-freya/freya/services/paperless/internal/permissions"
-	"github.com/go-freya/freya/services/paperless/internal/search"
-	"github.com/go-freya/freya/services/paperless/internal/stats"
-	"github.com/go-freya/freya/services/paperless/internal/store"
-	"github.com/go-freya/freya/services/paperless/internal/stream"
+	"github.com/go-tangra/go-tangra-paperless/v4/internal/authz"
+	"github.com/go-tangra/go-tangra-paperless/v4/internal/backup"
+	"github.com/go-tangra/go-tangra-paperless/v4/internal/categories"
+	"github.com/go-tangra/go-tangra-paperless/v4/internal/documents"
+	"github.com/go-tangra/go-tangra-paperless/v4/internal/permissions"
+	"github.com/go-tangra/go-tangra-paperless/v4/internal/search"
+	"github.com/go-tangra/go-tangra-paperless/v4/internal/stats"
+	"github.com/go-tangra/go-tangra-paperless/v4/internal/store"
+	"github.com/go-tangra/go-tangra-paperless/v4/internal/stream"
 )
 
 // Deps wire the paperless HTTP handlers.

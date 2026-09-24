@@ -11,13 +11,13 @@ import (
 	"testing"
 	"time"
 
-	"github.com/go-freya/freya/services/paperless/internal/authz"
-	"github.com/go-freya/freya/services/paperless/internal/blob"
-	"github.com/go-freya/freya/services/paperless/internal/documents"
-	"github.com/go-freya/freya/services/paperless/internal/events"
-	"github.com/go-freya/freya/services/paperless/internal/memstore"
-	"github.com/go-freya/freya/services/paperless/internal/repo"
-	"github.com/go-freya/freya/services/paperless/internal/store"
+	"github.com/go-tangra/go-tangra-paperless/v4/internal/authz"
+	"github.com/go-tangra/go-tangra-paperless/v4/internal/blob"
+	"github.com/go-tangra/go-tangra-paperless/v4/internal/documents"
+	"github.com/go-tangra/go-tangra-paperless/v4/internal/events"
+	"github.com/go-tangra/go-tangra-paperless/v4/internal/memstore"
+	"github.com/go-tangra/go-tangra-paperless/v4/internal/repo"
+	"github.com/go-tangra/go-tangra-paperless/v4/internal/store"
 )
 
 // fixture wires a service over the in-memory store + fake blob and returns an

@@ -7,7 +7,7 @@ package events
 import (
 	"context"
 
-	"github.com/go-freya/freya/services/paperless/internal/stream"
+	"github.com/go-tangra/go-tangra-paperless/v4/internal/stream"
 )
 
 // Event types published to platform:events:<tenant>.

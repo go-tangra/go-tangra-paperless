@@ -8,10 +8,10 @@ import (
 	"testing"
 	"testing/fstest"
 
-	"github.com/go-freya/freya/internal/testrt"
-	"github.com/go-freya/freya/internal/testutil"
-	"github.com/go-freya/freya/services/paperless/internal/store"
-	"github.com/go-freya/freya/services/paperless/internal/stream"
+	"github.com/go-tangra/go-tangra-paperless/v4/internal/store"
+	"github.com/go-tangra/go-tangra-paperless/v4/internal/stream"
+	"github.com/go-tangra/go-tangra/v4/freyatest/testrt"
+	"github.com/go-tangra/go-tangra/v4/freyatest/testutil"
 )
 
 // TestServerAccessors exercises the read-only introspection helpers.

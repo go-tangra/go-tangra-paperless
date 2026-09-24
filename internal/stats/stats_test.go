@@ -5,9 +5,9 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/go-freya/freya/services/paperless/internal/authz"
-	"github.com/go-freya/freya/services/paperless/internal/memstore"
-	"github.com/go-freya/freya/services/paperless/internal/store"
+	"github.com/go-tangra/go-tangra-paperless/v4/internal/authz"
+	"github.com/go-tangra/go-tangra-paperless/v4/internal/memstore"
+	"github.com/go-tangra/go-tangra-paperless/v4/internal/store"
 )
 
 func strp(s string) *string { return &s }

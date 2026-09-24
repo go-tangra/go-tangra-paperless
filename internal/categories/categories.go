@@ -12,9 +12,9 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/go-freya/freya/services/paperless/internal/authz"
-	"github.com/go-freya/freya/services/paperless/internal/repo"
-	"github.com/go-freya/freya/services/paperless/internal/store"
+	"github.com/go-tangra/go-tangra-paperless/v4/internal/authz"
+	"github.com/go-tangra/go-tangra-paperless/v4/internal/repo"
+	"github.com/go-tangra/go-tangra-paperless/v4/internal/store"
 )
 
 // Errors.

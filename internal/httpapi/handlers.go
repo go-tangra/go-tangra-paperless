@@ -6,11 +6,11 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/go-freya/freya/services/paperless/internal/backup"
-	"github.com/go-freya/freya/services/paperless/internal/categories"
-	"github.com/go-freya/freya/services/paperless/internal/documents"
-	"github.com/go-freya/freya/services/paperless/internal/permissions"
-	"github.com/go-freya/freya/services/paperless/internal/repo"
+	"github.com/go-tangra/go-tangra-paperless/v4/internal/backup"
+	"github.com/go-tangra/go-tangra-paperless/v4/internal/categories"
+	"github.com/go-tangra/go-tangra-paperless/v4/internal/documents"
+	"github.com/go-tangra/go-tangra-paperless/v4/internal/permissions"
+	"github.com/go-tangra/go-tangra-paperless/v4/internal/repo"
 )
 
 // Register mounts the paperless HTTP routes.

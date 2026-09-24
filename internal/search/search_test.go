@@ -4,10 +4,10 @@ import (
 	"context"
 	"testing"
 
-	"github.com/go-freya/freya/services/paperless/internal/authz"
-	"github.com/go-freya/freya/services/paperless/internal/memstore"
-	"github.com/go-freya/freya/services/paperless/internal/search"
-	"github.com/go-freya/freya/services/paperless/internal/store"
+	"github.com/go-tangra/go-tangra-paperless/v4/internal/authz"
+	"github.com/go-tangra/go-tangra-paperless/v4/internal/memstore"
+	"github.com/go-tangra/go-tangra-paperless/v4/internal/search"
+	"github.com/go-tangra/go-tangra-paperless/v4/internal/store"
 )
 
 const tenant = "11111111-1111-1111-1111-111111111111"

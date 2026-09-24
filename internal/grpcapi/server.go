@@ -14,14 +14,14 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
-	"github.com/go-freya/freya/authn"
-	paperlessv1 "github.com/go-freya/freya/services/paperless/api/proto/paperless/v1"
-	"github.com/go-freya/freya/services/paperless/internal/authz"
-	"github.com/go-freya/freya/services/paperless/internal/categories"
-	"github.com/go-freya/freya/services/paperless/internal/documents"
-	"github.com/go-freya/freya/services/paperless/internal/permissions"
-	"github.com/go-freya/freya/services/paperless/internal/search"
-	"github.com/go-freya/freya/services/paperless/internal/stats"
+	paperlessv1 "github.com/go-tangra/go-tangra-paperless/v4/api/proto/paperless/v1"
+	"github.com/go-tangra/go-tangra-paperless/v4/internal/authz"
+	"github.com/go-tangra/go-tangra-paperless/v4/internal/categories"
+	"github.com/go-tangra/go-tangra-paperless/v4/internal/documents"
+	"github.com/go-tangra/go-tangra-paperless/v4/internal/permissions"
+	"github.com/go-tangra/go-tangra-paperless/v4/internal/search"
+	"github.com/go-tangra/go-tangra-paperless/v4/internal/stats"
+	"github.com/go-tangra/go-tangra/v4/authn"
 )
 
 var uuidRE = regexp.MustCompile(`^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$`)
