@@ -1,91 +1,134 @@
 # go-tangra-paperless
 
-Document management service with S3 storage, full-text search, hierarchical categories, and Zanzibar-style fine-grained permissions.
+Tenant document management service for the
+[go-tangra v4 platform](https://github.com/go-tangra/go-tangra).
 
-## Features
+It stores **documents** (metadata in TimescaleDB, bytes in S3-compatible object
+storage such as RustFS or MinIO), organises them into a **category hierarchy**,
+extracts their text asynchronously through **Apache Tika** (optionally converting
+with **Gotenberg**), and makes them **full-text searchable**. Access is
+Zanzibar-style (owner / editor / viewer / sharer, to users, roles or the tenant,
+with expiry), inherited down the category tree. Object-store credentials are
+sealed at rest (AES-256-GCM envelope) and never returned; extracted content
+never reaches logs or the audit trail. Processing progress is published live on
+the platform event bus, so the UI updates without polling.
 
-- **Document Management** — Upload, download, search, move, batch delete with presigned URLs
-- **Category Hierarchy** — Parent-child folder organization with materialized path queries
-- **Zanzibar Permissions** — Fine-grained access control with Owner/Editor/Viewer/Sharer relations
-- **Content Extraction** — Automatic text extraction via Apache Tika and document conversion via Gotenberg
-- **Full-text Search** — Search across extracted document content
-- **S3 Storage** — RustFS/MinIO-compatible object storage with SHA-256 checksums
-- **Multi-Tenant** — Complete tenant isolation across all resources
-- **Statistics** — Document counts by status, source, MIME type, and storage usage
+Operations: [`deploy/README.md`](deploy/README.md).
+Design history: `specs/009-paperless-service`.
 
-## gRPC Services
-
-| Service | Endpoints | Purpose |
-|---------|-----------|---------|
-| PaperlessDocumentService | Create, Get, List, Update, Delete, Move, Download, Search, BatchDelete | Document lifecycle |
-| PaperlessCategoryService | Create, Get, List, Update, Delete, Move, GetTree | Category hierarchy |
-| PaperlessPermissionService | Grant, Revoke, List, Check, ListAccessible, GetEffective | Access control |
-| PaperlessStatisticsService | GetStatistics | System metrics |
-
-**Port:** 9500 (gRPC) with REST endpoints via gRPC-Gateway
-
-## Permission Model
-
-| Relation | Permissions |
-|----------|------------|
-| **Owner** | Read, Write, Delete, Share |
-| **Editor** | Read, Write |
-| **Viewer** | Read |
-| **Sharer** | Read, Share |
-
-Permissions can be granted to users, roles, or entire tenants. Supports expiring permissions and inherited access from parent categories.
-
-## Document Processing Pipeline
+## Place in the platform
 
 ```
-Upload → Store in S3 → PENDING
-  → Tika (text extraction) → PROCESSING
-  → Gotenberg (format conversion) → COMPLETED
-  → Full-text index updated
+go-tangra/go-tangra          platform module + @go-tangra/ui kit
+        |
+go-tangra-auth  <---->  go-tangra-portal (gateway)  <---->  go-tangra-lcm
+                                  |
+                        go-tangra-paperless  ---->  object storage (S3), Tika, Gotenberg
 ```
 
-Supported: PDF, DOC, DOCX, and other formats supported by Apache Tika.
+- Built on `github.com/go-tangra/go-tangra/v4` (mTLS transports, identity,
+  service policy, audit, observability).
+- Verifies platform tokens, resolves people and checks permissions through the
+  auth SDK (`github.com/go-tangra/go-tangra-auth/sdk/v4`).
+- Registers with the gateway through the portal SDK
+  (`github.com/go-tangra/go-tangra-portal/sdk/v4`), which fronts the browser API
+  (`/api/paperless`) and the federated UI remote.
+- Enrolls for its SVID with lcm over the network
+  (`github.com/go-tangra/go-tangra-lcm/sdk/v4`), as the platform stack does.
 
-## Configuration
+The repository holds one Go module, `github.com/go-tangra/go-tangra-paperless/v4`.
+Other services call it through `pkg/paperlessclient` and the `paperless.v1` protos
+(not proxied by the gateway).
 
-```yaml
-server:
-  grpc:
-    addr: "0.0.0.0:9500"
-data:
-  database:
-    driver: postgres
-    source: "postgresql://..."
-  storage:
-    endpoint: "rustfs:9000"
-    bucket: "paperless"
-    access_key: "minioadmin"
-    secret_key: "minioadmin"
-```
+## Layout
 
-## Build
+| Path | What |
+|------|------|
+| `api/openapi/paperless.yaml` | browser API contract (served under `/api/paperless`) |
+| `api/proto/paperless/v1/` | document, category, permission and statistics gRPC services |
+| `internal/config` | configuration + validation (secure defaults, named opt-outs) |
+| `internal/store`, `internal/repo` | TimescaleDB schema (RLS), repositories; `internal/memstore` is the in-memory test double |
+| `internal/blob` | S3-compatible object storage (minio-go), presigned downloads |
+| `internal/extract` | Tika text extraction and Gotenberg conversion clients |
+| `internal/jobs` | distributed extraction worker pool (single-winner lease, retry with backoff) |
+| `internal/sealed` | envelope encryption of object-store credentials (KEK -> DEK) |
+| `internal/authz`, `internal/permissions` | Zanzibar grants and category-tree inheritance |
+| `internal/documents`, `internal/categories`, `internal/search` | documents, folders, full-text search |
+| `internal/events`, `internal/stream` | processing events on the platform bus, live stream |
+| `internal/backup`, `internal/stats`, `internal/audit` | backup export/import, statistics, audit |
+| `internal/httpapi`, `internal/grpcapi` | browser and service APIs |
+| `internal/app`, `cmd/paperlesssvc` | wiring and the service binary (serve, `bootstrap`, `version`) |
+| `pkg/paperlessmanifest` | gateway manifest and built-in role grants |
+| `pkg/paperlessclient` | Go client other services use |
+| `deploy` | service policy and operations notes |
+| `ui/` | Vue 3 + FlyonUI federated remote on `@go-tangra/ui` |
+
+## Build and test
+
+You need Go 1.26, Node 22, Docker (for the integration suite and the image), and a
+GitHub token with `read:packages` to install `@go-tangra/ui` from GitHub Packages.
 
 ```bash
-make build-server       # Build binary
-make generate           # Generate Ent + Wire
-make docker             # Build Docker image
-make docker-buildx      # Multi-platform (amd64/arm64)
-make test               # Run tests
-make ent                # Regenerate Ent schemas
+go build ./... && go vet ./... && go test -race ./...
+buf lint
+make test-integration                     # -tags integration, TimescaleDB via testcontainers (needs Docker)
+make lint cover vuln
+
+cd ui
+export NODE_AUTH_TOKEN=$(gh auth token)   # ui/.npmrc only references this variable
+npm ci && npm run lint && npm run test:unit && npm run build
 ```
 
-## Docker
+The unit coverage gate requires at least 80 % overall and 100 % for the
+authorization and sealing packages. Generated code, SQL bindings and wiring are
+covered by the integration suite instead. The Playwright specs in `ui/tests/e2e`
+need a running platform and operator credentials; they skip otherwise.
+
+## Run
+
+The service runs in the go-tangra platform stack (`deploy/stack` in
+[go-tangra](https://github.com/go-tangra/go-tangra)), next to TimescaleDB, Valkey,
+RustFS, Tika and Gotenberg. The stack mounts its configuration at
+`/app/deploy/container.yaml` and the development key-encryption key at
+`/app/deploy/kek.dev`. `deploy/kek.dev` in this repository is a development key
+only; it is excluded from the image.
 
 ```bash
-docker run -p 9500:9500 ghcr.io/go-tangra/go-tangra-paperless:latest
+paperlesssvc bootstrap -config deploy/container.yaml    # apply migrations and exit
+paperlesssvc -config deploy/container.yaml              # serve (applies migrations)
 ```
 
-Runs as non-root user `paperless` (UID 1000). Requires PostgreSQL, S3 storage, and optionally Tika + Gotenberg for content extraction.
+See `specs/009-paperless-service/quickstart.md` for the end-to-end walkthrough.
 
-## Dependencies
+## Container image
 
-- **Framework**: Kratos v2
-- **ORM**: Ent (PostgreSQL, MySQL)
-- **Storage**: MinIO SDK (S3-compatible)
-- **Cache**: Redis
-- **Protobuf**: Buf
+The image is `ghcr.io/go-tangra/go-tangra-paperless`, built by
+`.github/workflows/ci.yaml`. It carries `paperlesssvc` with the embedded UI remote.
+
+```bash
+docker buildx build --secret id=npm_token,env=NODE_AUTH_TOKEN \
+  --build-arg APP_VERSION=4.0.0 -t go-tangra-paperless:dev .
+docker run --rm go-tangra-paperless:dev version
+```
+
+The image runs `paperlesssvc -config deploy/container.yaml` as user `app`
+(uid 10001). It contains no configuration and no key material: deployments mount
+their own `deploy/container.yaml` and key-encryption key. Tika, Gotenberg and the
+object store are separate services the configuration points at
+(`extract.tika_url`, `extract.gotenberg_url`, `object_store.endpoint`); the
+bucket is created on start when missing.
+
+## API permissions
+
+`documents:read/write/delete`, `categories:read/manage`, `search:read`,
+`permissions:manage`, `backup:manage`, `stats:read`. The gateway enforces the
+per-route permission from the manifest; the module then enforces the Zanzibar
+grant on the document or category. Built-in role grants are seeded by the module
+(`pkg/paperlessmanifest.Grants`).
+
+## Versioning
+
+- Releases are tagged `vX.Y.Z`. CI publishes the image as `X.Y.Z`, `X.Y`, `X`
+  and `sha-<short>`. There is no `latest` tag.
+- v4.0.0 rebuilds the service on the go-tangra v4 platform. The v3 line stays on
+  the `v3` branch and its `v3.x` tags.

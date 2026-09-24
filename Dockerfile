@@ -1,101 +1,50 @@
-##################################
-# Stage 0: Build frontend module
-##################################
+# syntax=docker/dockerfile:1
+# go-tangra-paperless (paperless service, go-tangra v4) - standalone image.
+# Build context: the repository root. Generated from go-freya tools/split/templates/Dockerfile.tmpl.
+#
+#   docker buildx build --secret id=npm_token,env=NODE_AUTH_TOKEN \
+#     --build-arg APP_VERSION=4.0.0 --build-arg VCS_REF=$(git rev-parse HEAD) -t go-tangra-paperless:dev .
+#
+# npm_token is a GitHub token with read:packages for @go-tangra/ui on npm.pkg.github.com.
+# It is mounted only for the npm ci step and written to a tmpfs, so it never lands in a layer.
 
-FROM node:20-alpine AS frontend-builder
+FROM node:22-alpine AS ui
+WORKDIR /src/ui
+COPY ui/package.json ui/package-lock.json ./
+RUN --mount=type=secret,id=npm_token,required=true \
+    --mount=type=tmpfs,target=/run/npmrc \
+    --mount=type=cache,target=/root/.npm \
+    set -eu; \
+    printf '@go-tangra:registry=https://npm.pkg.github.com\n//npm.pkg.github.com/:_authToken=%s\nignore-scripts=true\nfund=false\naudit=false\n' \
+      "$(cat /run/secrets/npm_token)" > /run/npmrc/.npmrc; \
+    NPM_CONFIG_USERCONFIG=/run/npmrc/.npmrc npm ci --no-audit --no-fund
+COPY ui/ ./
+RUN npm run build
 
-RUN npm install -g pnpm@9
-
-WORKDIR /frontend
-COPY frontend/package.json frontend/pnpm-lock.yaml* ./
-RUN pnpm install --frozen-lockfile || pnpm install
-COPY frontend/ .
-RUN pnpm build
-
-##################################
-# Stage 1: Build Go executable
-##################################
-
-FROM golang:1.23-alpine AS builder
-
-ARG APP_VERSION=1.0.0
-
-# Enable toolchain auto-download for newer Go versions
-ENV GOTOOLCHAIN=auto
-
-# Install build dependencies
-RUN apk add --no-cache git make curl
-
-# Install buf for proto descriptor generation
-RUN curl -sSL "https://github.com/bufbuild/buf/releases/latest/download/buf-$(uname -s)-$(uname -m)" -o /usr/local/bin/buf && \
-    chmod +x /usr/local/bin/buf
-
-# Set working directory
+FROM golang:1.26-alpine AS build
+RUN apk add --no-cache git ca-certificates
 WORKDIR /src
-
-# Copy go mod files first for better caching
+# GOWORK=off: service repositories never use a go.work; dependencies come from published tags.
+ENV CGO_ENABLED=0 GOFLAGS=-buildvcs=false GOWORK=off
 COPY go.mod go.sum ./
-RUN go mod download
-
-# Copy the entire source code
+RUN --mount=type=cache,target=/go/pkg/mod go mod download
 COPY . .
-
-# Regenerate proto descriptor (ensures embedded descriptor.bin is always up to date)
-RUN buf build -o cmd/server/assets/descriptor.bin
-
-# Copy frontend dist into assets for go:embed
-COPY --from=frontend-builder /frontend/dist cmd/server/assets/frontend-dist/
-
-# Build the server
-RUN CGO_ENABLED=0 \
-    GOOS=linux \
-    GOARCH=amd64 \
-    go build -ldflags "-X main.version=${APP_VERSION} -s -w" \
-    -o /src/bin/paperless-server \
-    ./cmd/server
-
-##################################
-# Stage 2: Create runtime image
-##################################
+COPY --from=ui /src/ui/dist ./ui/dist
+ARG APP_VERSION=dev
+RUN --mount=type=cache,target=/go/pkg/mod --mount=type=cache,target=/root/.cache/go-build \
+    go build -trimpath -tags "ui" -ldflags "-s -w -X main.version=${APP_VERSION}" -o /out/paperlesssvc ./cmd/paperlesssvc
 
 FROM alpine:3.20
-
-ARG APP_VERSION=1.0.0
-
-# Install runtime dependencies
-RUN apk --no-cache add ca-certificates tzdata
-
-# Set timezone
-ENV TZ=UTC
-# Workaround for buf.build/github.com proto namespace conflicts (dual registration)
-ENV GOLANG_PROTOBUF_REGISTRATION_CONFLICT=warn
-
-# Set working directory
+ARG APP_VERSION=dev
+ARG VCS_REF=unknown
+LABEL org.opencontainers.image.source="https://github.com/go-tangra/go-tangra-paperless" \
+      org.opencontainers.image.title="go-tangra-paperless" \
+      org.opencontainers.image.version="${APP_VERSION}" \
+      org.opencontainers.image.revision="${VCS_REF}"
+RUN apk add --no-cache ca-certificates postgresql-client && adduser -D -u 10001 app
+COPY --from=build /out/paperlesssvc /usr/local/bin/
+COPY deploy /app/deploy
 WORKDIR /app
-
-# Copy executable from builder
-COPY --from=builder /src/bin/paperless-server /app/bin/paperless-server
-
-# Copy configuration files
-COPY --from=builder /src/configs/ /app/configs/
-
-# Create non-root user and pdfcpu font directory
-RUN addgroup -g 1000 paperless && \
-    adduser -D -u 1000 -G paperless paperless && \
-    mkdir -p /home/paperless/.config/pdfcpu/fonts && \
-    chown -R paperless:paperless /home/paperless/.config && \
-    mkdir -p /app/certs && chown -R paperless:paperless /app
-
-# Switch to non-root user
-USER paperless:paperless
-
-# Expose gRPC and HTTP ports
-EXPOSE 9500 9501
-
-# Set default command
-CMD ["/app/bin/paperless-server", "-c", "/app/configs"]
-
-# Labels
-LABEL org.opencontainers.image.title="Paperless Service" \
-      org.opencontainers.image.description="Document Management Service with RustFS Storage" \
-      org.opencontainers.image.version="${APP_VERSION}"
+USER app
+ENTRYPOINT ["paperlesssvc"]
+CMD ["-config","deploy/container.yaml"]

@@ -1,0 +1,426 @@
+syntax = "proto3";
+
+// paperless.v1 is the service-to-service API of the paperless document module.
+// It is NOT proxied by the gateway: callers are authenticated platform services
+// on the Freya SPIFFE mTLS channel, acting for the tenant named in each request
+// (tenant_id). The actor identity comes from the verified SPIFFE peer.
+//
+// Document/Category responses never carry extracted content_text or sealed
+// credentials: those are secrets of the read path and are omitted here entirely.
+package paperless.v1;
+
+option go_package = "github.com/go-tangra/go-tangra-paperless/v4/api/proto/paperless/v1;paperlessv1";
+
+// ---- Enums
+
+// DocumentStatus is the lifecycle status of a document.
+enum DocumentStatus {
+  DOCUMENT_STATUS_UNSPECIFIED = 0;
+  DOCUMENT_STATUS_ACTIVE = 1;
+  DOCUMENT_STATUS_ARCHIVED = 2;
+  DOCUMENT_STATUS_DELETED = 3;
+}
+
+// DocumentSource is where a document originated.
+enum DocumentSource {
+  DOCUMENT_SOURCE_UNSPECIFIED = 0;
+  DOCUMENT_SOURCE_UPLOAD = 1;
+  DOCUMENT_SOURCE_EMAIL = 2;
+}
+
+// ProcessingStatus is the extraction pipeline status of a document.
+enum ProcessingStatus {
+  PROCESSING_STATUS_UNSPECIFIED = 0;
+  PROCESSING_STATUS_PENDING = 1;
+  PROCESSING_STATUS_PROCESSING = 2;
+  PROCESSING_STATUS_COMPLETED = 3;
+  PROCESSING_STATUS_FAILED = 4;
+  PROCESSING_STATUS_RETRYING = 5;
+}
+
+// ResourceType names the kind of resource a permission applies to.
+enum ResourceType {
+  RESOURCE_TYPE_UNSPECIFIED = 0;
+  RESOURCE_TYPE_DOCUMENT = 1;
+  RESOURCE_TYPE_CATEGORY = 2;
+}
+
+// Relation is the role a grant confers on a subject.
+enum Relation {
+  RELATION_UNSPECIFIED = 0;
+  RELATION_OWNER = 1;
+  RELATION_EDITOR = 2;
+  RELATION_VIEWER = 3;
+  RELATION_SHARER = 4;
+}
+
+// SubjectType names the kind of subject a grant is made to.
+enum SubjectType {
+  SUBJECT_TYPE_UNSPECIFIED = 0;
+  SUBJECT_TYPE_USER = 1;
+  SUBJECT_TYPE_ROLE = 2;
+  SUBJECT_TYPE_TENANT = 3;
+}
+
+// Permission is a checkable action on a resource.
+enum Permission {
+  PERMISSION_UNSPECIFIED = 0;
+  PERMISSION_READ = 1;
+  PERMISSION_WRITE = 2;
+  PERMISSION_DELETE = 3;
+  PERMISSION_SHARE = 4;
+  PERMISSION_DOWNLOAD = 5;
+}
+
+// ---- Shared messages
+
+// Document is a document's metadata (never its content_text/extracted_metadata).
+message Document {
+  string id = 1;
+  string tenant_id = 2;
+  string category_id = 3;
+  string category_path = 4;
+  string name = 5;
+  string description = 6;
+  string file_name = 7;
+  int64 file_size = 8;
+  string mime_type = 9;
+  string checksum = 10;
+  DocumentStatus status = 11;
+  DocumentSource source = 12;
+  map<string, string> tags = 13;
+  ProcessingStatus processing_status = 14;
+  string created_by = 15;
+  int64 created_at = 16;  // unix seconds
+  int64 updated_at = 17;  // unix seconds
+}
+
+// Category is a folder in the tenant's tree.
+message Category {
+  string id = 1;
+  string parent_id = 2;
+  string name = 3;
+  string path = 4;
+  string description = 5;
+  int64 depth = 6;
+  int64 sort_order = 7;
+  int64 document_count = 8;
+  int64 subcategory_count = 9;
+}
+
+// CategoryTreeNode is a category plus its ordered children.
+message CategoryTreeNode {
+  Category category = 1;
+  repeated CategoryTreeNode children = 2;
+}
+
+// PermissionTuple is a grant as returned to callers.
+message PermissionTuple {
+  string id = 1;
+  ResourceType resource_type = 2;
+  string resource_id = 3;
+  SubjectType subject_type = 4;
+  string subject_id = 5;
+  Relation relation = 6;
+  string granted_by = 7;
+  int64 expires_at = 8;  // unix seconds, 0 when never
+}
+
+// PermissionSet is the set of actions a caller effectively holds.
+message PermissionSet {
+  bool read = 1;
+  bool write = 2;
+  bool delete = 3;
+  bool share = 4;
+  bool download = 5;
+}
+
+// ---- PaperlessDocumentService
+
+// PaperlessDocumentService manages documents for other platform services.
+service PaperlessDocumentService {
+  rpc Create(CreateDocumentRequest) returns (Document);
+  rpc Get(GetDocumentRequest) returns (Document);
+  rpc List(ListDocumentsRequest) returns (ListDocumentsResponse);
+  rpc Update(UpdateDocumentRequest) returns (Document);
+  rpc Delete(DeleteDocumentRequest) returns (DeleteDocumentResponse);
+  rpc Move(MoveDocumentRequest) returns (Document);
+  rpc Download(DownloadDocumentRequest) returns (DownloadDocumentResponse);
+  rpc GetDownloadUrl(GetDownloadUrlRequest) returns (GetDownloadUrlResponse);
+  rpc Search(SearchDocumentsRequest) returns (SearchDocumentsResponse);
+  rpc BatchDelete(BatchDeleteRequest) returns (BatchDeleteResponse);
+}
+
+message CreateDocumentRequest {
+  string tenant_id = 1;
+  string name = 2;
+  string description = 3;
+  string category_id = 4;
+  map<string, string> tags = 5;
+  string file_name = 6;
+  string mime_type = 7;
+  bytes content = 8;  // the document bytes (no multipart over gRPC)
+  int64 size = 9;
+  DocumentSource source = 10;
+}
+
+message GetDocumentRequest {
+  string tenant_id = 1;
+  string id = 2;
+}
+
+message ListDocumentsRequest {
+  string tenant_id = 1;
+  string category_id = 2;
+  DocumentStatus status = 3;
+  string mime_type = 4;
+  DocumentSource source = 5;
+  ProcessingStatus processing_status = 6;
+  string tag = 7;  // key=value or key
+  string created_by = 8;
+  int64 limit = 9;
+  string cursor_id = 10;
+}
+
+message ListDocumentsResponse {
+  repeated Document documents = 1;
+}
+
+message UpdateDocumentRequest {
+  string tenant_id = 1;
+  string id = 2;
+  string name = 3;
+  string description = 4;
+  string category_id = 5;
+  map<string, string> tags = 6;
+}
+
+message DeleteDocumentRequest {
+  string tenant_id = 1;
+  string id = 2;
+  bool hard = 3;
+}
+
+message DeleteDocumentResponse {}
+
+message MoveDocumentRequest {
+  string tenant_id = 1;
+  string id = 2;
+  string category_id = 3;  // empty un-files the document
+}
+
+message DownloadDocumentRequest {
+  string tenant_id = 1;
+  string id = 2;
+}
+
+message DownloadDocumentResponse {
+  bytes content = 1;
+  string mime_type = 2;
+  string file_name = 3;
+}
+
+message GetDownloadUrlRequest {
+  string tenant_id = 1;
+  string id = 2;
+}
+
+message GetDownloadUrlResponse {
+  string url = 1;
+}
+
+message SearchDocumentsRequest {
+  string tenant_id = 1;
+  string query = 2;
+  int64 limit = 3;
+}
+
+message SearchHit {
+  string id = 1;
+  string name = 2;
+  string category_id = 3;
+  string category_path = 4;
+  string mime_type = 5;
+  DocumentStatus status = 6;
+  double rank = 7;
+  string snippet = 8;
+}
+
+message SearchDocumentsResponse {
+  repeated SearchHit hits = 1;
+}
+
+message BatchDeleteRequest {
+  string tenant_id = 1;
+  repeated string ids = 2;
+  bool hard = 3;
+}
+
+message BatchResult {
+  string id = 1;
+  bool ok = 2;
+  string error = 3;
+}
+
+message BatchDeleteResponse {
+  repeated BatchResult results = 1;
+}
+
+// ---- PaperlessCategoryService
+
+// PaperlessCategoryService manages the tenant's category tree.
+service PaperlessCategoryService {
+  rpc Create(CreateCategoryRequest) returns (Category);
+  rpc Get(GetCategoryRequest) returns (Category);
+  rpc List(ListCategoriesRequest) returns (ListCategoriesResponse);
+  rpc Update(UpdateCategoryRequest) returns (Category);
+  rpc Delete(DeleteCategoryRequest) returns (DeleteCategoryResponse);
+  rpc Move(MoveCategoryRequest) returns (Category);
+  rpc GetTree(GetTreeRequest) returns (GetTreeResponse);
+}
+
+message CreateCategoryRequest {
+  string tenant_id = 1;
+  string parent_id = 2;
+  string name = 3;
+  string description = 4;
+  int64 sort_order = 5;
+}
+
+message GetCategoryRequest {
+  string tenant_id = 1;
+  string id = 2;
+}
+
+message ListCategoriesRequest {
+  string tenant_id = 1;
+}
+
+message ListCategoriesResponse {
+  repeated Category categories = 1;
+}
+
+message UpdateCategoryRequest {
+  string tenant_id = 1;
+  string id = 2;
+  string name = 3;
+  string description = 4;
+  int64 sort_order = 5;
+}
+
+message DeleteCategoryRequest {
+  string tenant_id = 1;
+  string id = 2;
+  bool cascade = 3;
+}
+
+message DeleteCategoryResponse {}
+
+message MoveCategoryRequest {
+  string tenant_id = 1;
+  string id = 2;
+  string new_parent_id = 3;  // empty moves to a root
+}
+
+message GetTreeRequest {
+  string tenant_id = 1;
+}
+
+message GetTreeResponse {
+  repeated CategoryTreeNode nodes = 1;
+}
+
+// ---- PaperlessPermissionService
+
+// PaperlessPermissionService grants, revokes, and answers access questions.
+service PaperlessPermissionService {
+  rpc GrantAccess(GrantAccessRequest) returns (PermissionTuple);
+  rpc RevokeAccess(RevokeAccessRequest) returns (RevokeAccessResponse);
+  rpc ListPermissions(ListPermissionsRequest) returns (ListPermissionsResponse);
+  rpc CheckAccess(CheckAccessRequest) returns (CheckAccessResponse);
+  rpc ListAccessibleResources(ListAccessibleResourcesRequest) returns (ListAccessibleResourcesResponse);
+  rpc GetEffectivePermissions(GetEffectivePermissionsRequest) returns (GetEffectivePermissionsResponse);
+}
+
+message GrantAccessRequest {
+  string tenant_id = 1;
+  ResourceType resource_type = 2;
+  string resource_id = 3;
+  SubjectType subject_type = 4;
+  string subject_id = 5;
+  Relation relation = 6;
+  int64 expires_at = 7;  // unix seconds, 0 for never
+}
+
+message RevokeAccessRequest {
+  string tenant_id = 1;
+  ResourceType resource_type = 2;
+  string resource_id = 3;
+  string id = 4;
+}
+
+message RevokeAccessResponse {}
+
+message ListPermissionsRequest {
+  string tenant_id = 1;
+  ResourceType resource_type = 2;
+  string resource_id = 3;
+}
+
+message ListPermissionsResponse {
+  repeated PermissionTuple permissions = 1;
+}
+
+message CheckAccessRequest {
+  string tenant_id = 1;
+  ResourceType resource_type = 2;
+  string resource_id = 3;
+  Permission permission = 4;
+}
+
+message CheckAccessResponse {
+  bool allowed = 1;
+}
+
+message ListAccessibleResourcesRequest {
+  string tenant_id = 1;
+  ResourceType resource_type = 2;
+}
+
+message ListAccessibleResourcesResponse {
+  repeated string resource_ids = 1;
+  bool all = 2;  // true when the caller may read every resource (admin/tenant-wide)
+}
+
+message GetEffectivePermissionsRequest {
+  string tenant_id = 1;
+  ResourceType resource_type = 2;
+  string resource_id = 3;
+}
+
+message GetEffectivePermissionsResponse {
+  PermissionSet permissions = 1;
+  repeated PermissionTuple grants = 2;
+}
+
+// ---- PaperlessStatisticsService
+
+// PaperlessStatisticsService reports tenant statistics.
+service PaperlessStatisticsService {
+  rpc GetStatistics(GetStatisticsRequest) returns (Statistics);
+}
+
+message GetStatisticsRequest {
+  string tenant_id = 1;
+}
+
+message Statistics {
+  map<string, int64> documents_by_status = 1;
+  map<string, int64> documents_by_source = 2;
+  map<string, int64> documents_by_mime = 3;
+  int64 storage_bytes = 4;
+  map<string, int64> storage_by_category = 5;
+  int64 categories_total = 6;
+  int64 documents_total = 7;
+  map<string, int64> backlog = 8;
+}
