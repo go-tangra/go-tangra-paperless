@@ -2,58 +2,75 @@ package app
 
 import (
 	"context"
+	"log/slog"
 	"time"
 
-	authv1 "github.com/go-tangra/go-tangra-auth/sdk/v4/api/proto/auth/v1"
+	"google.golang.org/grpc"
+
 	"github.com/go-tangra/go-tangra-paperless/v4/pkg/paperlessmanifest"
 )
 
-// SeedPermissions registers the module's permissions with the auth service for
-// every tenant it serves and grants them to the built-in roles (idempotent).
-// The gateway registers the permissions from the manifest for routing; only the
-// module knows the role grants, so it pushes them to auth here.
-func (a *App) SeedPermissions(ctx context.Context) error {
-	conn, err := a.Freya.Client(ctx, "auth")
-	if err != nil {
-		return err
+// Registration cadence: retry until auth accepts, then refresh so tenants
+// created later receive the permissions, roles and grants.
+const (
+	registerRetry   = 5 * time.Second
+	registerPeriod  = 5 * time.Minute
+	registerTimeout = 15 * time.Second
+)
+
+// seedLoop registers the module's permissions, module roles and built-in
+// role grants with auth (feature 019). The gateway registers the
+// permissions from the manifest for routing; only the module knows its roles
+// and grants, so it pushes them to auth here.
+func (a *App) seedLoop(ctx context.Context) {
+	dial := func(ctx context.Context) (grpc.ClientConnInterface, error) {
+		conn, err := a.Freya.Client(ctx, "auth")
+		if err != nil {
+			return nil, err
+		}
+		return conn, nil
 	}
-	req := &authv1.RegisterPermissionsRequest{}
-	for _, p := range paperlessmanifest.Permissions {
-		req.Permissions = append(req.Permissions, &authv1.PermissionDef{Resource: p.Resource, Action: p.Action, Description: p.Description})
-	}
-	for _, slug := range []string{"owner", "admin", "member", "auditor", "operator"} {
-		req.BuiltinGrants = append(req.BuiltinGrants, &authv1.BuiltinGrant{Role: slug, Permissions: paperlessmanifest.Grants[slug]})
-	}
-	ctx, cancel := context.WithTimeout(ctx, 15*time.Second)
-	defer cancel()
-	_, err = authv1.NewAuthorizationClient(conn).RegisterPermissions(ctx, req)
-	return err
+	registerLoop(ctx, a.Log, dial, registerRetry, registerPeriod)
 }
 
-// seedLoop seeds at start (retrying until it succeeds) and then every five
-// minutes so tenants created later receive the grants.
-func (a *App) seedLoop(ctx context.Context) {
-	for ctx.Err() == nil {
-		if err := a.SeedPermissions(ctx); err == nil {
-			break
-		} else {
-			a.Log.Warn("permission seeding failed; retrying", "err", err)
+// registerLoop registers at start (retrying every retry until it succeeds)
+// and then every period until ctx ends.
+func registerLoop(ctx context.Context, log *slog.Logger, dial func(context.Context) (grpc.ClientConnInterface, error), retry, period time.Duration) {
+	if log == nil {
+		log = slog.New(slog.DiscardHandler)
+	}
+	reg := paperlessmanifest.Registration()
+	register := func() error {
+		conn, err := dial(ctx)
+		if err != nil {
+			return err
 		}
+		cctx, cancel := context.WithTimeout(ctx, registerTimeout)
+		defer cancel()
+		_, err = reg.Register(cctx, conn, log)
+		return err
+	}
+	for ctx.Err() == nil {
+		err := register()
+		if err == nil {
+			break
+		}
+		log.Warn("auth registration failed; retrying", "err", err)
 		select {
 		case <-ctx.Done():
 			return
-		case <-time.After(5 * time.Second):
+		case <-time.After(retry):
 		}
 	}
-	t := time.NewTicker(5 * time.Minute)
+	t := time.NewTicker(period)
 	defer t.Stop()
 	for {
 		select {
 		case <-ctx.Done():
 			return
 		case <-t.C:
-			if err := a.SeedPermissions(ctx); err != nil {
-				a.Log.Warn("permission seeding", "err", err)
+			if err := register(); err != nil {
+				log.Warn("auth registration", "err", err)
 			}
 		}
 	}
