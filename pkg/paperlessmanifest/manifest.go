@@ -1,4 +1,4 @@
-// Package deployermanifest declares what the paperless module registers with the
+// Package paperlessmanifest declares what the paperless module registers with the
 // application gateway: routes derived from the embedded OpenAPI document, the
 // API permissions, the CASL abilities and the navigation entries. The
 // paperless gRPC surface is service-to-service and not proxied.
@@ -12,6 +12,7 @@ import (
 
 	"github.com/getkin/kin-openapi/openapi3"
 
+	"github.com/go-tangra/go-tangra-auth/sdk/v4/pkg/authclient"
 	"github.com/go-tangra/go-tangra-paperless/v4/api/openapi"
 	"github.com/go-tangra/go-tangra-portal/sdk/v4/pkg/gatewayclient"
 )
@@ -52,6 +53,24 @@ var Grants = map[string][]string{
 	"member":   {"documents:read", "documents:write", "categories:read", "search:read", "stats:read"},
 	"auditor":  {"documents:read", "categories:read", "search:read", "stats:read"},
 	"operator": {"documents:read", "documents:write", "documents:delete", "categories:read", "categories:manage", "permissions:manage", "search:read", "stats:read"},
+}
+
+// Roles are the module roles provided in every tenant (feature 019); auth
+// keeps them locked, administrators assign or clone them.
+var Roles = []authclient.ModuleRole{
+	{Slug: "administrator", DisplayName: DisplayName + " administrator", Description: "Full access to documents, categories, sharing, statistics and backup", Permissions: PermissionRefs()},
+	{Slug: "editor", DisplayName: DisplayName + " editor", Description: "Read, upload and change documents; browse categories; search", Permissions: []string{"documents:read", "documents:write", "categories:read", "search:read"}},
+	{Slug: "viewer", DisplayName: DisplayName + " viewer", Description: "Read documents, browse categories and search", Permissions: []string{"documents:read", "categories:read", "search:read"}},
+}
+
+// Registration is what the module registers with auth: its permissions, its
+// complete role set and the built-in role grants.
+func Registration() authclient.Registration {
+	r := authclient.Registration{Module: Module, DisplayName: DisplayName, Roles: Roles, BuiltinGrants: Grants}
+	for _, p := range Permissions {
+		r.Permissions = append(r.Permissions, authclient.Permission{Resource: p.Resource, Action: p.Action, Description: p.Description})
+	}
+	return r
 }
 
 // Methods proxied by the gateway: none (paperless gRPC is service to service).

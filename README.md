@@ -58,7 +58,7 @@ Other services call it through `pkg/paperlessclient` and the `paperless.v1` prot
 | `internal/backup`, `internal/stats`, `internal/audit` | backup export/import, statistics, audit |
 | `internal/httpapi`, `internal/grpcapi` | browser and service APIs |
 | `internal/app`, `cmd/paperlesssvc` | wiring and the service binary (serve, `bootstrap`, `version`) |
-| `pkg/paperlessmanifest` | gateway manifest and built-in role grants |
+| `pkg/paperlessmanifest` | gateway manifest, module roles and built-in role grants |
 | `pkg/paperlessclient` | Go client other services use |
 | `deploy` | service policy and operations notes |
 | `ui/` | Vue 3 + FlyonUI federated remote on `@go-tangra/ui` |
@@ -123,8 +123,22 @@ bucket is created on start when missing.
 `documents:read/write/delete`, `categories:read/manage`, `search:read`,
 `permissions:manage`, `backup:manage`, `stats:read`. The gateway enforces the
 per-route permission from the manifest; the module then enforces the Zanzibar
-grant on the document or category. Built-in role grants are seeded by the module
-(`pkg/paperlessmanifest.Grants`).
+grant on the document or category.
+
+The module registers its permissions, its module roles and the built-in role
+grants (`pkg/paperlessmanifest.Grants`, scoped to paperless by auth) with auth
+at start and every five minutes (`pkg/paperlessmanifest.Registration`). Module
+roles are provided in every tenant; administrators assign them or clone them
+into custom roles:
+
+| Role | Display name | Permissions |
+|---|---|---|
+| `administrator` | Paperless administrator | all paperless permissions |
+| `editor` | Paperless editor | `documents:read`, `documents:write`, `categories:read`, `search:read` |
+| `viewer` | Paperless viewer | `documents:read`, `categories:read`, `search:read` |
+
+A module role grants the API permission only; access to an individual
+document or category still needs its Zanzibar grant.
 
 ## Versioning
 
