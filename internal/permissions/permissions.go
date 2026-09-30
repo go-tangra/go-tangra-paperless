@@ -63,6 +63,9 @@ func (s *Service) Grant(ctx context.Context, subj authz.Subjects, in GrantInput)
 	if err := s.az.Check(ctx, subj, in.ResourceType, in.ResourceID, authz.Share); err != nil {
 		return Tuple{}, err
 	}
+	if err := s.canHandle(ctx, subj, in.ResourceType, in.ResourceID, in.Relation); err != nil {
+		return Tuple{}, err
+	}
 	t := store.PermissionTuple{
 		ID: store.NewID(), TenantID: subj.TenantID, ResourceType: in.ResourceType, ResourceID: in.ResourceID,
 		SubjectType: in.SubjectType, SubjectID: in.SubjectID, Relation: in.Relation, GrantedBy: subj.ActorID(),
@@ -74,9 +77,28 @@ func (s *Service) Grant(ctx context.Context, subj authz.Subjects, in GrantInput)
 	return view(t), nil
 }
 
-// Revoke removes a grant. The caller must be able to share the resource.
+// Revoke removes a grant on the named resource. The caller must be able to
+// share that resource, and the grant must belong to it: an id from another
+// resource is not found, so sharing one document never reaches grants elsewhere.
 func (s *Service) Revoke(ctx context.Context, subj authz.Subjects, resourceType, resourceID, id string) error {
 	if err := s.az.Check(ctx, subj, resourceType, resourceID, authz.Share); err != nil {
+		return err
+	}
+	rows, err := s.st.ListPermissionsByResource(ctx, subj.TenantID, resourceType, resourceID)
+	if err != nil {
+		return err
+	}
+	var target *store.PermissionTuple
+	for i := range rows {
+		if rows[i].ID == id {
+			target = &rows[i]
+			break
+		}
+	}
+	if target == nil {
+		return ErrNotFound
+	}
+	if err := s.canHandle(ctx, subj, resourceType, resourceID, target.Relation); err != nil {
 		return err
 	}
 	if err := s.st.DeletePermission(ctx, subj.TenantID, id); err != nil {
@@ -84,6 +106,25 @@ func (s *Service) Revoke(ctx context.Context, subj authz.Subjects, resourceType,
 			return ErrNotFound
 		}
 		return err
+	}
+	return nil
+}
+
+// canHandle caps grant management at the caller's own level: viewer and sharer
+// grants need only share access (a sharer passes on read access), but editor
+// and owner grants — granting or revoking them — need full control of the
+// resource, so a sharer can never promote anyone, itself included, or remove
+// an owner.
+func (s *Service) canHandle(ctx context.Context, subj authz.Subjects, resourceType, resourceID, relation string) error {
+	if relation != store.RelationEditor && relation != store.RelationOwner {
+		return nil
+	}
+	held, err := s.az.Effective(ctx, subj, resourceType, resourceID)
+	if err != nil {
+		return err
+	}
+	if held != authz.Of(store.RelationOwner) {
+		return authz.ErrForbidden
 	}
 	return nil
 }

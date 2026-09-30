@@ -1,10 +1,13 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref } from 'vue'
+import { ABILITY_TOKEN } from '@casl/vue'
+import type { AnyAbility } from '@casl/ability'
+import { computed, inject, onMounted, onUnmounted, ref } from 'vue'
 import { UiPage, UiAlert, UiCard, UiForm, UiSelect, UiButton, UiDataTable, UiStatusChip, UiLiveIndicator, UiFilePicker, UiInput, UiTextarea, UiTagEditor, UiRecordDrawer, UiKeyValueTable, UiBadge, useConfirm, UiDrawer, useToast, type Column, type SelectOption } from '@go-tangra/ui'
 import { useZodForm, zodToFields } from '@go-tangra/ui/forms'
 import { useDocuments } from '@/stores/documents'
 import { useCategories } from '@/stores/categories'
 import { useLive } from '@/stores/live'
+import SharingDrawer from '@/components/SharingDrawer.vue'
 import { describe } from '@/api/client'
 import { documentFilterSchema, documentSchema, uploadSchema, DOCUMENT_STATUSES, PROCESSING_STATUSES, MAX_UPLOAD_BYTES } from '@/schemas'
 import type { Document } from '@/api/types'
@@ -17,6 +20,10 @@ const toast = useToast()
 const selected = ref<Document | null>(null)
 const drawer = ref(false)
 const uploadOpen = ref(false)
+const shareOpen = ref(false)
+// Listing and changing grants needs permissions:manage (ability manage PaperlessPermission).
+const ability = inject<AnyAbility | null>(ABILITY_TOKEN, null)
+const canShare = computed(() => (ability ? ability.can('manage', 'PaperlessPermission') : true))
 const downloadUrl = ref('')
 const error = ref('')
 
@@ -99,6 +106,11 @@ const meta = computed(() => {
   if (!d) return []
   return [{ label: 'File', value: d.file_name }, { label: 'Size', value: humanSize(d.file_size) }, { label: 'Type', value: d.mime_type }, { label: 'Checksum', value: d.checksum, copyable: true }, { label: 'Path', value: d.category_path }, { label: 'Created by', value: d.created_by }, { label: 'Created', value: new Date(d.created_at).toLocaleString() }]
 })
+// One drawer at a time: the record drawer closes while access is managed.
+function openShare(): void {
+  drawer.value = false
+  shareOpen.value = true
+}
 </script>
 
 <template>
@@ -154,11 +166,13 @@ const meta = computed(() => {
         <div class="mt-3 flex flex-wrap gap-2">
           <a v-if="selected" :href="store.directDownload(selected.id)" target="_blank" rel="noopener" class="btn btn-soft btn-sm"><span class="icon-[mdi--download] size-4" aria-hidden="true" />Download</a>
           <UiButton size="sm" variant="text" icon="mdi-link-variant" @click="fetchLink">Get link</UiButton>
+          <UiButton v-if="canShare" size="sm" variant="soft" icon="mdi-shield-account-outline" data-test="doc-share" @click="openShare">Share access</UiButton>
           <span class="grow" />
           <UiButton size="sm" variant="soft" color="error" icon="mdi-delete-outline" @click="remove">Delete</UiButton>
         </div>
         <UiAlert v-if="downloadUrl" kind="info" class="mt-3"><a :href="downloadUrl" target="_blank" rel="noopener" class="link break-all">{{ downloadUrl }}</a></UiAlert>
       </template>
     </UiRecordDrawer>
+    <SharingDrawer v-if="selected" v-model="shareOpen" resource-type="document" :resource-id="selected.id" :name="selected.name" />
   </UiPage>
 </template>

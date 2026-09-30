@@ -174,3 +174,63 @@ func TestListAccessible(t *testing.T) {
 		t.Fatalf("admin ListAccessible all = %v err=%v, want true", allAdmin, err)
 	}
 }
+
+func TestGrant_SharerCannotPromote(t *testing.T) {
+	svc, _, docID, owner := setup(t)
+	ctx := context.Background()
+	if _, err := svc.Grant(ctx, owner, permissions.GrantInput{ResourceType: authz.Document, ResourceID: docID, SubjectType: store.SubjectUser, SubjectID: "sam", Relation: store.RelationSharer}); err != nil {
+		t.Fatalf("owner grants sharer: %v", err)
+	}
+	sam := authz.Subjects{TenantID: tenant, UserID: "sam", ActorKind: "user"}
+	for _, rel := range []string{store.RelationEditor, store.RelationOwner} {
+		_, err := svc.Grant(ctx, sam, permissions.GrantInput{ResourceType: authz.Document, ResourceID: docID, SubjectType: store.SubjectUser, SubjectID: "sam", Relation: rel})
+		if !errors.Is(err, authz.ErrForbidden) {
+			t.Fatalf("sharer grants %s: err = %v, want ErrForbidden", rel, err)
+		}
+	}
+	for _, rel := range []string{store.RelationViewer, store.RelationSharer} {
+		if _, err := svc.Grant(ctx, sam, permissions.GrantInput{ResourceType: authz.Document, ResourceID: docID, SubjectType: store.SubjectUser, SubjectID: "vic", Relation: rel}); err != nil {
+			t.Fatalf("sharer grants %s: %v", rel, err)
+		}
+	}
+}
+
+func TestRevoke_SharerCannotRemoveOwnerOrForeignGrant(t *testing.T) {
+	svc, m, docID, owner := setup(t)
+	ctx := context.Background()
+	if _, err := svc.Grant(ctx, owner, permissions.GrantInput{ResourceType: authz.Document, ResourceID: docID, SubjectType: store.SubjectUser, SubjectID: "sam", Relation: store.RelationSharer}); err != nil {
+		t.Fatalf("grant sharer: %v", err)
+	}
+	sam := authz.Subjects{TenantID: tenant, UserID: "sam", ActorKind: "user"}
+	rows, err := m.ListPermissionsByResource(ctx, tenant, authz.Document, docID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var ownerGrant string
+	for _, r := range rows {
+		if r.Relation == store.RelationOwner {
+			ownerGrant = r.ID
+		}
+	}
+	if err := svc.Revoke(ctx, sam, authz.Document, docID, ownerGrant); !errors.Is(err, authz.ErrForbidden) {
+		t.Fatalf("sharer revokes owner: err = %v, want ErrForbidden", err)
+	}
+
+	// A grant on another document the sharer cannot reach: naming the shared
+	// document with that grant's id finds nothing.
+	other := store.NewID()
+	if err := m.InsertDocument(ctx, store.Document{ID: other, TenantID: tenant, Name: "o", Status: store.DocActive}); err != nil {
+		t.Fatal(err)
+	}
+	admin := authz.Subjects{TenantID: tenant, UserID: "root", Roles: []string{"admin"}, ActorKind: "user"}
+	g, err := svc.Grant(ctx, admin, permissions.GrantInput{ResourceType: authz.Document, ResourceID: other, SubjectType: store.SubjectUser, SubjectID: "vic", Relation: store.RelationViewer})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := svc.Revoke(ctx, sam, authz.Document, docID, g.ID); !errors.Is(err, permissions.ErrNotFound) {
+		t.Fatalf("revoke foreign grant: err = %v, want ErrNotFound", err)
+	}
+	if left, _ := m.ListPermissionsByResource(ctx, tenant, authz.Document, other); len(left) != 1 {
+		t.Fatalf("foreign grant removed: %d left", len(left))
+	}
+}
