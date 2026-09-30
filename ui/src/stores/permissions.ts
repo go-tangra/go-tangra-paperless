@@ -49,5 +49,19 @@ export const usePermissions = defineStore('paperless-permissions', () => {
     })
   }
 
-  return { items, loading, error, grant, revoke, list, check, effective }
+  // The caller's own effective permissions on the resource last loaded.
+  const mine = ref<EffectivePermissions | null>(null)
+
+  /** Grants on a resource plus the caller's effective permissions on it. */
+  async function load(resourceType: string, resourceId: string): Promise<void> {
+    mine.value = null
+    await list(resourceType, resourceId)
+    try {
+      mine.value = (await effective(resourceType, resourceId)).permissions
+    } catch (e) {
+      error.value = (e as Error).message
+    }
+  }
+
+  return { items, loading, error, mine, grant, revoke, list, load, check, effective }
 })

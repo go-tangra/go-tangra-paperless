@@ -1,8 +1,11 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { ABILITY_TOKEN } from '@casl/vue'
+import type { AnyAbility } from '@casl/ability'
+import { computed, inject, onMounted, ref } from 'vue'
 import { UiPage, UiAlert, UiCard, UiButton, UiTree, UiForm, UiInput, UiSelect, UiKeyValueTable, UiToolbar, useConfirm, type SelectOption, type TreeNode } from '@go-tangra/ui'
 import { useZodForm } from '@go-tangra/ui/forms'
 import { useCategories } from '@/stores/categories'
+import SharingDrawer from '@/components/SharingDrawer.vue'
 import { describe } from '@/api/client'
 import { categorySchema, moveCategorySchema } from '@/schemas'
 import type { CategoryTreeNode } from '@/api/types'
@@ -11,6 +14,10 @@ const store = useCategories()
 const confirm = useConfirm()
 const selectedId = ref('')
 const error = ref('')
+const shareOpen = ref(false)
+// Listing and changing grants needs permissions:manage (ability manage PaperlessPermission).
+const ability = inject<AnyAbility | null>(ABILITY_TOKEN, null)
+const canShare = computed(() => (ability ? ability.can('manage', 'PaperlessPermission') : true))
 
 const parentOptions = computed<SelectOption[]>(() => store.items.map((c) => ({ title: c.path || c.name, value: c.id })))
 const toNode = (n: CategoryTreeNode): TreeNode => ({ id: n.category.id, label: n.category.name, icon: 'mdi-folder-outline', badge: String(n.category.document_count), children: n.children.map(toNode) })
@@ -80,6 +87,7 @@ async function remove(): Promise<void> {
             <UiToolbar class="mt-3">
               <UiButton type="submit" variant="soft" :loading="moveForm.submitting.value" data-test="cat-move">Move</UiButton>
               <UiButton variant="soft" icon="mdi-plus" @click="addChild">Add subcategory</UiButton>
+              <UiButton v-if="canShare" variant="soft" icon="mdi-shield-account-outline" data-test="cat-share" @click="shareOpen = true">Share access</UiButton>
               <span class="grow" />
               <UiButton variant="soft" color="error" @click="remove">Delete</UiButton>
             </UiToolbar>
@@ -87,5 +95,6 @@ async function remove(): Promise<void> {
         </UiCard>
       </div>
     </div>
+    <SharingDrawer v-if="selected" v-model="shareOpen" resource-type="category" :resource-id="selected.id" :name="selected.name" />
   </UiPage>
 </template>

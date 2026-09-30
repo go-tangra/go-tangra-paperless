@@ -120,3 +120,39 @@ export interface Stats {
   documents_total: number
   backlog: Record<string, number>
 }
+
+// Auth directory hits (public profiles of the caller's tenant; role list).
+export interface UserHit {
+  id: string
+  display_name: string
+  avatar_url?: string
+  email?: string
+}
+
+export interface RoleHit {
+  slug: string
+  display_name: string
+}
+
+const RELATION_ORDER: Relation[] = ['viewer', 'sharer', 'editor', 'owner']
+
+/** Relations the holder of `held` may grant, lowest first (never above its own). */
+export function grantable(held: string): Relation[] {
+  const rank = RELATION_ORDER.indexOf(held as Relation)
+  return rank < 0 ? [] : RELATION_ORDER.slice(0, rank + 1)
+}
+
+/**
+ * The caller's relation reconstructed from the effective permission flags
+ * (the union of every grant that applies; tenant admins get owner). Full
+ * control is owner; sharing without editing is sharer; editing without sharing
+ * is editor; read-only is viewer.
+ */
+export function heldRelation(p: EffectivePermissions | null | undefined): Relation | '' {
+  if (!p) return ''
+  if (p.read && p.write && p.delete && p.share && p.download) return 'owner'
+  if (p.share) return 'sharer'
+  if (p.write || p.delete) return 'editor'
+  if (p.read) return 'viewer'
+  return ''
+}

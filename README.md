@@ -153,6 +153,14 @@ bucket is created on start when missing.
 per-route permission from the manifest; the module then enforces the Zanzibar
 grant on the document or category.
 
+Sharing: holders of `permissions:manage` get a **Share access** button on a
+document (document drawer) and on a category (selected-category card), which
+opens the kit permission drawer (users, roles or everyone in the tenant, with
+optional expiry). Grants on a category apply to everything inside it. Viewer and
+sharer grants need share access to the resource; granting or revoking editor or
+owner needs full (owner) control, so a sharer cannot promote anyone or remove an
+owner. A revoke only reaches grants on the resource it names.
+
 The module registers its permissions, its module roles and the built-in role
 grants (`pkg/paperlessmanifest.Grants`, scoped to paperless by auth) with auth
 at start and every five minutes (`pkg/paperlessmanifest.Registration`). Module
