@@ -9,7 +9,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
-	paperlessv1 "github.com/go-tangra/go-tangra-paperless/v4/api/proto/paperless/v1"
+	paperlessv1 "github.com/go-tangra/go-tangra-paperless/sdk/v4/api/proto/paperless/v1"
 	"github.com/go-tangra/go-tangra-paperless/v4/internal/authz"
 	"github.com/go-tangra/go-tangra-paperless/v4/internal/categories"
 	"github.com/go-tangra/go-tangra-paperless/v4/internal/documents"

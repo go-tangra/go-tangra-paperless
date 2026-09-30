@@ -35,6 +35,15 @@ MIME allow-list), `jobs` (worker pool: workers, interval, lease, job timeout,
 retry policy, backoff, cleanup), `events`, `gateway`, and `enroll` (SVID
 enrollment). `limits_paperless` bounds backup and search-query size.
 
+The Freya `limits.max_request_bytes` bounds every inbound HTTP body **and**
+every inbound `paperless.v1` gRPC message. Documents cross the gRPC surface
+whole (`CreateDocumentRequest.content`), so paperless defaults it to 33 MiB
+(32 MiB of content + 1 MiB envelope; the asset module uploads up to 20 MiB)
+instead of the framework's 1 MiB, and refuses values above 1 GiB. Raise it
+together with `uploads.max_size_bytes` for larger browser uploads. gRPC
+responses (Download) are bounded by the caller: `sdk/pkg/paperlessclient` sets
+33 MiB `MaxCallRecvMsgSize`/`MaxCallSendMsgSize` per call.
+
 ## Documents
 
 A document is metadata + a blob. On **Create**, the bytes are streamed to object
@@ -65,6 +74,22 @@ that access to descendant categories and documents; a tenant-wide grant applies
 to every resource in the tenant. `CheckAccess`, `ListAccessibleResources`, and
 `GetEffectivePermissions` answer authorization queries. Granting requires the
 `share` permission on the resource.
+
+### Service callers
+
+`paperless.v1` callers are platform services acting for the tenant named in
+each request; the actor is the verified SPIFFE id (no roles). A service becomes
+owner of the categories and documents it creates, so it can read, download,
+delete and `Search` them; it may create root categories and list the category
+tree (names/paths only), but holds no collection-wide document access
+(`List` documents is refused) and nothing on resources it neither created nor
+was granted. Tenant admins (`admin`/`owner` roles) see every document. Which
+methods a service may call at all is decided by `deploy/policy.yaml`: the
+`asset-documents` rule lets `svc/asset` call document Create/Get/Download/
+Delete/Search/List and category Create/Get/List/GetTree. A duplicate category
+name under the same parent is reported as gRPC `AlreadyExists`; root category
+names are unique per tenant (migration 0004, skipped with a NOTICE if a tenant
+already has duplicate roots).
 
 ## Extraction pipeline
 

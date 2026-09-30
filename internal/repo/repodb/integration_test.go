@@ -91,12 +91,23 @@ func TestPaperlessRepo(t *testing.T) {
 	}); err != nil {
 		t.Fatalf("insert child category: %v", err)
 	}
-	// Unique (tenant, parent, name) conflict. NULL parent_id rows are distinct in
-	// Postgres, so a duplicate must share the same non-null parent to collide.
+	// Unique (tenant, parent, name) conflict under a non-null parent.
 	if err := db.InsertCategory(ctx, store.Category{
 		ID: store.NewID(), TenantID: tenantA, ParentID: &rootID, Name: "invoices", Path: "finance/invoices",
 	}); err != store.ErrConflict {
 		t.Fatalf("expected conflict on duplicate category, got %v", err)
+	}
+	// NULL parent_ids are distinct under that constraint; migration 0004's
+	// partial index makes root names unique per tenant too.
+	if err := db.InsertCategory(ctx, store.Category{
+		ID: store.NewID(), TenantID: tenantA, Name: "finance", Path: "finance",
+	}); err != store.ErrConflict {
+		t.Fatalf("expected conflict on duplicate root category, got %v", err)
+	}
+	if err := db.InsertCategory(ctx, store.Category{
+		ID: store.NewID(), TenantID: tenantB, Name: "finance", Path: "finance",
+	}); err != nil {
+		t.Fatalf("same root name in another tenant: %v", err)
 	}
 	if got, err := db.GetCategory(ctx, tenantA, childID); err != nil || got.Name != "invoices" || got.ParentID == nil || *got.ParentID != rootID {
 		t.Fatalf("get category: %+v %v", got, err)

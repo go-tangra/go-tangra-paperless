@@ -27,6 +27,8 @@ WORKDIR /src
 # GOWORK=off: service repositories never use a go.work; dependencies come from published tags.
 ENV CGO_ENABLED=0 GOFLAGS=-buildvcs=false GOWORK=off
 COPY go.mod go.sum ./
+# The client SDK (sdk/) is a nested module the service requires via a replace.
+COPY sdk/go.mod sdk/go.sum ./sdk/
 RUN --mount=type=cache,target=/go/pkg/mod go mod download
 COPY . .
 COPY --from=ui /src/ui/dist ./ui/dist

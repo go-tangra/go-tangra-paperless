@@ -29,10 +29,18 @@ var (
 	ErrCycle = errors.New("categories: cannot move under itself or a descendant")
 )
 
-// ValidationError names the offending field.
-type ValidationError struct{ Field, Msg string }
+// ValidationError names the offending field. Err, when set, is the underlying
+// cause (store.ErrConflict for a duplicate sibling name) so transports can tell
+// "already exists" apart from a malformed request.
+type ValidationError struct {
+	Field, Msg string
+	Err        error
+}
 
 func (e *ValidationError) Error() string { return "categories: " + e.Field + ": " + e.Msg }
+
+// Unwrap returns the underlying cause (nil for a plain validation failure).
+func (e *ValidationError) Unwrap() error { return e.Err }
 func invalid(field, msg string) error    { return &ValidationError{Field: field, Msg: msg} }
 
 // Service manages the tenant's category tree.
@@ -119,7 +127,7 @@ func (s *Service) Create(ctx context.Context, subj authz.Subjects, in Input) (Vi
 	}
 	if err := s.st.InsertCategory(ctx, c); err != nil {
 		if errors.Is(err, store.ErrConflict) {
-			return View{}, invalid("name", "a category with this name already exists under the parent")
+			return View{}, &ValidationError{Field: "name", Msg: "a category with this name already exists under the parent", Err: err}
 		}
 		return View{}, err
 	}
