@@ -234,7 +234,7 @@ func (c *client) Convert(ctx context.Context, r io.Reader, contentType string) (
 	}
 	if resp.StatusCode != http.StatusOK {
 		err := statusError("gotenberg", resp.StatusCode, io.LimitReader(resp.Body, c.maxBytes))
-		resp.Body.Close()
+		_ = resp.Body.Close()
 		cancel()
 		return nil, err
 	}

@@ -14,13 +14,14 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
-	paperlessv1 "github.com/go-tangra/go-tangra-paperless/v4/api/proto/paperless/v1"
+	paperlessv1 "github.com/go-tangra/go-tangra-paperless/sdk/v4/api/proto/paperless/v1"
 	"github.com/go-tangra/go-tangra-paperless/v4/internal/authz"
 	"github.com/go-tangra/go-tangra-paperless/v4/internal/categories"
 	"github.com/go-tangra/go-tangra-paperless/v4/internal/documents"
 	"github.com/go-tangra/go-tangra-paperless/v4/internal/permissions"
 	"github.com/go-tangra/go-tangra-paperless/v4/internal/search"
 	"github.com/go-tangra/go-tangra-paperless/v4/internal/stats"
+	"github.com/go-tangra/go-tangra-paperless/v4/internal/store"
 	"github.com/go-tangra/go-tangra/v4/authn"
 )
 
@@ -45,13 +46,17 @@ func caller(ctx context.Context, tenantID string) (authz.Subjects, error) {
 	if !uuidRE.MatchString(tenantID) {
 		return authz.Subjects{}, status.Error(codes.InvalidArgument, "tenant_id must be a uuid")
 	}
-	return authz.Subjects{TenantID: tenantID, UserID: id, ActorKind: "service"}, nil
+	return authz.Subjects{TenantID: tenantID, UserID: id, ActorKind: authz.ActorService}, nil
 }
 
 // grpcError maps a service error to a gRPC status.
 func grpcError(err error) error {
 	var ve *categories.ValidationError
 	switch {
+	case errors.Is(err, store.ErrConflict):
+		// A duplicate (e.g. a sibling category with the same name): callers that
+		// resolve-or-create treat this as "someone else created it" and re-read.
+		return status.Error(codes.AlreadyExists, "already_exists")
 	case errors.As(err, &ve):
 		return status.Error(codes.InvalidArgument, "validation_failed")
 	case errors.Is(err, authz.ErrForbidden):

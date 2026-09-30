@@ -2,18 +2,26 @@ GO        ?= go
 PKGS      := $(shell $(GO) list ./... | grep -v /ui/)
 COVER_OUT := coverage.out
 
-.PHONY: lint vuln test test-integration cover generate ui-build build build-ui image
+.PHONY: lint vuln test test-sdk test-integration cover generate proto-check ui-build build build-ui image
 
 lint:
 	$(GO) vet ./...
 	staticcheck ./...
 	gosec -quiet -exclude-generated -exclude-dir=ui ./...
+	cd sdk && $(GO) vet ./... && staticcheck ./... && gosec -quiet -exclude-generated ./...
 
 vuln:
 	./scripts/vulncheck.sh
+	cd sdk && ../scripts/vulncheck.sh
 
-test:
+test: test-sdk
 	$(GO) test -race -count=1 ./...
+
+# The nested client SDK module (sdk/: paperless.v1 protos + pkg/paperlessclient).
+# The client package is held at 100% statement coverage.
+test-sdk:
+	cd sdk && $(GO) test -race -count=1 -coverprofile=coverage.out ./pkg/... && \
+	  $(GO) tool cover -func=coverage.out | awk '/^total:/ { if ($$3+0 < 100) { print "sdk coverage " $$3 " < 100%"; exit 1 } }'
 
 # Docker-backed suites (testcontainers) carry the integration build tag next to
 # the code they exercise.
@@ -30,7 +38,11 @@ cover:
 	./scripts/coverage-gate.sh $(COVER_OUT)
 
 generate:
-	buf generate
+	cd sdk && buf generate
+
+# Proto contract lint (the paperless.v1 wire API lives in the sdk module).
+proto-check:
+	cd sdk && buf lint
 
 # Build the federated UI remote (produces ui/dist consumed by the -tags ui build).
 ui-build:

@@ -12,8 +12,6 @@ import (
 
 const tenant = "11111111-1111-1111-1111-111111111111"
 
-func sp(s string) *string { return &s }
-
 func TestGrantRevokeCheckEffective(t *testing.T) {
 	ctx := context.Background()
 	m := memstore.New()

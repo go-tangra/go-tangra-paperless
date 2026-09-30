@@ -23,12 +23,14 @@ func (s *Server) Register(d Deps) {
 
 	// ---- Documents
 	s.MustHandle("POST", p+"/documents", func(w http.ResponseWriter, r *http.Request) {
+		// Bound the whole multipart body: the file plus 1 MiB of framing/fields.
+		r.Body = http.MaxBytesReader(w, r.Body, maxUpload+1<<20)
 		subj, err := subjects(r)
 		if err != nil {
 			failSvc(w, err)
 			return
 		}
-		if err := r.ParseMultipartForm(maxUpload); err != nil {
+		if err := r.ParseMultipartForm(maxUpload); err != nil { // #nosec G120 -- body bounded by http.MaxBytesReader above
 			WriteError(w, http.StatusBadRequest, "malformed_body")
 			return
 		}

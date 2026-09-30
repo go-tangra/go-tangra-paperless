@@ -36,16 +36,44 @@ go-tangra-auth  <---->  go-tangra-portal (gateway)  <---->  go-tangra-lcm
 - Enrolls for its SVID with lcm over the network
   (`github.com/go-tangra/go-tangra-lcm/sdk/v4`), as the platform stack does.
 
-The repository holds one Go module, `github.com/go-tangra/go-tangra-paperless/v4`.
-Other services call it through `pkg/paperlessclient` and the `paperless.v1` protos
-(not proxied by the gateway).
+The repository holds two Go modules: the service,
+`github.com/go-tangra/go-tangra-paperless/v4`, and the client SDK in `sdk/`,
+`github.com/go-tangra/go-tangra-paperless/sdk/v4` (the `paperless.v1` protos and
+`pkg/paperlessclient`). Other services call paperless over the mesh through the
+SDK (not proxied by the gateway); the service requires the SDK through a
+`replace ... => ./sdk`, and the SDK is released by hand with `sdk/vX.Y.Z` tags.
+
+### Client SDK
+
+```go
+import "github.com/go-tangra/go-tangra-paperless/sdk/v4/pkg/paperlessclient"
+
+conn, _ := app.Client(ctx, "paperless")                 // SPIFFE mTLS
+pc := paperlessclient.New(conn)
+catID, _ := pc.EnsureCategory(ctx, tenantID, []string{"Assets", "AT-000123"})
+doc, _ := pc.CreateDocument(ctx, tenantID, paperlessclient.CreateInput{
+    CategoryID: catID, Name: "Warranty", FileName: "w.pdf", MimeType: "application/pdf", Content: b})
+hits, _ := pc.Search(ctx, tenantID, "warranty", 20)
+data, name, mime, _ := pc.DownloadDocument(ctx, tenantID, doc.ID)
+_ = pc.DeleteDocument(ctx, tenantID, doc.ID, true)
+```
+
+Every method takes the tenant explicitly and returns plain Go types; gRPC
+`NotFound` / `PermissionDenied` / `Unavailable` map to `ErrNotFound` /
+`ErrForbidden` / `ErrUnavailable`. `EnsureCategory` is idempotent and safe for
+concurrent callers. A calling service is identified by its SPIFFE id: it becomes
+owner of the folders and documents it creates, finds them with `Search`, and may
+create root folders and read the folder tree; it gets no collection access to
+documents (tenant admins see everything). Each call carries 33 MiB message-size
+bounds (`WithMaxMessageBytes` overrides), matching the server default. The caller
+must also be allowed by `deploy/policy.yaml` (e.g. the `asset-documents` rule).
 
 ## Layout
 
 | Path | What |
 |------|------|
 | `api/openapi/paperless.yaml` | browser API contract (served under `/api/paperless`) |
-| `api/proto/paperless/v1/` | document, category, permission and statistics gRPC services |
+| `sdk/api/proto/paperless/v1/` | document, category, permission and statistics gRPC services (SDK module) |
 | `internal/config` | configuration + validation (secure defaults, named opt-outs) |
 | `internal/store`, `internal/repo` | TimescaleDB schema (RLS), repositories; `internal/memstore` is the in-memory test double |
 | `internal/blob` | S3-compatible object storage (minio-go), presigned downloads |
@@ -59,7 +87,7 @@ Other services call it through `pkg/paperlessclient` and the `paperless.v1` prot
 | `internal/httpapi`, `internal/grpcapi` | browser and service APIs |
 | `internal/app`, `cmd/paperlesssvc` | wiring and the service binary (serve, `bootstrap`, `version`) |
 | `pkg/paperlessmanifest` | gateway manifest, module roles and built-in role grants |
-| `pkg/paperlessclient` | Go client other services use |
+| `sdk/pkg/paperlessclient` | typed Go client other services use (SDK module) |
 | `deploy` | service policy and operations notes |
 | `ui/` | Vue 3 + FlyonUI federated remote on `@go-tangra/ui` |
 
@@ -70,7 +98,7 @@ GitHub token with `read:packages` to install `@go-tangra/ui` from GitHub Package
 
 ```bash
 go build ./... && go vet ./... && go test -race ./...
-buf lint
+(cd sdk && go vet ./... && go test -race ./... && buf lint)   # client SDK module
 make test-integration                     # -tags integration, TimescaleDB via testcontainers (needs Docker)
 make lint cover vuln
 

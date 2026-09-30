@@ -199,3 +199,22 @@ func TestLoad(t *testing.T) {
 		t.Fatal("unknown field: expected error")
 	}
 }
+
+// The gRPC surface carries whole documents, so the default request bound must
+// admit a 20 MiB asset attachment plus envelope (>= 32 MiB), and it stays
+// bounded by a ceiling.
+func TestMaxRequestBytesDefaultAndCeiling(t *testing.T) {
+	c := Default()
+	if c.Config.Limits.MaxRequestBytes < 32<<20 || c.Config.Limits.MaxRequestBytes != DefaultMaxRequestBytes {
+		t.Fatalf("max_request_bytes default %d", c.Config.Limits.MaxRequestBytes)
+	}
+	v := valid()
+	v.Config.Limits.MaxRequestBytes = MaxRequestBytesCeiling
+	if err := v.Validate(); err != nil {
+		t.Fatalf("ceiling should validate: %v", err)
+	}
+	v.Config.Limits.MaxRequestBytes = MaxRequestBytesCeiling + 1
+	if err := v.Validate(); err == nil || !strings.Contains(err.Error(), "max_request_bytes") {
+		t.Fatalf("above ceiling must be refused, got %v", err)
+	}
+}

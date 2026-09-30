@@ -82,6 +82,10 @@ func Of(relation string) Permissions {
 	return Permissions{}
 }
 
+// ActorService is the ActorKind of a platform service calling over the SPIFFE
+// mTLS gRPC surface (UserID is its SPIFFE id; it carries no roles).
+const ActorService = "service"
+
 // Subjects is the caller (a user with roles, or a service acting for a tenant).
 type Subjects struct {
 	TenantID  string
@@ -189,6 +193,14 @@ func (a *Authorizer) Effective(ctx context.Context, s Subjects, resourceType, re
 		}
 	}
 	var perms Permissions
+	if resourceID == "" && resourceType == Category && s.ActorKind == ActorService {
+		// A platform service reaches paperless only through the mesh policy,
+		// which names the exact methods it may call. Such a service may create
+		// root folders and see the folder tree (names and paths) so it can
+		// resolve-or-create its own hierarchy (e.g. /Assets/<tag>). Documents
+		// stay tuple-scoped: this grants no collection access to documents.
+		perms = Permissions{Read: true, Write: true}
+	}
 	for _, g := range grants {
 		if g.SubjectType == store.SubjectTenant || apply[g.ResourceType+":"+g.ResourceID] {
 			perms = union(perms, Of(g.Relation))

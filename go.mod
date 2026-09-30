@@ -8,6 +8,7 @@ require (
 	github.com/getkin/kin-openapi v0.149.0
 	github.com/go-tangra/go-tangra-auth/sdk/v4 v4.1.0
 	github.com/go-tangra/go-tangra-lcm/sdk/v4 v4.1.0
+	github.com/go-tangra/go-tangra-paperless/sdk/v4 v4.0.0
 	github.com/go-tangra/go-tangra-portal/sdk/v4 v4.0.0
 	github.com/go-tangra/go-tangra/v4 v4.0.0
 	github.com/jackc/pgx/v5 v5.11.0
@@ -106,3 +107,5 @@ require (
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20260831171406-18b4a7587f8a // indirect
 	gopkg.in/ini.v1 v1.67.3 // indirect
 )
+
+replace github.com/go-tangra/go-tangra-paperless/sdk/v4 => ./sdk

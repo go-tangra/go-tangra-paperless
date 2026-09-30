@@ -123,10 +123,26 @@ type Limits struct {
 	SearchMaxLen   int   `yaml:"search_max_len"`
 }
 
+// DefaultMaxRequestBytes is paperless's default for the Freya
+// limits.max_request_bytes knob, which bounds BOTH an inbound HTTP body and an
+// inbound paperless.v1 gRPC message (grpc.MaxRecvMsgSize). Documents cross the
+// gRPC surface whole (CreateDocumentRequest.content), so the Freya 1 MiB default
+// would refuse ordinary files; 32 MiB of content plus 1 MiB of envelope covers
+// the asset module's 20 MiB attachments with headroom. Responses (Download) are
+// bounded by the caller's MaxCallRecvMsgSize. Operators may raise it up to
+// MaxRequestBytesCeiling.
+const DefaultMaxRequestBytes int64 = 33 << 20
+
+// MaxRequestBytesCeiling bounds limits.max_request_bytes: a whole message is
+// buffered in memory per in-flight call, so it must stay bounded.
+const MaxRequestBytesCeiling int64 = 1 << 30
+
 // Default returns secure defaults on top of the Freya defaults.
 func Default() Config {
+	fc := fconfig.Default()
+	fc.Limits.MaxRequestBytes = DefaultMaxRequestBytes
 	return Config{
-		Config:      fconfig.Default(),
+		Config:      fc,
 		DB:          DB{MaxConns: 16},
 		KEK:         KEK{Source: "file"},
 		ObjectStore: ObjectStore{Region: "us-east-1", PresignTTL: 300},
@@ -158,6 +174,9 @@ func Load(path string) (Config, error) {
 func (c Config) Validate() error {
 	if err := c.Config.Validate(); err != nil {
 		return err
+	}
+	if c.Config.Limits.MaxRequestBytes > MaxRequestBytesCeiling {
+		return errors.New("config: limits.max_request_bytes must be at most 1 GiB")
 	}
 	prod := c.IsProduction()
 	if c.DB.DSN == "" {
