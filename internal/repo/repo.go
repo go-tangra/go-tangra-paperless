@@ -9,6 +9,8 @@ import (
 	"context"
 	"time"
 
+	"github.com/go-tangra/go-tangra/v4/listquery"
+
 	"github.com/go-tangra/go-tangra-paperless/v4/internal/store"
 )
 
@@ -24,6 +26,10 @@ type Store interface {
 	InsertDocument(ctx context.Context, d store.Document) error
 	GetDocument(ctx context.Context, tenantID, id string) (store.Document, error)
 	ListDocuments(ctx context.Context, tenantID string, f DocFilter) ([]store.Document, error)
+	// PageDocuments returns one page of f in store.DocumentList order (f.Limit
+	// and f.CursorID ignored), the total matching f and the served request
+	// (clamped to the last page).
+	PageDocuments(ctx context.Context, tenantID string, f DocFilter, req listquery.Request) ([]store.Document, int, listquery.Request, error)
 	UpdateDocument(ctx context.Context, d store.Document) error
 	SetDocumentProcessing(ctx context.Context, tenantID, id, status, contentText string, meta map[string]string) error
 	DeleteDocument(ctx context.Context, tenantID, id string) error

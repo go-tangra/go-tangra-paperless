@@ -11,6 +11,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/go-tangra/go-tangra/v4/listquery"
+
 	"github.com/go-tangra/go-tangra-paperless/v4/internal/authz"
 	"github.com/go-tangra/go-tangra-paperless/v4/internal/blob"
 	"github.com/go-tangra/go-tangra-paperless/v4/internal/documents"
@@ -282,3 +284,32 @@ func TestMove_UpdatesCategory(t *testing.T) {
 }
 
 var _ = store.DocArchived // keep store import used if constants shift
+
+func TestPage_CountsRedactsAndMatchesListAuthz(t *testing.T) {
+	f := newFixture(t)
+	ctx := context.Background()
+	for _, n := range []string{"b", "A", "c"} {
+		v := mustCreate(t, f, n, []byte("body"))
+		if err := f.mem.SetDocumentProcessing(ctx, f.subj.TenantID, v.ID, store.ProcCompleted, "SECRET-PAGE", nil); err != nil {
+			t.Fatal(err)
+		}
+	}
+	pg, err := f.svc.Page(ctx, f.subj, repo.DocFilter{}, listquery.Request{Page: 2, PageSize: 2, Sort: "name", Order: listquery.Asc})
+	if err != nil {
+		t.Fatalf("Page: %v", err)
+	}
+	if pg.Total != 3 || pg.Page != 2 || len(pg.Items) != 1 || pg.Items[0].Name != "c" || pg.Sort != "name" {
+		t.Fatalf("page = %+v", pg)
+	}
+	raw, _ := json.Marshal(pg)
+	if strings.Contains(string(raw), "SECRET-PAGE") || strings.Contains(string(raw), "content_text") {
+		t.Fatalf("page leaked content: %s", raw)
+	}
+	// The tenant-level read check is the same as List's.
+	other := authz.Subjects{TenantID: f.subj.TenantID, UserID: "u2", ActorKind: "user"}
+	_, lerr := f.svc.List(ctx, other, repo.DocFilter{})
+	_, perr := f.svc.Page(ctx, other, repo.DocFilter{}, listquery.Request{})
+	if (lerr == nil) != (perr == nil) {
+		t.Fatalf("authz differs: list %v page %v", lerr, perr)
+	}
+}

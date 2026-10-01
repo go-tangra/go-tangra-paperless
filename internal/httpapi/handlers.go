@@ -11,6 +11,7 @@ import (
 	"github.com/go-tangra/go-tangra-paperless/v4/internal/documents"
 	"github.com/go-tangra/go-tangra-paperless/v4/internal/permissions"
 	"github.com/go-tangra/go-tangra-paperless/v4/internal/repo"
+	"github.com/go-tangra/go-tangra-paperless/v4/internal/store"
 )
 
 // Register mounts the paperless HTTP routes.
@@ -74,16 +75,20 @@ func (s *Server) Register(d Deps) {
 			failSvc(w, err)
 			return
 		}
+		req, ok := parseList(w, r, store.DocumentList)
+		if !ok {
+			return
+		}
 		q := r.URL.Query()
-		items, err := d.Documents.List(r.Context(), subj, repo.DocFilter{
+		page, err := d.Documents.Page(r.Context(), subj, repo.DocFilter{
 			CategoryID: q.Get("category_id"), Status: q.Get("status"), MimeType: q.Get("mime_type"),
 			Source: q.Get("source"), ProcessingStatus: q.Get("processing_status"), Tag: q.Get("tag"), CreatedBy: q.Get("created_by"),
-		})
+		}, req)
 		if err != nil {
 			failSvc(w, err)
 			return
 		}
-		WriteJSON(w, http.StatusOK, map[string]any{"items": items})
+		WriteJSON(w, http.StatusOK, page)
 	})
 	s.MustHandle("GET", p+"/documents/{id}", func(w http.ResponseWriter, r *http.Request) {
 		subj, err := subjects(r)

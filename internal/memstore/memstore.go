@@ -11,6 +11,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/go-tangra/go-tangra/v4/listquery"
+
 	"github.com/go-tangra/go-tangra-paperless/v4/internal/repo"
 	"github.com/go-tangra/go-tangra-paperless/v4/internal/store"
 )
@@ -90,42 +92,87 @@ func (m *Mem) GetDocument(_ context.Context, tenantID, id string) (store.Documen
 	return d, nil
 }
 
+// docMatches reports whether d is listed under f in tenantID (the SQL
+// docWhere semantics, cursor excluded).
+func docMatches(d store.Document, tenantID string, f repo.DocFilter) bool {
+	switch {
+	case d.TenantID != tenantID:
+		return false
+	case f.Status != "" && d.Status != f.Status:
+		return false
+	case f.Status == "" && d.Status == store.DocDeleted:
+		return false // hide soft-deleted from normal listings
+	case f.CategoryID != "" && (d.CategoryID == nil || *d.CategoryID != f.CategoryID):
+		return false
+	case f.MimeType != "" && d.MimeType != f.MimeType:
+		return false
+	case f.Source != "" && d.Source != f.Source:
+		return false
+	case f.ProcessingStatus != "" && d.ProcessingStatus != f.ProcessingStatus:
+		return false
+	case f.CreatedBy != "" && d.CreatedBy != f.CreatedBy:
+		return false
+	}
+	if f.Tag != "" {
+		if k, v, ok := strings.Cut(f.Tag, "="); ok {
+			if got, has := d.Tags[k]; !has || got != v {
+				return false
+			}
+		} else if _, has := d.Tags[f.Tag]; !has {
+			return false
+		}
+	}
+	return true
+}
+
 func (m *Mem) ListDocuments(_ context.Context, tenantID string, f repo.DocFilter) ([]store.Document, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	var out []store.Document
 	for _, d := range m.docs {
-		if d.TenantID != tenantID {
-			continue
+		if docMatches(d, tenantID, f) {
+			out = append(out, d)
 		}
-		if f.Status != "" && d.Status != f.Status {
-			continue
-		}
-		if f.Status == "" && d.Status == store.DocDeleted {
-			continue // hide soft-deleted from normal listings
-		}
-		if f.CategoryID != "" && (d.CategoryID == nil || *d.CategoryID != f.CategoryID) {
-			continue
-		}
-		if f.MimeType != "" && d.MimeType != f.MimeType {
-			continue
-		}
-		if f.Source != "" && d.Source != f.Source {
-			continue
-		}
-		if f.ProcessingStatus != "" && d.ProcessingStatus != f.ProcessingStatus {
-			continue
-		}
-		if f.CreatedBy != "" && d.CreatedBy != f.CreatedBy {
-			continue
-		}
-		out = append(out, d)
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].CreatedAt.After(out[j].CreatedAt) })
 	if f.Limit > 0 && len(out) > f.Limit {
 		out = out[:f.Limit]
 	}
 	return out, nil
+}
+
+// docKey is the value of a store.DocumentList sort field (same semantics as SQL).
+func docKey(d store.Document, field string) any {
+	switch field {
+	case "name":
+		return d.Name
+	case "file_size":
+		return d.FileSize
+	case "mime_type":
+		return d.MimeType
+	case "status":
+		return d.Status
+	case "processing_status":
+		return d.ProcessingStatus
+	default:
+		return d.CreatedAt
+	}
+}
+
+// PageDocuments implements repo.Store (store.DocumentList order).
+func (m *Mem) PageDocuments(_ context.Context, tenantID string, f repo.DocFilter, req listquery.Request) ([]store.Document, int, listquery.Request, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	req = store.ListRequest(req, store.DocumentList)
+	all := []store.Document{}
+	for _, d := range m.docs {
+		if docMatches(d, tenantID, f) {
+			all = append(all, d)
+		}
+	}
+	listquery.SortSlice(all, req, docKey, func(d store.Document) string { return d.ID })
+	page, total, served := listquery.Window(all, req)
+	return page, total, served, nil
 }
 
 func (m *Mem) UpdateDocument(_ context.Context, d store.Document) error {

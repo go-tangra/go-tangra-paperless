@@ -14,6 +14,8 @@ import (
 	"io"
 	"time"
 
+	"github.com/go-tangra/go-tangra/v4/listquery"
+
 	"github.com/go-tangra/go-tangra-paperless/v4/internal/authz"
 	"github.com/go-tangra/go-tangra-paperless/v4/internal/blob"
 	"github.com/go-tangra/go-tangra-paperless/v4/internal/events"
@@ -213,6 +215,25 @@ func (s *Service) List(ctx context.Context, subj authz.Subjects, f repo.DocFilte
 		out = append(out, view(d, false))
 	}
 	return out, nil
+}
+
+// Page returns one page of the tenant's documents matching f in
+// store.DocumentList order (req.Sort/Order), with the total matching f. The
+// page in the result is the one actually returned (clamped to the last page).
+// Like List, content_text and extracted_metadata are redacted.
+func (s *Service) Page(ctx context.Context, subj authz.Subjects, f repo.DocFilter, req listquery.Request) (listquery.Page[View], error) {
+	if err := s.az.Check(ctx, subj, authz.Document, "", authz.Read); err != nil {
+		return listquery.Page[View]{}, mapAZ(err)
+	}
+	rows, total, served, err := s.st.PageDocuments(ctx, subj.TenantID, f, req)
+	if err != nil {
+		return listquery.Page[View]{}, err
+	}
+	out := make([]View, 0, len(rows))
+	for _, d := range rows {
+		out = append(out, view(d, false))
+	}
+	return listquery.NewPage(out, total, served), nil
 }
 
 // Update changes metadata (name/description/category/tags). A non-empty

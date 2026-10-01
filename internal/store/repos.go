@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/go-tangra/go-tangra/v4/listquery"
 	"github.com/jackc/pgx/v5"
 )
 
@@ -113,9 +114,11 @@ func GetDocument(ctx context.Context, tx pgx.Tx, tenantID, id string) (Document,
 	return scanDoc(tx.QueryRow(ctx, "SELECT "+docCols+" FROM paperless_documents WHERE tenant_id=$1 AND id=$2", tenantID, id))
 }
 
-// ListDocuments applies the filter (empty fields ignored) newest-first. When no
-// explicit status filter is set, soft-deleted documents are hidden.
-func ListDocuments(ctx context.Context, tx pgx.Tx, tenantID string, f DocumentFilter) ([]Document, error) {
+// docWhere builds the WHERE clause of a document listing from f. Clauses are
+// constants with numbered placeholders only; every filter value travels as an
+// argument. When no explicit status filter is set, soft-deleted documents are
+// hidden. The cursor clause belongs to the legacy (gRPC) path only.
+func docWhere(tenantID string, f DocumentFilter, withCursor bool) (string, []any) {
 	where := []string{"tenant_id = $1"}
 	args := []any{tenantID}
 	add := func(clause string, val any) {
@@ -150,15 +153,23 @@ func ListDocuments(ctx context.Context, tx pgx.Tx, tenantID string, f DocumentFi
 			add("tags ? $%d", f.Tag)
 		}
 	}
-	if f.CursorID != "" {
+	if withCursor && f.CursorID != "" {
 		add("created_at < (SELECT created_at FROM paperless_documents WHERE id = $%d::uuid AND tenant_id = $1)", f.CursorID)
 	}
+	return strings.Join(where, " AND "), args
+}
+
+// ListDocuments applies the filter (empty fields ignored) newest-first, at most
+// f.Limit rows (default 100, max 500) older than f.CursorID. This is the gRPC
+// List path (limit + cursor); browser tables use PageDocuments.
+func ListDocuments(ctx context.Context, tx pgx.Tx, tenantID string, f DocumentFilter) ([]Document, error) {
+	where, args := docWhere(tenantID, f, true)
 	limit := f.Limit
 	if limit <= 0 || limit > 500 {
 		limit = 100
 	}
 	args = append(args, limit)
-	q := "SELECT " + docCols + " FROM paperless_documents WHERE " + strings.Join(where, " AND ") +
+	q := "SELECT " + docCols + " FROM paperless_documents WHERE " + where +
 		" ORDER BY created_at DESC LIMIT $" + strconv.Itoa(len(args))
 	rows, err := tx.Query(ctx, q, args...)
 	if err != nil {
@@ -166,6 +177,35 @@ func ListDocuments(ctx context.Context, tx pgx.Tx, tenantID string, f DocumentFi
 	}
 	defer rows.Close()
 	return scanDocs(rows)
+}
+
+// PageDocuments returns one page of the documents matching f (f.Limit and
+// f.CursorID are ignored) in DocumentList order, the total matching f, and the
+// request actually served (a page beyond the end is clamped to the last page).
+// The ORDER BY comes from the Spec's constant expressions only.
+func PageDocuments(ctx context.Context, tx pgx.Tx, tenantID string, f DocumentFilter, req listquery.Request) ([]Document, int, listquery.Request, error) {
+	req = ListRequest(req, DocumentList)
+	where, args := docWhere(tenantID, f, false)
+	var total int
+	if err := tx.QueryRow(ctx, "SELECT count(*) FROM paperless_documents WHERE "+where, args...).Scan(&total); err != nil {
+		return nil, 0, req, err
+	}
+	req = req.Clamp(total)
+	n := len(args)
+	args = append(args, req.Limit(), req.Offset())
+	q := "SELECT " + docCols + " FROM paperless_documents WHERE " + where +
+		" ORDER BY " + req.OrderBy(DocumentList) +
+		" LIMIT $" + strconv.Itoa(n+1) + " OFFSET $" + strconv.Itoa(n+2)
+	rows, err := tx.Query(ctx, q, args...)
+	if err != nil {
+		return nil, 0, req, err
+	}
+	defer rows.Close()
+	out, err := scanDocs(rows)
+	if err != nil {
+		return nil, 0, req, err
+	}
+	return out, total, req, nil
 }
 
 // UpdateDocument rewrites the mutable columns.
