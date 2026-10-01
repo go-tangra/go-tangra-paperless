@@ -5,6 +5,8 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/go-tangra/go-tangra/v4/listquery"
+
 	"github.com/go-tangra/go-tangra-paperless/v4/internal/authz"
 	"github.com/go-tangra/go-tangra-paperless/v4/internal/backup"
 	"github.com/go-tangra/go-tangra-paperless/v4/internal/categories"
@@ -78,4 +80,17 @@ func failSvc(w http.ResponseWriter, err error) {
 	default:
 		WriteError(w, http.StatusInternalServerError, "internal")
 	}
+}
+
+// parseList reads the list contract parameters (page, page_size, sort, order;
+// go-tangra specs/032-server-side-tables) against spec. An invalid value is
+// answered with validation_failed naming the parameter (never its value).
+func parseList(w http.ResponseWriter, r *http.Request, spec listquery.Spec) (listquery.Request, bool) {
+	req, err := listquery.Parse(r.URL.Query(), spec)
+	var le *listquery.Error
+	if errors.As(err, &le) {
+		WriteDetail(w, ErrValidation, map[string]any{"param": le.Param})
+		return req, false
+	}
+	return req, true
 }

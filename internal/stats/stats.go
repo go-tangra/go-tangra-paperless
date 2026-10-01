@@ -81,20 +81,21 @@ func (s *Service) SystemWide(ctx context.Context, subj authz.Subjects) (System, 
 func (s *Service) snapshot(ctx context.Context, tenantID string) (Snapshot, error) {
 	snap := emptySnapshot()
 
-	docs, err := s.st.ListDocuments(ctx, tenantID, repo.DocFilter{})
+	// Aggregated in the store (every listed document, never a capped page).
+	groups, err := s.st.DocumentAggregates(ctx, tenantID)
 	if err != nil {
 		return snap, err
 	}
-	for _, d := range docs {
-		snap.DocumentsTotal++
-		snap.DocumentsByStatus[d.Status]++
-		snap.DocumentsBySource[d.Source]++
-		snap.DocumentsByMime[d.MimeType]++
-		snap.StorageBytes += d.FileSize
-		snap.StorageByCategory[categoryKey(d)] += d.FileSize
-		switch d.ProcessingStatus {
+	for _, g := range groups {
+		snap.DocumentsTotal += g.Count
+		snap.DocumentsByStatus[g.Status] += g.Count
+		snap.DocumentsBySource[g.Source] += g.Count
+		snap.DocumentsByMime[g.MimeType] += g.Count
+		snap.StorageBytes += g.Bytes
+		snap.StorageByCategory[categoryKey(g.CategoryID)] += g.Bytes
+		switch g.ProcessingStatus {
 		case store.ProcPending, store.ProcProcessing, store.ProcFailed:
-			snap.Backlog[d.ProcessingStatus]++
+			snap.Backlog[g.ProcessingStatus] += g.Count
 		}
 	}
 
@@ -109,9 +110,9 @@ func (s *Service) snapshot(ctx context.Context, tenantID string) (Snapshot, erro
 
 // categoryKey is the per-category storage bucket for a document: its category id,
 // or "uncategorized" when unfiled.
-func categoryKey(d store.Document) string {
-	if d.CategoryID != nil && *d.CategoryID != "" {
-		return *d.CategoryID
+func categoryKey(categoryID string) string {
+	if categoryID != "" {
+		return categoryID
 	}
 	return uncategorized
 }

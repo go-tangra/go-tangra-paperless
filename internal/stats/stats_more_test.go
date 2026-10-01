@@ -14,16 +14,16 @@ import (
 // errStore injects errors into the reads used by snapshot / SystemWide.
 type errStore struct {
 	*memstore.Mem
-	failListDocuments  error
-	failListCategories error
-	failTenantIDs      error
+	failDocumentAggregates error
+	failListCategories     error
+	failTenantIDs          error
 }
 
-func (s *errStore) ListDocuments(ctx context.Context, tenantID string, f repo.DocFilter) ([]store.Document, error) {
-	if s.failListDocuments != nil {
-		return nil, s.failListDocuments
+func (s *errStore) DocumentAggregates(ctx context.Context, tenantID string) ([]store.DocAggregate, error) {
+	if s.failDocumentAggregates != nil {
+		return nil, s.failDocumentAggregates
 	}
-	return s.Mem.ListDocuments(ctx, tenantID, f)
+	return s.Mem.DocumentAggregates(ctx, tenantID)
 }
 
 func (s *errStore) ListCategories(ctx context.Context, tenantID string) ([]store.Category, error) {
@@ -44,10 +44,10 @@ func (s *errStore) Atomic(ctx context.Context, tenantID string, fn func(tx repo.
 	return fn(s)
 }
 
-func TestTenant_ListDocumentsError(t *testing.T) {
-	s := &errStore{Mem: memstore.New(), failListDocuments: errors.New("doc boom")}
+func TestTenant_DocumentAggregatesError(t *testing.T) {
+	s := &errStore{Mem: memstore.New(), failDocumentAggregates: errors.New("doc boom")}
 	if _, err := New(s).Tenant(context.Background(), authz.Subjects{TenantID: "t1"}); err == nil {
-		t.Fatal("Tenant should surface ListDocuments error")
+		t.Fatal("Tenant should surface DocumentAggregates error")
 	}
 }
 
@@ -69,7 +69,7 @@ func TestSystemWide_TenantIDsError(t *testing.T) {
 func TestSystemWide_SnapshotError(t *testing.T) {
 	base := memstore.New()
 	seedCat(t, base, "t1", "c1", "A", "a")
-	s := &errStore{Mem: base, failListDocuments: errors.New("doc boom")}
+	s := &errStore{Mem: base, failDocumentAggregates: errors.New("doc boom")}
 	admin := authz.Subjects{TenantID: "t1", Roles: []string{"admin"}}
 	if _, err := New(s).SystemWide(context.Background(), admin); err == nil {
 		t.Fatal("SystemWide should surface a per-tenant snapshot error")

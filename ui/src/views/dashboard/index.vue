@@ -19,7 +19,7 @@ onMounted(() => {
 
 const snap = computed(() => stats.snapshot)
 
-const documentsTotal = computed(() => snap.value?.documents_total ?? documents.items.length)
+const documentsTotal = computed(() => snap.value?.documents_total ?? documents.total)
 const categoriesTotal = computed(() => snap.value?.categories_total ?? categories.items.length)
 
 function humanSize(bytes: number): string {

@@ -31,6 +31,29 @@ export interface Document {
   updated_at: string
 }
 
+/** The list contract fields of a page (go-tangra specs/032-server-side-tables). */
+export interface PageInfo {
+  total: number
+  /** The page returned: a page beyond the end answers the last page. */
+  page?: number
+  page_size?: number
+  sort?: string
+  order?: 'asc' | 'desc'
+}
+
+/** Page, size and order of a list request. */
+export interface ListParams {
+  page: number
+  page_size: number
+  sort: string
+  order: 'asc' | 'desc'
+}
+
+/** GET /documents response. */
+export interface DocumentPage extends PageInfo {
+  items: Document[]
+}
+
 export interface DocumentInput {
   name?: string | undefined
   description?: string | undefined

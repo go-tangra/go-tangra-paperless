@@ -145,6 +145,18 @@ type DocumentFilter struct {
 	CursorID         string
 }
 
+// DocAggregate is one group of DocumentAggregates: the documents sharing these
+// attributes (CategoryID "" when unfiled), their count and total file size.
+type DocAggregate struct {
+	Status           string
+	Source           string
+	MimeType         string
+	CategoryID       string
+	ProcessingStatus string
+	Count            int
+	Bytes            int64
+}
+
 // SearchResult is one full-text hit.
 type SearchResult struct {
 	Document Document

@@ -120,7 +120,7 @@ func (s *Service) Export(ctx context.Context, subj authz.Subjects, includeLinks 
 		})
 	}
 
-	docs, err := s.st.ListDocuments(ctx, subj.TenantID, repo.DocFilter{})
+	docs, err := repo.AllDocuments(ctx, s.st, subj.TenantID, repo.DocFilter{})
 	if err != nil {
 		return b, err
 	}
@@ -206,7 +206,7 @@ func (s *Service) Import(ctx context.Context, subj authz.Subjects, b Backup, mod
 		for _, ce := range b.Categories {
 			pathByCatID[ce.ID] = ce.Path
 		}
-		existingDocs, err := tx.ListDocuments(ctx, subj.TenantID, repo.DocFilter{})
+		existingDocs, err := repo.AllDocuments(ctx, tx, subj.TenantID, repo.DocFilter{})
 		if err != nil {
 			return err
 		}

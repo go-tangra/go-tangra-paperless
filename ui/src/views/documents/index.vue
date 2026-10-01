@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import { ABILITY_TOKEN } from '@casl/vue'
 import type { AnyAbility } from '@casl/ability'
-import { computed, inject, onMounted, onUnmounted, ref } from 'vue'
-import { UiPage, UiAlert, UiCard, UiForm, UiSelect, UiButton, UiDataTable, UiStatusChip, UiLiveIndicator, UiFilePicker, UiInput, UiTextarea, UiTagEditor, UiRecordDrawer, UiKeyValueTable, UiBadge, useConfirm, UiDrawer, useToast, type Column, type SelectOption } from '@go-tangra/ui'
+import { computed, inject, onMounted, onUnmounted, ref, watch } from 'vue'
+import { UiPage, UiAlert, UiCard, UiForm, UiSelect, UiButton, UiDataTable, UiStatusChip, UiLiveIndicator, UiFilePicker, UiInput, UiTextarea, UiTagEditor, UiRecordDrawer, UiKeyValueTable, UiBadge, useConfirm, UiDrawer, useListQuery, useToast, type Column, type SelectOption } from '@go-tangra/ui'
 import { useZodForm, zodToFields } from '@go-tangra/ui/forms'
-import { useDocuments } from '@/stores/documents'
+import { DOCUMENT_LIST, useDocuments, type DocumentFilter } from '@/stores/documents'
 import { useCategories } from '@/stores/categories'
 import { useLive } from '@/stores/live'
 import SharingDrawer from '@/components/SharingDrawer.vue'
@@ -27,9 +27,12 @@ const canShare = computed(() => (ability ? ability.can('manage', 'PaperlessPermi
 const downloadUrl = ref('')
 const error = ref('')
 
+// --- server paging and sorting (page / size / sort in the URL: ?documents.page=…) ---
+const lq = useListQuery('documents', DOCUMENT_LIST)
+
 let release: (() => void) | null = null
 onMounted(() => {
-  void store.list()
+  void load()
   void categories.list()
   release = live.connect()
 })
@@ -38,7 +41,23 @@ onUnmounted(() => release?.())
 const statusOptions: SelectOption[] = DOCUMENT_STATUSES.map((s) => ({ title: s, value: s }))
 const procOptions: SelectOption[] = PROCESSING_STATUSES.map((s) => ({ title: s, value: s }))
 const categoryOptions = computed<SelectOption[]>(() => categories.items.map((c) => ({ title: c.path || c.name, value: c.id })))
-const filter = useZodForm(documentFilterSchema, { onSubmit: (f) => store.list({ status: f.status, processing_status: f.processing_status }) })
+let filterValue: DocumentFilter = {}
+async function load(): Promise<void> {
+  const res = await store.list(filterValue, lq.query.value)
+  if (res?.page) lq.clampTo(res.page) // a page beyond the end answers the last page
+}
+watch(lq.query, () => void load())
+/** Filters changed: back to page 1 (which reloads), or reload in place. */
+const filter = useZodForm(documentFilterSchema, {
+  onSubmit: (f) => {
+    const next: DocumentFilter = { status: f.status, processing_status: f.processing_status }
+    const changed = next.status !== filterValue.status || next.processing_status !== filterValue.processing_status
+    filterValue = next
+    if (changed && lq.page.value !== 1) lq.resetPage()
+    else void load()
+  },
+})
+/** Reloads the current page (after an upload, edit or delete, or on Refresh). */
 const reload = () => void filter.submit()
 
 const procColors = { completed: 'success', failed: 'error', processing: 'info', retrying: 'warning', pending: 'neutral' } as const
@@ -49,13 +68,15 @@ function humanSize(bytes: number): string {
   const i = Math.floor(Math.log(bytes) / Math.log(1024))
   return (bytes / Math.pow(1024, i)).toFixed(i ? 1 : 0) + ' ' + units[i]
 }
+// Every column is one of the server's sort fields (DOCUMENT_LIST); sorting
+// orders the whole list, not the visible page.
 const columns: Column<Document>[] = [
   { key: 'name', label: 'Name', sortable: true },
-  { key: 'mime_type', label: 'Type', hideOnStack: true },
-  { key: 'file_size', label: 'Size', align: 'end', format: (d) => humanSize(d.file_size), sortable: true },
-  { key: 'status', label: 'Status', width: 'sm' },
-  { key: 'processing_status', label: 'Processing', width: 'sm' },
-  { key: 'created_at', label: 'Created', format: (d) => new Date(d.created_at).toLocaleString(), sortable: true, hideOnStack: true },
+  { key: 'mime_type', label: 'Type', sortable: true, hideOnStack: true },
+  { key: 'file_size', label: 'Size', align: 'end', format: (d) => humanSize(d.file_size), sortable: true, defaultDir: 'desc' },
+  { key: 'status', label: 'Status', width: 'sm', sortable: true },
+  { key: 'processing_status', label: 'Processing', width: 'sm', sortable: true },
+  { key: 'created_at', label: 'Created', format: (d) => new Date(d.created_at).toLocaleString(), sortable: true, defaultDir: 'desc', hideOnStack: true },
 ]
 
 // --- upload: one Zod schema drives the multipart payload ---
@@ -130,7 +151,7 @@ function openShare(): void {
     </template>
     <UiAlert v-if="store.error" kind="error" class="mb-3">{{ store.error }}</UiAlert>
     <UiCard :padded="false">
-      <UiDataTable :items="store.items" :columns="columns" :loading="store.loading" caption="Documents" empty-title="No documents yet" clickable :row-attrs="(d) => ({ 'data-test': 'doc-row-' + d.id })" data-test="documents-table" @row-click="open">
+      <UiDataTable :items="store.items" :columns="columns" :loading="store.loading" :total="store.total" :page="lq.page.value" :page-size="lq.pageSize.value" :sort="lq.sort.value" caption="Documents" empty-title="No documents yet" clickable :row-attrs="(d) => ({ 'data-test': 'doc-row-' + d.id })" data-test="documents-table" @row-click="open" @update:page="lq.setPage" @update:page-size="lq.setPageSize" @update:sort="lq.setSort">
         <template #cell-status="{ row }"><UiStatusChip :status="row.status" :colors="statusColors" /></template>
         <template #cell-processing_status="{ row }"><UiStatusChip :status="row.processing_status" :colors="procColors" :data-test="'doc-proc-' + row.id" /></template>
       </UiDataTable>

@@ -7,6 +7,7 @@ import (
 	"context"
 	"time"
 
+	"github.com/go-tangra/go-tangra/v4/listquery"
 	"github.com/jackc/pgx/v5"
 
 	"github.com/go-tangra/go-tangra-paperless/v4/internal/repo"
@@ -56,6 +57,18 @@ func (d *DB) GetDocument(ctx context.Context, tid, id string) (out store.Documen
 }
 func (d *DB) ListDocuments(ctx context.Context, tid string, f repo.DocFilter) (out []store.Document, err error) {
 	err = d.tenant(ctx, tid, func(tx pgx.Tx) error { out, err = store.ListDocuments(ctx, tx, tid, f); return err })
+	return
+}
+func (d *DB) PageDocuments(ctx context.Context, tid string, f repo.DocFilter, req listquery.Request) (out []store.Document, total int, served listquery.Request, err error) {
+	served = req
+	err = d.tenant(ctx, tid, func(tx pgx.Tx) error {
+		out, total, served, err = store.PageDocuments(ctx, tx, tid, f, req)
+		return err
+	})
+	return
+}
+func (d *DB) DocumentAggregates(ctx context.Context, tid string) (out []store.DocAggregate, err error) {
+	err = d.tenant(ctx, tid, func(tx pgx.Tx) error { out, err = store.DocumentAggregates(ctx, tx, tid); return err })
 	return
 }
 func (d *DB) UpdateDocument(ctx context.Context, doc store.Document) error {

@@ -9,6 +9,8 @@ import (
 	"context"
 	"time"
 
+	"github.com/go-tangra/go-tangra/v4/listquery"
+
 	"github.com/go-tangra/go-tangra-paperless/v4/internal/store"
 )
 
@@ -24,6 +26,12 @@ type Store interface {
 	InsertDocument(ctx context.Context, d store.Document) error
 	GetDocument(ctx context.Context, tenantID, id string) (store.Document, error)
 	ListDocuments(ctx context.Context, tenantID string, f DocFilter) ([]store.Document, error)
+	// PageDocuments returns one page of f in store.DocumentList order (f.Limit
+	// and f.CursorID ignored), the total matching f and the served request
+	// (clamped to the last page).
+	PageDocuments(ctx context.Context, tenantID string, f DocFilter, req listquery.Request) ([]store.Document, int, listquery.Request, error)
+	// DocumentAggregates groups the tenant's listed documents for statistics.
+	DocumentAggregates(ctx context.Context, tenantID string) ([]store.DocAggregate, error)
 	UpdateDocument(ctx context.Context, d store.Document) error
 	SetDocumentProcessing(ctx context.Context, tenantID, id, status, contentText string, meta map[string]string) error
 	DeleteDocument(ctx context.Context, tenantID, id string) error
@@ -63,4 +71,27 @@ type Store interface {
 	TenantIDs(ctx context.Context) ([]string, error)
 
 	Close()
+}
+
+// allDocumentsBatch is the cursor page size of AllDocuments (the store's max).
+const allDocumentsBatch = 500
+
+// AllDocuments returns every document of the tenant matching f (f.Limit and
+// f.CursorID are ignored) newest first, by walking the ListDocuments cursor in
+// batches. Whole-tenant readers (backup, import de-duplication) use it instead
+// of a single ListDocuments call, which is capped.
+func AllDocuments(ctx context.Context, st Store, tenantID string, f DocFilter) ([]store.Document, error) {
+	f.Limit, f.CursorID = allDocumentsBatch, ""
+	var out []store.Document
+	for {
+		batch, err := st.ListDocuments(ctx, tenantID, f)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, batch...)
+		if len(batch) < allDocumentsBatch {
+			return out, nil
+		}
+		f.CursorID = batch[len(batch)-1].ID
+	}
 }
