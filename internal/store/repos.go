@@ -154,14 +154,17 @@ func docWhere(tenantID string, f DocumentFilter, withCursor bool) (string, []any
 		}
 	}
 	if withCursor && f.CursorID != "" {
-		add("created_at < (SELECT created_at FROM paperless_documents WHERE id = $%d::uuid AND tenant_id = $1)", f.CursorID)
+		// Rows strictly after the cursor document in (created_at DESC, id DESC)
+		// order: the id breaks creation-time ties so a walk skips nothing.
+		add("(created_at, id) < (SELECT created_at, id FROM paperless_documents WHERE id = $%d::uuid AND tenant_id = $1)", f.CursorID)
 	}
 	return strings.Join(where, " AND "), args
 }
 
-// ListDocuments applies the filter (empty fields ignored) newest-first, at most
-// f.Limit rows (default 100, max 500) older than f.CursorID. This is the gRPC
-// List path (limit + cursor); browser tables use PageDocuments.
+// ListDocuments applies the filter (empty fields ignored) newest-first (id
+// breaking ties), at most f.Limit rows (default 100, max 500) after
+// f.CursorID. This is the gRPC List path (limit + cursor) and the walk behind
+// repo.AllDocuments; browser tables use PageDocuments.
 func ListDocuments(ctx context.Context, tx pgx.Tx, tenantID string, f DocumentFilter) ([]Document, error) {
 	where, args := docWhere(tenantID, f, true)
 	limit := f.Limit
@@ -170,7 +173,7 @@ func ListDocuments(ctx context.Context, tx pgx.Tx, tenantID string, f DocumentFi
 	}
 	args = append(args, limit)
 	q := "SELECT " + docCols + " FROM paperless_documents WHERE " + where +
-		" ORDER BY created_at DESC LIMIT $" + strconv.Itoa(len(args))
+		" ORDER BY created_at DESC, id DESC LIMIT $" + strconv.Itoa(len(args))
 	rows, err := tx.Query(ctx, q, args...)
 	if err != nil {
 		return nil, err
@@ -206,6 +209,29 @@ func PageDocuments(ctx context.Context, tx pgx.Tx, tenantID string, f DocumentFi
 		return nil, 0, req, err
 	}
 	return out, total, req, nil
+}
+
+// DocumentAggregates groups the tenant's listed (not soft-deleted) documents
+// by status, source, mime type, category and processing status with their
+// count and total size: the statistics snapshot without loading rows.
+func DocumentAggregates(ctx context.Context, tx pgx.Tx, tenantID string) ([]DocAggregate, error) {
+	rows, err := tx.Query(ctx, `SELECT status, source, mime_type, COALESCE(category_id::text, ''), processing_status,
+		count(*), COALESCE(sum(file_size), 0)::bigint
+		FROM paperless_documents WHERE tenant_id = $1 AND status <> '`+DocDeleted+`'
+		GROUP BY 1, 2, 3, 4, 5`, tenantID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []DocAggregate
+	for rows.Next() {
+		var a DocAggregate
+		if err := rows.Scan(&a.Status, &a.Source, &a.MimeType, &a.CategoryID, &a.ProcessingStatus, &a.Count, &a.Bytes); err != nil {
+			return nil, err
+		}
+		out = append(out, a)
+	}
+	return out, rows.Err()
 }
 
 // UpdateDocument rewrites the mutable columns.

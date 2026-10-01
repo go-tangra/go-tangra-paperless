@@ -67,6 +67,10 @@ func (d *DB) PageDocuments(ctx context.Context, tid string, f repo.DocFilter, re
 	})
 	return
 }
+func (d *DB) DocumentAggregates(ctx context.Context, tid string) (out []store.DocAggregate, err error) {
+	err = d.tenant(ctx, tid, func(tx pgx.Tx) error { out, err = store.DocumentAggregates(ctx, tx, tid); return err })
+	return
+}
 func (d *DB) UpdateDocument(ctx context.Context, doc store.Document) error {
 	return d.tenant(ctx, doc.TenantID, func(tx pgx.Tx) error { return store.UpdateDocument(ctx, tx, doc) })
 }

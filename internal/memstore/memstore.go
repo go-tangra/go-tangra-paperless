@@ -134,9 +134,65 @@ func (m *Mem) ListDocuments(_ context.Context, tenantID string, f repo.DocFilter
 			out = append(out, d)
 		}
 	}
-	sort.Slice(out, func(i, j int) bool { return out[i].CreatedAt.After(out[j].CreatedAt) })
-	if f.Limit > 0 && len(out) > f.Limit {
-		out = out[:f.Limit]
+	// Same contract as the SQL path: newest first with the id breaking ties,
+	// rows strictly after the cursor document, at most f.Limit (default 100,
+	// max 500) rows.
+	sort.Slice(out, func(i, j int) bool { return docAfter(out[i], out[j]) })
+	if f.CursorID != "" {
+		cur, ok := m.docs[f.CursorID]
+		if !ok || cur.TenantID != tenantID {
+			return nil, nil
+		}
+		kept := out[:0]
+		for _, d := range out {
+			if docAfter(cur, d) {
+				kept = append(kept, d)
+			}
+		}
+		out = kept
+	}
+	limit := f.Limit
+	if limit <= 0 || limit > 500 {
+		limit = 100
+	}
+	if len(out) > limit {
+		out = out[:limit]
+	}
+	return out, nil
+}
+
+// docAfter reports whether a precedes b in (created_at DESC, id DESC) order.
+func docAfter(a, b store.Document) bool {
+	if !a.CreatedAt.Equal(b.CreatedAt) {
+		return a.CreatedAt.After(b.CreatedAt)
+	}
+	return a.ID > b.ID
+}
+
+// DocumentAggregates implements repo.Store (the SQL grouping, deleted excluded).
+func (m *Mem) DocumentAggregates(_ context.Context, tenantID string) ([]store.DocAggregate, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	groups := map[store.DocAggregate]*store.DocAggregate{}
+	var out []store.DocAggregate
+	for _, d := range m.docs {
+		if !docMatches(d, tenantID, repo.DocFilter{}) {
+			continue
+		}
+		k := store.DocAggregate{Status: d.Status, Source: d.Source, MimeType: d.MimeType, ProcessingStatus: d.ProcessingStatus}
+		if d.CategoryID != nil {
+			k.CategoryID = *d.CategoryID
+		}
+		g, ok := groups[k]
+		if !ok {
+			g = &store.DocAggregate{Status: k.Status, Source: k.Source, MimeType: k.MimeType, CategoryID: k.CategoryID, ProcessingStatus: k.ProcessingStatus}
+			groups[k] = g
+		}
+		g.Count++
+		g.Bytes += d.FileSize
+	}
+	for _, g := range groups {
+		out = append(out, *g)
 	}
 	return out, nil
 }
