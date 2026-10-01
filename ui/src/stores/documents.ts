@@ -99,12 +99,6 @@ export const useDocuments = defineStore('paperless-documents', () => {
     return d
   }
 
-  // downloadUrl asks the service for a (short-lived) object-store URL.
-  async function downloadUrl(id: string): Promise<string> {
-    const res = await api<{ url: string }>('GET', 'documents/' + id + '/download-url')
-    return res.url
-  }
-
   // directDownload streams the bytes through the gateway.
   function directDownload(id: string): string {
     return BASE + '/documents/' + id + '/download'
@@ -131,5 +125,5 @@ export const useDocuments = defineStore('paperless-documents', () => {
     }
   }
 
-  return { items, total, params, filter, loading, error, list, reload, get, upload: uploadDocument, update, remove, move, downloadUrl, directDownload, search, batchDelete, patchProcessing }
+  return { items, total, params, filter, loading, error, list, reload, get, upload: uploadDocument, update, remove, move, directDownload, search, batchDelete, patchProcessing }
 })
