@@ -380,11 +380,28 @@ export interface components {
             reason?: string;
             detail?: Record<string, never>;
         };
+        DocumentPage: {
+            /** @description documents (content_text and extracted_metadata never included) */
+            items: Record<string, never>[];
+            /** @description documents matching the filters */
+            total: number;
+            /** @description the page returned (a page beyond the end answers the last page) */
+            page: number;
+            page_size: number;
+            /** @enum {string} */
+            sort: "name" | "file_size" | "mime_type" | "status" | "processing_status" | "created_at";
+            /** @enum {string} */
+            order: "asc" | "desc";
+        };
     };
     responses: never;
     parameters: {
         csrf: string;
         id: string;
+        page: number;
+        pageSize: number;
+        /** @description sort direction; defaults to the chosen field's default direction */
+        order: "asc" | "desc";
     };
     requestBodies: never;
     headers: never;
@@ -394,19 +411,35 @@ export type $defs = Record<string, never>;
 export interface operations {
     listDocuments: {
         parameters: {
-            query?: never;
+            query?: {
+                page?: components["parameters"]["page"];
+                page_size?: components["parameters"]["pageSize"];
+                /** @description default created_at (desc) */
+                sort?: "name" | "file_size" | "mime_type" | "status" | "processing_status" | "created_at";
+                /** @description sort direction; defaults to the chosen field's default direction */
+                order?: components["parameters"]["order"];
+                category_id?: string;
+                status?: string;
+                mime_type?: string;
+                source?: string;
+                processing_status?: string;
+                tag?: string;
+                created_by?: string;
+            };
             header?: never;
             path?: never;
             cookie?: never;
         };
         requestBody?: never;
         responses: {
-            /** @description list */
+            /** @description one page of documents (newest first by default) */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["DocumentPage"];
+                };
             };
         };
     };

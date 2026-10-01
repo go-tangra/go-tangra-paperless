@@ -125,3 +125,98 @@ describe('paperless views on the kit', () => {
     w.unmount()
   })
 })
+
+describe('documents: server paging and sorting (list contract)', () => {
+  beforeEach(() => {
+    setActivePinia(createPinia())
+    document.cookie = '__Host-csrf=tok; Secure; Path=/'
+    vi.stubGlobal('EventSource', FakeSource)
+    ;(globalThis as unknown as { __vw: number }).__vw = 1280
+  })
+  const params = (url: string) => new URL(url, 'https://x').searchParams
+  // A server of `total` documents that echoes the request and clamps the page.
+  function paged(total = 130) {
+    return (url: string) => {
+      if (url.includes('/categories')) return { items: [cat] }
+      const q = params(url)
+      const size = Number(q.get('page_size'))
+      const page = Math.min(Number(q.get('page')), Math.max(1, Math.ceil(total / size)))
+      return { items: [{ ...doc, id: 'p' + page, name: 'Doc ' + page, processing_status: 'pending' }], total, page, page_size: size, sort: q.get('sort'), order: q.get('order') }
+    }
+  }
+  const header = (w: ReturnType<typeof mount>, label: string) => w.findAll('th button').find((b) => b.text().startsWith(label))
+
+  it('pager with the total, whole-list header sort, filters back to page 1, live processing patches in place', async () => {
+    const calls = fetchMock(paged())
+    const w = mount(Documents, { global, attachTo: document.body })
+    await flushPromises()
+    const lists = () => calls.filter((c) => c.url.startsWith('/api/paperless/v1/documents?'))
+    const last = () => params(lists().at(-1)!.url)
+    expect(lists()[0]!.url).toBe('/api/paperless/v1/documents?page=1&page_size=25&sort=created_at&order=desc')
+    expect(w.text()).toContain('Showing 1–25 of 130')
+    await w.find('[aria-label="Page 3"]').trigger('click')
+    await flushPromises()
+    expect(last().get('page')).toBe('3')
+    // Every column is a server sort field.
+    const sortable = w.findAll('th button').map((b) => b.text())
+    for (const label of ['Name', 'Type', 'Size', 'Status', 'Processing', 'Created']) expect(sortable.some((t) => t.startsWith(label)), label).toBe(true)
+    // First click uses the column's default direction and returns to page 1; the second reverses.
+    await header(w, 'Name')!.trigger('click')
+    await flushPromises()
+    expect([last().get('sort'), last().get('order'), last().get('page')]).toEqual(['name', 'asc', '1'])
+    await header(w, 'Name')!.trigger('click')
+    await flushPromises()
+    expect(last().get('order')).toBe('desc')
+    await header(w, 'Size')!.trigger('click')
+    await flushPromises()
+    expect([last().get('sort'), last().get('order')]).toEqual(['file_size', 'desc'])
+    // A filter change returns to page 1 and keeps the sort.
+    await w.find('[aria-label="Page 2"]').trigger('click')
+    await flushPromises()
+    expect(last().get('page')).toBe('2')
+    const status = w.findAll('select')[0]!
+    await status.setValue('archived')
+    await flushPromises()
+    expect([last().get('status'), last().get('page'), last().get('sort'), last().get('order')]).toEqual(['archived', '1', 'file_size', 'desc'])
+    // Processing events patch the visible row without a reload.
+    const before = calls.length
+    const { useLive } = await import('@/stores/live')
+    useLive()._emit('document.completed', JSON.stringify({ document_id: 'p1', processing_status: 'completed' }))
+    await flushPromises()
+    expect(w.find('[data-test="doc-proc-p1"]').text()).toBe('completed')
+    expect(calls.length).toBe(before)
+    w.unmount()
+  })
+
+  it('page, size and sort live in the URL; the server-clamped page is adopted; invalid values fall back', async () => {
+    const r = createRouter({ history: createMemoryHistory(), routes: [{ path: '/paperless/documents', component: Documents }] })
+    await r.push('/paperless/documents?documents.page=9&documents.size=10&documents.sort=name&documents.order=asc')
+    await r.isReady()
+    const calls = fetchMock(paged(31))
+    const w = mount(Documents, { global: { plugins: [r] }, attachTo: document.body })
+    await flushPromises()
+    const first = params(calls.find((c) => c.url.includes('/documents?'))!.url)
+    expect([first.get('page'), first.get('page_size'), first.get('sort'), first.get('order')]).toEqual(['9', '10', 'name', 'asc'])
+    expect(r.currentRoute.value.query['documents.page']).toBe('4') // server clamped 9 → 4
+    w.unmount()
+    await r.push('/paperless/documents?documents.sort=content_text&documents.size=7')
+    const calls2 = fetchMock(paged(31))
+    const w2 = mount(Documents, { global: { plugins: [r] }, attachTo: document.body })
+    await flushPromises()
+    const q2 = params(calls2.find((c) => c.url.includes('/documents?'))!.url)
+    expect([q2.get('page'), q2.get('page_size'), q2.get('sort'), q2.get('order')]).toEqual(['1', '25', 'created_at', 'desc'])
+    w2.unmount()
+  })
+
+  it('dashboard falls back to the documents total when the statistics snapshot is unavailable', async () => {
+    vi.stubGlobal('fetch', vi.fn(async (url: string) =>
+      url.includes('/statistics')
+        ? new Response(JSON.stringify({ reason: 'temporarily_unavailable' }), { status: 503, headers: { 'Content-Type': 'application/json' } })
+        : new Response(JSON.stringify(url.includes('/categories') ? { items: [] } : { items: [doc], total: 130, page: 1, page_size: 25, sort: 'created_at', order: 'desc' }), { status: 200, headers: { 'Content-Type': 'application/json' } }),
+    ))
+    const w = mount(Dashboard, { global })
+    await flushPromises()
+    expect(w.text()).toContain('130')
+    w.unmount()
+  })
+})
