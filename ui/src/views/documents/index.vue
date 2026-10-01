@@ -185,7 +185,7 @@ function openShare(): void {
       <template #after>
         <UiKeyValueTable class="mt-4" :items="meta" />
         <div class="mt-3 flex flex-wrap gap-2">
-          <a v-if="selected" :href="store.directDownload(selected.id)" target="_blank" rel="noopener" class="btn btn-soft btn-sm"><span class="icon-[mdi--download] size-4" aria-hidden="true" />Download</a>
+          <a v-if="selected" :href="store.directDownload(selected.id)" target="_blank" rel="noopener" class="btn btn-primary btn-soft btn-sm" data-test="doc-download"><span class="icon-[mdi--download] size-4" aria-hidden="true" />Download</a>
           <UiButton size="sm" variant="text" icon="mdi-link-variant" @click="fetchLink">Get link</UiButton>
           <UiButton v-if="canShare" size="sm" variant="soft" icon="mdi-shield-account-outline" data-test="doc-share" @click="openShare">Share access</UiButton>
           <span class="grow" />

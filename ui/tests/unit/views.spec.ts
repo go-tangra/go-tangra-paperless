@@ -71,6 +71,10 @@ describe('paperless views on the kit', () => {
     await flushPromises()
     const drawer = document.body.querySelector('aside[role=dialog]')!
     expect(drawer.textContent).toContain('inv.pdf')
+    // Download is an enabled action: a soft button needs a colour or it renders muted like a disabled one.
+    const download = drawer.querySelector<HTMLAnchorElement>('[data-test="doc-download"]')!
+    expect(download.classList.contains('btn-primary')).toBe(true)
+    expect(download.getAttribute('href')).toContain('/documents/d1/download')
     const name = drawer.querySelector<HTMLInputElement>('input[data-field=name]')!
     expect(name.value).toBe('Invoice')
     name.value = 'Renamed'
