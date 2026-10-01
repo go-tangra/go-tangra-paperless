@@ -24,7 +24,6 @@ const shareOpen = ref(false)
 // Listing and changing grants needs permissions:manage (ability manage PaperlessPermission).
 const ability = inject<AnyAbility | null>(ABILITY_TOKEN, null)
 const canShare = computed(() => (ability ? ability.can('manage', 'PaperlessPermission') : true))
-const downloadUrl = ref('')
 const error = ref('')
 
 // --- server paging and sorting (page / size / sort in the URL: ?documents.page=…) ---
@@ -99,7 +98,6 @@ const editFields = computed(() => zodToFields(documentSchema, { category_id: { t
 const editInitial = computed(() => (selected.value ? { name: selected.value.name, description: selected.value.description ?? '', category_id: selected.value.category_id ?? '', tags: selected.value.tags ?? {} } : {}))
 function open(d: Document): void {
   selected.value = d
-  downloadUrl.value = ''
   error.value = ''
   drawer.value = true
 }
@@ -110,14 +108,6 @@ async function remove(): Promise<void> {
     await store.remove(selected.value.id)
     drawer.value = false
     reload()
-  } catch (e) {
-    error.value = describe(e)
-  }
-}
-async function fetchLink(): Promise<void> {
-  if (!selected.value) return
-  try {
-    downloadUrl.value = await store.downloadUrl(selected.value.id)
   } catch (e) {
     error.value = describe(e)
   }
@@ -186,12 +176,10 @@ function openShare(): void {
         <UiKeyValueTable class="mt-4" :items="meta" />
         <div class="mt-3 flex flex-wrap gap-2">
           <a v-if="selected" :href="store.directDownload(selected.id)" target="_blank" rel="noopener" class="btn btn-primary btn-soft btn-sm" data-test="doc-download"><span class="icon-[mdi--download] size-4" aria-hidden="true" />Download</a>
-          <UiButton size="sm" variant="text" icon="mdi-link-variant" @click="fetchLink">Get link</UiButton>
           <UiButton v-if="canShare" size="sm" variant="soft" icon="mdi-shield-account-outline" data-test="doc-share" @click="openShare">Share access</UiButton>
           <span class="grow" />
           <UiButton size="sm" variant="soft" color="error" icon="mdi-delete-outline" @click="remove">Delete</UiButton>
         </div>
-        <UiAlert v-if="downloadUrl" kind="info" class="mt-3"><a :href="downloadUrl" target="_blank" rel="noopener" class="link break-all">{{ downloadUrl }}</a></UiAlert>
       </template>
     </UiRecordDrawer>
     <SharingDrawer v-if="selected" v-model="shareOpen" resource-type="document" :resource-id="selected.id" :name="selected.name" />

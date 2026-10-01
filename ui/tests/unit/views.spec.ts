@@ -75,6 +75,7 @@ describe('paperless views on the kit', () => {
     const download = drawer.querySelector<HTMLAnchorElement>('[data-test="doc-download"]')!
     expect(download.classList.contains('btn-primary')).toBe(true)
     expect(download.getAttribute('href')).toContain('/documents/d1/download')
+    expect(drawer.textContent).not.toContain('Get link')
     const name = drawer.querySelector<HTMLInputElement>('input[data-field=name]')!
     expect(name.value).toBe('Invoice')
     name.value = 'Renamed'
