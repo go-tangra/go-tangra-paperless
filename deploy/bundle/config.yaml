@@ -27,13 +27,14 @@ db:
   dsn: postgres://paperless_app:${GEN_PASSWORD_2}@paperless-db:5432/paperless?sslmode=verify-full&sslrootcert=/tls/ca.pem
   migrate_dsn: postgres://postgres:${GEN_PASSWORD_1}@paperless-db:5432/paperless?sslmode=verify-full&sslrootcert=/tls/ca.pem
   max_conns: 16
-# The event bus behind GET /api/paperless/v1/stream (live processing status);
-# paperless serves that stream itself, so a local Valkey is enough.
+# The core's event bus: processing events are published to
+# platform:events:<tenant>, which the gateway's SSE hub (and
+# GET /api/paperless/v1/stream) relay to the browser.
 valkey:
-  addresses: ["paperless-valkey:6379"]
+  addresses: ["${VALKEY_ADDRESS}"]
   username: paperless
-  password: ${GEN_PASSWORD_3}
-  ca_file: /tls/ca.pem
+  password: "${VALKEY_PASSWORD}"
+  ca_file: /tls/valkey-ca.pem
 kek: { source: env, env: PAPERLESS_KEK }
 # RustFS, Tika and Gotenberg are sidecars on the bundle's private network
 # (no published ports), reached over plain HTTP as in the platform stack.
@@ -43,7 +44,7 @@ object_store:
   region: us-east-1
   use_ssl: false
   access_key: paperless
-  secret_key: ${GEN_PASSWORD_4}
+  secret_key: ${GEN_PASSWORD_3}
   presign_ttl_seconds: 900
 extract:
   tika_url: http://paperless-tika:9998

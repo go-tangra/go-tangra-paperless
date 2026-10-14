@@ -3,8 +3,9 @@
 # Values come from .env (written by the gateway: core addresses, generated
 # passwords and keys, and the host inputs you gave). private/ holds the
 # single-use enrolment token, the mesh CA and this bundle's own TLS material.
-# Only the two mesh ports are published; the database, Valkey, RustFS, Tika
-# and Gotenberg stay on the bundle's private network.
+# Only the two mesh ports are published; the database, RustFS, Tika and
+# Gotenberg stay on the bundle's private network. Events go to the core's
+# Valkey (TLS), so the gateway and every other subscriber see them.
 name: tangra-paperless
 services:
   paperless-db:
@@ -25,30 +26,13 @@ services:
       test: ["CMD-SHELL", "pg_isready -U postgres -d paperless"]
       interval: 5s
       retries: 30
-  # Event bus (TLS only, one ACL user; the default user is off). The ACL
-  # file is written from the environment so the password is not on the
-  # command line.
-  paperless-valkey:
-    image: valkey/valkey:8.1-alpine
-    restart: unless-stopped
-    environment:
-      VALKEY_PASSWORD: ${GEN_PASSWORD_3}
-    entrypoint: ["sh", "-c", "install -d -o valkey -m 0700 /tls-vk && install -o valkey -m 0600 /tls/paperless-valkey.key /tls-vk/server.key && install -o valkey -m 0644 /tls/paperless-valkey.crt /tls-vk/server.crt && (umask 077 && printf 'user default off\\nuser paperless on >%s ~* &* +@all\\n' \"$$VALKEY_PASSWORD\" > /tls-vk/users.acl) && chown valkey /tls-vk/users.acl && exec docker-entrypoint.sh \"$$@\"", "--"]
-    command: ["valkey-server", "--port", "0", "--tls-port", "6379", "--tls-cert-file", "/tls-vk/server.crt", "--tls-key-file", "/tls-vk/server.key", "--tls-auth-clients", "no", "--aclfile", "/tls-vk/users.acl", "--appendonly", "yes"]
-    volumes:
-      - paperless-valkey:/data
-      - ./private/tls:/tls:ro
-    healthcheck:
-      test: ["CMD-SHELL", "valkey-cli --tls --cacert /tls/ca.pem -h paperless-valkey --user paperless --pass \"$$VALKEY_PASSWORD\" --no-auth-warning ping | grep -q PONG"]
-      interval: 5s
-      retries: 30
   # Document bytes (paperless creates its bucket on start).
   paperless-rustfs:
     image: rustfs/rustfs:1.0.1
     restart: unless-stopped
     environment:
       RUSTFS_ACCESS_KEY: paperless
-      RUSTFS_SECRET_KEY: ${GEN_PASSWORD_4}
+      RUSTFS_SECRET_KEY: ${GEN_PASSWORD_3}
       RUSTFS_VOLUMES: /data
     volumes:
       - paperless-rustfs:/data
@@ -88,6 +72,7 @@ services:
       - ./policy.yaml:/app/policy.yaml:ro
       - ./private/enrollment.token:/tokens/enrollment.token:ro
       - ./private/tls/ca.pem:/tls/ca.pem:ro
+      - ${VALKEY_CA_FILE}:/tls/valkey-ca.pem:ro
       - paperless-state:/state
     depends_on:
       paperless-db: { condition: service_healthy }
@@ -109,12 +94,10 @@ services:
       start_period: 10s
     depends_on:
       paperless-bootstrap: { condition: service_completed_successfully }
-      paperless-valkey: { condition: service_healthy }
       paperless-rustfs: { condition: service_healthy }
       paperless-tika: { condition: service_healthy }
       paperless-gotenberg: { condition: service_healthy }
 volumes:
   paperless-db: {}
-  paperless-valkey: {}
   paperless-rustfs: {}
   paperless-state: {}
