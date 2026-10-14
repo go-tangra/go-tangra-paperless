@@ -1,0 +1,25 @@
+# Freya service-to-service policy for paperless (rendered for this core's
+# trust domain): deny by default; the gateway forwards browser traffic, and
+# the asset module keeps its attachments here over paperless.v1 (the same
+# rules as deploy/policy.yaml).
+version: paperless-join-1
+rules:
+  - id: gateway-forwards
+    from: ["spiffe://${TRUST_DOMAIN}/svc/gateway"]
+    to: ["paperless"]
+    operations: ["*"]
+    effect: allow
+  - id: asset-documents
+    from: ["spiffe://${TRUST_DOMAIN}/svc/asset"]
+    to: ["paperless"]
+    operations: ["/paperless.v1.PaperlessDocumentService/Create",
+                 "/paperless.v1.PaperlessDocumentService/Get",
+                 "/paperless.v1.PaperlessDocumentService/Download",
+                 "/paperless.v1.PaperlessDocumentService/Delete",
+                 "/paperless.v1.PaperlessDocumentService/Search",
+                 "/paperless.v1.PaperlessDocumentService/List",
+                 "/paperless.v1.PaperlessCategoryService/Create",
+                 "/paperless.v1.PaperlessCategoryService/Get",
+                 "/paperless.v1.PaperlessCategoryService/List",
+                 "/paperless.v1.PaperlessCategoryService/GetTree"]
+    effect: allow
