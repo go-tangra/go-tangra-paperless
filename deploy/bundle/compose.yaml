@@ -1,0 +1,103 @@
+# paperless join bundle, rendered by the gateway's add-module wizard.
+#   docker compose up -d
+# Values come from .env (written by the gateway: core addresses, generated
+# passwords and keys, and the host inputs you gave). private/ holds the
+# single-use enrolment token, the mesh CA and this bundle's own TLS material.
+# Only the two mesh ports are published; the database, RustFS, Tika and
+# Gotenberg stay on the bundle's private network. Events go to the core's
+# Valkey (TLS), so the gateway and every other subscriber see them.
+name: tangra-paperless
+services:
+  paperless-db:
+    image: timescale/timescaledb:2.17.2-pg16
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: paperless
+      POSTGRES_PASSWORD: ${GEN_PASSWORD_1}
+      PAPERLESS_APP_PASSWORD: ${GEN_PASSWORD_2}
+    # The server key must belong to the postgres user: copy it before start.
+    entrypoint: ["sh", "-c", "install -d -o postgres -m 0700 /tls-pg && install -o postgres -m 0600 /tls/paperless-db.key /tls-pg/server.key && install -o postgres -m 0644 /tls/paperless-db.crt /tls-pg/server.crt && exec docker-entrypoint.sh \"$$@\"", "--"]
+    command: ["postgres", "-c", "ssl=on", "-c", "ssl_cert_file=/tls-pg/server.crt", "-c", "ssl_key_file=/tls-pg/server.key"]
+    volumes:
+      - paperless-db:/var/lib/postgresql/data
+      - ./private/tls:/tls:ro
+      - ./init-db.sh:/docker-entrypoint-initdb.d/10-app-role.sh:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d paperless"]
+      interval: 5s
+      retries: 30
+  # Document bytes (paperless creates its bucket on start).
+  paperless-rustfs:
+    image: rustfs/rustfs:1.0.1
+    restart: unless-stopped
+    environment:
+      RUSTFS_ACCESS_KEY: paperless
+      RUSTFS_SECRET_KEY: ${GEN_PASSWORD_3}
+      RUSTFS_VOLUMES: /data
+    volumes:
+      - paperless-rustfs:/data
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:9000/health"]
+      interval: 5s
+      retries: 40
+  # Text and metadata extraction.
+  paperless-tika:
+    image: apache/tika:3.3.1.0-full
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:9998/tika"]
+      interval: 5s
+      retries: 40
+      start_period: 10s
+  # Office-to-PDF conversion.
+  paperless-gotenberg:
+    image: gotenberg/gotenberg:8.37.0
+    restart: unless-stopped
+    command: ["gotenberg", "--api-port=3000"]
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://127.0.0.1:3000/health"]
+      interval: 5s
+      retries: 40
+      start_period: 10s
+  # Applies the schema before the service starts, and hands the state volume
+  # to the image's unprivileged user (uid 10001).
+  paperless-bootstrap:
+    image: ${MODULE_IMAGE}:${MODULE_VERSION}
+    user: "0:0"
+    entrypoint: ["sh", "-c", "chown 10001:10001 /state && exec paperlesssvc bootstrap -config /app/config.yaml"]
+    environment: &paperless-env
+      PAPERLESS_KEK: ${GEN_KEY_1}
+    volumes: &paperless-volumes
+      - ./config.yaml:/app/config.yaml:ro
+      - ./policy.yaml:/app/policy.yaml:ro
+      - ./private/enrollment.token:/tokens/enrollment.token:ro
+      - ./private/tls/ca.pem:/tls/ca.pem:ro
+      - ${VALKEY_CA_FILE}:/tls/valkey-ca.pem:ro
+      - paperless-state:/state
+    depends_on:
+      paperless-db: { condition: service_healthy }
+  paperless:
+    image: ${MODULE_IMAGE}:${MODULE_VERSION}
+    restart: unless-stopped
+    command: ["-config", "/app/config.yaml"]
+    environment:
+      <<: *paperless-env
+      FREYA_ADVERTISE_HOST: ${MODULE_ADVERTISE_HOST}
+    ports:
+      - "${MODULE_BIND_IP}:9955:9955"
+      - "${MODULE_BIND_IP}:9956:9956"
+    volumes: *paperless-volumes
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:9790/readyz"]
+      interval: 5s
+      retries: 60
+      start_period: 10s
+    depends_on:
+      paperless-bootstrap: { condition: service_completed_successfully }
+      paperless-rustfs: { condition: service_healthy }
+      paperless-tika: { condition: service_healthy }
+      paperless-gotenberg: { condition: service_healthy }
+volumes:
+  paperless-db: {}
+  paperless-rustfs: {}
+  paperless-state: {}
