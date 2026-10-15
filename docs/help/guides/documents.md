@@ -9,10 +9,9 @@ requires: documents:read
 Open **Documents** to see the list, newest first. Choose a column header to
 sort the whole list. **Status** and **Processing** narrow it down.
 
-The list shows every document of the tenant, so it opens for tenant owners
-and administrators and for users covered by a grant to *everyone in the
-tenant*. Other users find the documents shared with them through
-[search](search.md).
+The list shows every document of the tenant, so it opens only for tenant
+owners and administrators. Other users find the documents shared with them
+through [search](search.md).
 
 ## Upload
 

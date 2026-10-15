@@ -172,6 +172,14 @@ func (a *Authorizer) ancestors(ctx context.Context, tenantID, resourceType, reso
 	return set, path, nil
 }
 
+// tenantWide reports whether a grant covers the whole tenant: a tenant subject
+// with no resource id. A tenant-subject grant on one document or category
+// ("everyone in the tenant" on that item) applies to that resource and what it
+// covers, like any other grant, not to every resource in the tenant.
+func tenantWide(g store.PermissionTuple) bool {
+	return g.SubjectType == store.SubjectTenant && g.ResourceID == ""
+}
+
 // Effective returns the caller's permissions on a resource, combining direct,
 // inherited (ancestor category) and tenant-wide grants (admins get everything).
 // Resource id "" scopes to the collection (tenant-wide grants only).
@@ -202,7 +210,7 @@ func (a *Authorizer) Effective(ctx context.Context, s Subjects, resourceType, re
 		perms = Permissions{Read: true, Write: true}
 	}
 	for _, g := range grants {
-		if g.SubjectType == store.SubjectTenant || apply[g.ResourceType+":"+g.ResourceID] {
+		if tenantWide(g) || apply[g.ResourceType+":"+g.ResourceID] {
 			perms = union(perms, Of(g.Relation))
 		}
 	}
@@ -220,13 +228,12 @@ func (a *Authorizer) ListAccessible(ctx context.Context, s Subjects, resourceTyp
 		return nil, false, err
 	}
 	ids = map[string]bool{}
-	tenantWide := false
 	for _, g := range grants {
 		if !Of(g.Relation).Read {
 			continue
 		}
-		if g.SubjectType == store.SubjectTenant {
-			tenantWide = true
+		if tenantWide(g) {
+			all = true
 		}
 		if g.ResourceType == resourceType {
 			ids[g.ResourceID] = true
@@ -237,7 +244,7 @@ func (a *Authorizer) ListAccessible(ctx context.Context, s Subjects, resourceTyp
 			_ = sub // inheritance for listing is resolved per-resource by callers
 		}
 	}
-	if tenantWide {
+	if all {
 		return nil, true, nil
 	}
 	return ids, false, nil

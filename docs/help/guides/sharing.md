@@ -46,8 +46,10 @@ the tenant**, and may expire on a date. Access is the union of every grant
 that reaches you:
 
 - grants on the document or category itself;
-- grants on any category above it in the tree;
-- grants to everyone in the tenant.
+- grants on any category above it in the tree.
+
+A grant to everyone in the tenant works like any other grant: it covers the
+item you share it on and, for a category, everything inside it.
 
 Tenant owners and administrators always have `owner` access.
 
@@ -70,7 +72,3 @@ To remove a grant, choose the cross next to it.
   revoking `editor` or `owner` needs `owner` access, so a sharer cannot
   promote anyone or remove an owner.
 - A grant on a category applies to every document and subcategory inside it.
-
-> A grant to **everyone in the tenant** currently applies to every document
-> and category of the tenant, not only to the one you share it on. Use a
-> role or named users to share a single item.
