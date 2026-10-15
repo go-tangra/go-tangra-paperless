@@ -29,9 +29,9 @@ Very common words (`the`, `and`) are ignored.
 
 ## What is searched
 
-- Only documents you may read appear: tenant owners and administrators, and
-  users covered by a grant to everyone in the tenant, search everything;
-  other users search the documents shared with them directly.
+- Only documents you may read appear: tenant owners and administrators
+  search everything; other users search the documents shared with them
+  directly, including documents shared with everyone in the tenant.
 - Deleted documents are never found.
 - A document is searchable by its text only after its processing is
   `completed`. Before that, and when extraction failed, only its name and
